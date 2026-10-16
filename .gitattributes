@@ -1,0 +1,5 @@
+# Keep line endings consistent for text files, never touch binary files
+*.html text eol=lf
+*.js   text eol=lf
+*.md   text eol=lf
+*.pdf  binary
