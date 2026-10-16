@@ -130,5 +130,303 @@ window.CHEATSHEETS = [
         "**EventBridge** 'Package Version State Change' → start dependent pipelines. CodeArtifact has no triggers."
       ]}
     ]
+  },
+  {
+    domain: "d1", topic: "ECR",
+    sections: [
+      { h: "Key facts", items: [
+        "Managed Docker/OCI registry. **One private registry per account per Region** (`<acct>.dkr.ecr.<region>.amazonaws.com`) containing repositories.",
+        "Login: `aws ecr get-login-password | docker login --username AWS --password-stdin <registry>`. The token lasts **12 hours**.",
+        "IAM: `ecr:GetAuthorizationToken` (resource `*`). Pull = `BatchGetImage`, `GetDownloadUrlForLayer`, `BatchCheckLayerAvailability`. Push = `InitiateLayerUpload`, `UploadLayerPart`, `CompleteLayerUpload`, `PutImage`.",
+        "ECS/Fargate: the **task EXECUTION role** pulls the image (not the task role).",
+        "**Tag immutability** (IMMUTABLE) → reusing an existing tag on push fails. Deploy by **digest** for the strongest guarantee.",
+        "Encryption: AES-256 by default, or KMS (`aws/ecr` or a customer-managed key). **Fixed at repository creation**, so a new key means a new repository + migrating the images."
+      ]},
+      { h: "Policies", table: [
+        ["Policy", "Scope", "Use"],
+        ["Repository policy", "One repository", "**Cross-account pull** (+ IAM in the consumer account + KMS if a customer-managed key)"],
+        ["Registry permissions policy", "Whole registry", "Allow another account to **replicate in** (`ecr:CreateRepository`, `ecr:ReplicateImage`)"]
+      ]},
+      { h: "Lifecycle policies", items: [
+        "Expire images automatically: `tagStatus` tagged / untagged / any · `tagPatternList` (for example `prod-*`) · `countType` **imageCountMoreThan** or **sinceImagePushed** (days).",
+        "**Lower rulePriority is evaluated first.** A rule with `tagStatus: any` must have the **highest** number.",
+        "Each image is matched by **at most one rule**. Deletion happens **within 24 hours**.",
+        "Test safely with **lifecycle policy preview** (a dry run).",
+        "Per repository and **not copied by replication** → use repository creation templates."
+      ]},
+      { h: "Scanning: basic vs enhanced", table: [
+        ["", "Basic", "Enhanced (Inspector)"],
+        ["Scans", "OS packages only", "OS + **language packages** (npm, pip, Maven, Go…)"],
+        ["When", "On push or manual (manual once per 24 hours)", "On push + **continuous** (re-scans when new CVEs appear)"],
+        ["Cost", "**Free**", "Paid"],
+        ["Event", "`ECR Image Scan` (aws.ecr)", "`Inspector2 Finding` (aws.inspector2)"],
+        ["Results", "ECR console / API", "Inspector, ECR, **Security Hub**, organization-wide delegated admin"]
+      ]},
+      { h: "Replication", items: [
+        "Configured at the **registry level in the SOURCE**: rules + destinations (Region, optionally account) + repository **prefix filters**.",
+        "**Not retroactive**: only images pushed after it is set up. **Deletions are not replicated**. One-way.",
+        "Cross-account = source replication rule **+ destination registry permissions policy**.",
+        "Destination repositories are created automatically. Settings (KMS key, immutability, lifecycle, policy) come from **repository creation templates**.",
+        "Only need to pull, same Region? → repository policy (no copies). Other Regions or DR → replication."
+      ]},
+      { h: "Exam patterns", items: [
+        "Fail the pipeline on CRITICAL findings → CodeBuild: `aws ecr wait image-scan-complete` + `describe-image-scan-findings` → exit 1.",
+        "Alert on critical findings → **EventBridge** (Inspector2 Finding, severity CRITICAL) → SNS / Lambda.",
+        "Private subnets, no NAT → **ecr.api + ecr.dkr** interface endpoints + **S3 gateway** (+ logs).",
+        "Docker Hub rate limits, or private subnets need public images → **pull-through cache** (credentials in Secrets Manager, prefix `ecr-pullthroughcache/`).",
+        "Start a pipeline on image push → **CodePipeline ECR source action** (EventBridge image push event).",
+        "Image signing → **AWS Signer + Notation**. Audit of who pushed or deleted an image → **CloudTrail**."
+      ]},
+      { h: "Who pulls the image", table: [
+        ["Service", "Identity that pulls", "Remember"],
+        ["ECS / Fargate", "Task **execution** role", "Not the task role"],
+        ["EKS (EC2 nodes)", "**Node IAM role**", "`AmazonEC2ContainerRegistryReadOnly`"],
+        ["CodeBuild custom image", "`codebuild.amazonaws.com`", "Cross-account → repository policy allows the CodeBuild service principal"],
+        ["Lambda container image", "`lambda.amazonaws.com`", "Cross-account → repository policy allows the function's account + the Lambda service principal"],
+        ["Build servers / laptops", "The IAM identity", "**ECR credential helper** avoids the 12-hour `docker login` expiry"]
+      ]},
+      { h: "More lifecycle details", items: [
+        "`tagPrefixList` = start of the tag · `tagPatternList` = `*` wildcards anywhere.",
+        "**Several prefixes or patterns in ONE rule = the image must match ALL of them.** Use separate rules for OR.",
+        "Lifecycle doesn't know whether an image is **in use**. A count rule can delete an image a running service still needs, so protect release tags.",
+        "Deleted images **can't be recovered**. Audit with **CloudTrail**: `PolicyExecutionEvent` (lifecycle) vs `BatchDeleteImage` (person or script). EventBridge 'ECR Image Action' DELETE.",
+        "Newer (2025, check the docs): lifecycle can **archive** images to a cheaper tier, and **tag immutability exclusion filters** (for example keep `latest` mutable)."
+      ]},
+      { h: "More scanning details", items: [
+        "Registry scanning configuration: type + **filters** (`prod-*`) + frequency **SCAN_ON_PUSH** · **CONTINUOUS_SCAN** (enhanced) · **MANUAL** (basic). Per-repository `scanOnPush` is legacy.",
+        "Basic now uses an **AWS-native** engine (Clair is deprecated). `describe-image-scan-findings` gives **counts by severity**. A scan can be FAILED or UNSUPPORTED_IMAGE.",
+        "Enhanced: **re-scan duration** (by push or pull date: 30 days, 180 days, lifetime) controls cost · finding status Active / **Suppressed** / Closed · **suppression rules** for accepted risk · **SBOM export** · **delegated administrator** for the Organization.",
+        "**Never store vulnerable images** → scan in the build **before push**: Inspector SBOM generator + `ScanSbom`, or the CodePipeline **InspectorScan** action."
+      ]},
+      { h: "More replication and encryption details", items: [
+        "Filter type = **PREFIX_MATCH**. Status → `describe-image-replication-status` (IN_PROGRESS / COMPLETE / FAILED).",
+        "Same-account cross-Region → **no registry policy needed**. Cross-account → the destination registry policy is required.",
+        "Destination encryption is **not copied** (keys are regional). Set it with a **creation template**. Cost = cross-Region transfer + storage in each destination.",
+        "Encryption options: AES-256 · KMS · **KMS_DSSE** (dual layer). ECR uses **KMS grants**. A customer-managed key means pullers also need `kms:Decrypt`."
+      ]}
+    ]
+  },
+  {
+    domain: "d1", topic: "CodePipeline",
+    sections: [
+      { h: "Structure", items: [
+        "Pipeline → **stages** → **actions**. Stages are linked by **transitions** (which can be **disabled** to hold changes). Each run is an **execution**.",
+        "**Same `runOrder` = parallel**. A higher runOrder runs after the lower ones. Any failed action fails the stage, and you can **retry** the stage or just the failed actions.",
+        "Source providers: CodeCommit · **S3 (versioning required)** · ECR · **CodeConnections** (GitHub, GitLab, Bitbucket). GitHub version 1 (OAuth) is deprecated.",
+        "Change detection: **EventBridge** (CodeCommit, S3, ECR) or the connection's **webhook**. Polling is legacy.",
+        "`CODE_ZIP` (default, no .git) vs **`CODEBUILD_CLONE_REF`** (full clone) → CodeBuild role needs `codecommit:GitPull` / `UseConnection`."
+      ]},
+      { h: "Artifacts and KMS", items: [
+        "Artifact store = an **S3 bucket in the pipeline's Region**. Artifacts are zipped and passed by name.",
+        "**Never deleted automatically** → add an **S3 lifecycle rule**.",
+        "Default key `aws/s3` works in one account only. **Cross-account needs a customer-managed KMS key** + key policy + bucket policy.",
+        "Bucket policy: deny unencrypted uploads, deny when `aws:SecureTransport` is false."
+      ]},
+      { h: "Manual approval", items: [
+        "Pauses the pipeline. Optional **SNS** notification, review URL, comments.",
+        "**Times out after 7 days** → the action fails.",
+        "Restrict approvers → IAM **`codepipeline:PutApprovalResult`** on the approval action's ARN (`pipeline/stage/action`).",
+        "Automate → Lambda: `GetPipelineState` (token) → `PutApprovalResult`.",
+        "Infrastructure review → **CHANGE_SET_REPLACE → approval → CHANGE_SET_EXECUTE**."
+      ]},
+      { h: "Cross-Region and cross-account", table: [
+        ["", "What you need"],
+        ["Cross-Region", "**`artifactStores`**: an S3 bucket **+ KMS key per Region**. Artifacts are copied automatically. **Source stays in the pipeline's Region.**"],
+        ["Cross-account", "**Customer-managed key** (key policy allows the target) + bucket policy + **role in the target account** (action `roleArn`) trusting Tools + pipeline role `sts:AssumeRole`"],
+        ["Cross-account CloudFormation", "+ a **deployment role** (`RoleArn` in the configuration) and `iam:PassRole` on it"],
+        ["Cross-account CodeCommit source", "Role in the source account + **EventBridge rule forwarding to the Tools event bus**"]
+      ]},
+      { h: "Variables", items: [
+        "Syntax `#{namespace.var}`. Give actions a **namespace**. Values are specific to each execution.",
+        "Source: `#{SourceVariables.CommitId}`, `BranchName`, `CommitMessage`. CodeBuild: `exported-variables`. Lambda: `outputVariables`. CloudFormation: stack outputs.",
+        "**V2 pipeline variables** `#{variables.Env}`: a default value, **overridden when the pipeline is started**. Built-in: `#{codepipeline.PipelineExecutionId}`."
+      ]},
+      { h: "V2 vs V1", table: [
+        ["Feature", "V1", "V2"],
+        ["Pricing", "About $1 per active pipeline per month", "Per action execution minute"],
+        ["Triggers (branch, **file path**, **Git tag**, **pull request**)", "No", "Yes (CodeConnections sources)"],
+        ["Pipeline variables", "No", "Yes"],
+        ["Execution modes", "SUPERSEDED", "SUPERSEDED · **QUEUED** · **PARALLEL**"],
+        ["Conditions, automatic **ROLLBACK** or **RETRY**", "No", "Yes"]
+      ]},
+      { h: "Execution modes and conditions", items: [
+        "**SUPERSEDED**: the latest change wins (waiting runs are replaced). **QUEUED**: every run, **in order**. **PARALLEL**: runs at the same time (feature branches, PRs).",
+        "Conditions: **Entry** (FAIL / SKIP) · **On success** (e.g. ROLLBACK) · **On failure** (ROLLBACK / RETRY).",
+        "Rules: **CloudWatchAlarm**, **DeploymentWindow**, VariableCheck, LambdaInvoke, Commands.",
+        "ROLLBACK = re-deploy the stage with the source revisions of its **last successful execution**."
+      ]},
+      { h: "Deploy actions", items: [
+        "CloudFormation `ActionMode`: CREATE_UPDATE · DELETE_ONLY · REPLACE_ON_FAILURE · **CHANGE_SET_REPLACE** · **CHANGE_SET_EXECUTE**.",
+        "SAM or macros → **`CAPABILITY_AUTO_EXPAND`**. IAM resources → `CAPABILITY_IAM` / `CAPABILITY_NAMED_IAM`.",
+        "`TemplateConfiguration` = parameters + tags + stack policy. **StackSets** action = many accounts and Regions.",
+        "ECS rolling → **`imagedefinitions.json`**. ECS blue/green (CodeDeployToECS) → **`imageDetail.json` + `appspec.yaml` + `taskdef.json`**.",
+        "S3 deploy `Extract: true` (static sites). Lambda invoke → must call **`PutJobSuccessResult` / `PutJobFailureResult`**."
+      ]},
+      { h: "Monitoring and control", items: [
+        "**EventBridge**: Pipeline / Stage / Action Execution State Change (FAILED → SNS or Lambda).",
+        "**Notification rules** → SNS or Slack (Chatbot), including **'approval needed'**, with no code.",
+        "**CloudTrail** for who started, approved or changed the pipeline. Stop = 'stop and wait' or 'stop and abandon'.",
+        "Pipeline as code: CloudFormation `AWS::CodePipeline::Pipeline` or **CDK Pipelines** (self-mutating, `crossAccountKeys`)."
+      ]}
+    ]
+  },
+  {
+    domain: "d1", topic: "CodeConnections",
+    sections: [
+      { h: "Key facts", items: [
+        "A secure link from AWS to **GitHub, Bitbucket and GitLab** with **no stored tokens** (it uses the provider's **app installation**). Free.",
+        "**Renamed** from CodeStar Connections to **CodeConnections**. ARNs: `codestar-connections` / `codeconnections`. Put **both prefixes** in IAM policies.",
+        "Replaces the **deprecated GitHub version 1** source action (OAuth or personal token) and `PutWebhook`.",
+        "Belongs to **one account and one Region**. A pipeline can't use another account's connection."
+      ]},
+      { h: "Providers", table: [
+        ["Provider", "Needs"],
+        ["GitHub / GitHub Enterprise Cloud, Bitbucket Cloud, GitLab.com", "A connection"],
+        ["GitHub Enterprise Server, GitLab self-managed", "A **host** + connection (**VPC configuration** for private servers: subnets, security groups, TLS certificate)"],
+        ["Azure DevOps, Bitbucket Server / Data Center", "**Not supported** → push a zip to **S3** or mirror to CodeCommit"]
+      ]},
+      { h: "States", items: [
+        "**PENDING** → **AVAILABLE** → (ERROR if the app is uninstalled or access is revoked).",
+        "Created by **CloudFormation or the CLI = always PENDING** → console **'Update pending connection'** to finish the handshake (**can't be automated**).",
+        "A GitHub org owner or Bitbucket workspace admin may need to approve the app.",
+        "Repository missing from the list → add it to the app's **selected repositories**."
+      ]},
+      { h: "CodePipeline source action", items: [
+        "Provider `CodeStarSourceConnection`: `ConnectionArn`, `FullRepositoryId` (owner/repo), `BranchName`, `OutputArtifactFormat`, `DetectChanges`.",
+        "`CODE_ZIP` (no .git) vs **`CODEBUILD_CLONE_REF`** (full clone) → **CodeBuild role needs UseConnection**.",
+        "Variables: `CommitId`, `CommitMessage`, `BranchName`, `FullRepositoryName`, `AuthorDate`.",
+        "**V2 triggers** (connection sources only): push (branch, **file path**, **Git tag**) and **pull request** (opened, updated, closed).",
+        "Not starting on push → `DetectChanges` is false, a trigger filter doesn't match, or the connection isn't AVAILABLE."
+      ]},
+      { h: "IAM", table: [
+        ["Permission", "Who"],
+        ["`UseConnection`", "Pipeline role · **CodeBuild role** (clone ref / connection source)"],
+        ["`PassConnection`", "The **person or tool creating** the pipeline or resource"],
+        ["`CreateConnection`, `DeleteConnection`, `CreateHost`…", "Admins only"],
+        ["Condition `FullRepositoryId`", "Limit to specific repositories"],
+        ["Conditions `PassedToService`, `ProviderType`, `ProviderPermissionsRequired`", "Limit the service, the provider, or read-only access"]
+      ]},
+      { h: "Other services", items: [
+        "**CodeBuild**: a connection as source credentials (can be the account default) · **webhooks with filter groups** for PR checks without a pipeline (status reported back).",
+        "**CodeBuild-hosted GitHub Actions runners** (`WORKFLOW_JOB_QUEUED`) → jobs with VPC access and IAM roles.",
+        "**CloudFormation Git sync** → stack synced from Git (connection + repository link + deployment file), no pipeline.",
+        "Also: Service Catalog sync, CodeGuru Reviewer, Proton, Amazon Q Developer.",
+        "IaC: `AWS::CodeStarConnections::Connection` (still PENDING) → authorize once and keep its ARN in Parameter Store."
+      ]}
+    ]
+  },
+  {
+    domain: "d1", topic: "CodeGuru",
+    sections: [
+      { h: "Note", items: [
+        "Features are moving into **Amazon Q Developer** (code review) and **Inspector** (code security). CodeGuru Security is retired, and Reviewer may not accept new customers. For the exam, know **when to choose each tool**."
+      ]},
+      { h: "Reviewer vs Profiler", table: [
+        ["", "Reviewer", "Profiler"],
+        ["Type", "Analyses code without running it (ML + automated reasoning)", "Measures the **running** app (sampling agent, ~1% overhead)"],
+        ["When", "**Pull requests** + full repository analysis", "Test or **production**"],
+        ["Languages", "**Java, Python**", "**JVM (Java, Kotlin, Scala), Python**"],
+        ["Output", "**Comments on the pull request**", "**Flame graphs**, recommendations, anomaly alerts"],
+        ["Keywords", "code review, before merge, secrets", "CPU hot spots, latency, reduce compute cost"]
+      ]},
+      { h: "CodeGuru Reviewer", items: [
+        "Finds: AWS API misuse (**pagination**, retries, re-created clients) · **resource leaks** · **concurrency** · security (OWASP / CWE) · **hard-coded secrets** (→ Secrets Manager) · code quality.",
+        "**Incremental** = each pull request (changed code only) · **Full repository analysis** = whole branch (baseline).",
+        "Repositories: CodeCommit, GitHub (incl. Enterprise), Bitbucket (through **CodeConnections**).",
+        "CI/CD: upload to an S3 bucket named **`codeguru-reviewer-*`** + API, or the **GitHub Action**. Java security scans need **build artifacts** (.jar / .class).",
+        "Customer-managed KMS key optional · service-linked role · priced per **lines of code**."
+      ]},
+      { h: "CodeGuru Profiler", items: [
+        "Agent → **profiling group**. Runs on EC2, ECS, EKS, Fargate, **Lambda**, on-premises.",
+        "Java `-javaagent` · Python `codeguru_profiler_agent` · **Lambda: turn on 'Code profiling'**.",
+        "IAM: **`AmazonCodeGuruProfilerAgentAccess`** (`ConfigureAgent`, `PostAgentProfile`). An empty group usually means a missing permission.",
+        "Views: **CPU flame graph** · **latency (wall-clock, includes waiting)** · **heap summary** (Java memory) · hotspots.",
+        "Recommendation reports (with **cost savings**) · **anomaly detection** → SNS · priced per profiling hour."
+      ]},
+      { h: "Which service?", table: [
+        ["Need", "Service"],
+        ["Pull request review, AWS best practices, secrets in code", "**CodeGuru Reviewer**"],
+        ["Expensive methods in a running app, CPU cost", "**CodeGuru Profiler**"],
+        ["Slow request **across services**", "**X-Ray** (then Profiler inside the slow service)"],
+        ["CVEs in packages, images, Lambda", "**Inspector**"],
+        ["ML-based operational anomalies across resources", "**DevOps Guru**"],
+        ["CPU % or memory % metrics", "**CloudWatch** / Container Insights / Lambda Insights"],
+        ["Store and rotate the found secrets", "**Secrets Manager**"]
+      ]}
+    ]
   }
 ];
+
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "CI/CD Concepts",
+  sections: [
+    { h: "CI vs CD vs CD", table: [
+      ["Term", "Meaning", "Exam signal"],
+      ["Continuous integration", "Small merges, **automatic build + test** on every change", "Find integration problems early"],
+      ["Continuous **delivery**", "Always ready to release, **manual approval** before prod", "\"Approval before production\""],
+      ["Continuous **deployment**", "Passing changes go to prod **automatically**", "\"No manual intervention\""]
+    ]},
+    { h: "Branching, flags, environments", items: [
+      "**Trunk-based** (main + very short branches, **feature flags**) · **GitHub flow** (feature branch → PR → main) · **GitFlow** (develop, release and hotfix branches).",
+      "**Feature flags** decouple deploy from release → **AWS AppConfig** (gradual rollout, automatic rollback on alarms).",
+      "Promote Dev → Test → Staging → Prod. Isolate with **separate accounts** + a central Tools pipeline account (smaller blast radius)."
+    ]},
+    { h: "Tests by stage", table: [
+      ["Stage", "Tests", "Tools"],
+      ["Build / PR", "Unit, lint, SAST, secrets, dependency CVEs", "CodeBuild reports, CodeGuru Reviewer, Inspector"],
+      ["Test env", "Integration, contract", "CodeBuild in a VPC"],
+      ["Staging", "Acceptance / UI, **load**, security, **chaos**", "Device Farm, **Distributed Load Testing on AWS**, **FIS**"],
+      ["Prod", "**Smoke** + continuous **canaries**", "CodeDeploy ValidateService, **CloudWatch Synthetics** → alarm → rollback"]
+    ]},
+    { h: "Exit codes", items: [
+      "0 = pass, **non-zero = the command or phase fails** (CodeBuild), the deployment fails (CodeDeploy hooks), or the container is unhealthy (health checks).",
+      "Hidden failures: an `|| true` fallback, or **pipes** (`pytest | tee`) → `set -o pipefail`. Plain `curl` exits 0 on HTTP 500 → **`curl --fail`**.",
+      "Complex test orchestration → **Step Functions invoke action**. Custom checks → Lambda invoke (`PutJobSuccessResult` / `PutJobFailureResult`)."
+    ]},
+    { h: "Artifacts", items: [
+      "S3: **versioning** · lifecycle (**expire noncurrent versions**) · SSE-KMS + deny non-HTTPS · Block Public Access · replication · presigned URLs.",
+      "**Object Lock** (WORM, needs versioning): **governance** (can be overridden with permission) vs **compliance** (nobody, not even root) · legal hold.",
+      "**Build once, deploy many**: promote the same artifact / **image digest**. Keep settings outside it (Parameter Store, AppConfig, TemplateConfiguration).",
+      "Lambda: only signed code → **AWS Signer + code signing configuration (Enforce)**."
+    ]},
+    { h: "Third-party CI", table: [
+      ["Situation", "Answer"],
+      ["GitHub Actions / GitLab / Bitbucket → AWS without keys", "**IAM OIDC provider + role** (AssumeRoleWithWebIdentity), restrict **`sub`** (repository + branch) and `aud`"],
+      ["Jenkins out of capacity", "**CodeBuild plugin for Jenkins** (or a CodePipeline Jenkins action)"],
+      ["Jenkins on EC2 / ECS", "Instance profile / task role (never stored keys)"],
+      ["Jenkins on-premises without keys", "**IAM Roles Anywhere** (X.509 certificates)"],
+      ["Tool with no pipeline action", "**Custom action + job worker** (PollForJobs), or Lambda / Step Functions / Commands"]
+    ]}
+  ]
+});
+
+// Extra exam scenarios added after the question gap review.
+[
+  ["CodeCommit", [
+    "Only from the corporate network or VPC → IAM / **SCP Deny** unless `aws:SourceIp` or `aws:SourceVpce` matches.",
+    "Large binaries (models, media) → **S3** (or Git LFS), not the Git repository (the console and API have a limit of about 6 MB per file)."
+  ]],
+  ["CodeBuild", [
+    "Partner allow-lists a **fixed outbound IP** → build in a VPC private subnet → **NAT gateway with an Elastic IP**.",
+    "Slow PROVISIONING, need machines ready → **reserved capacity fleet**.",
+    "Artifacts with a customer-managed key → the project's **encryption key** (+ key policy + role)."
+  ]],
+  ["CodeArtifact", [
+    "Whole Organization, including future accounts → domain and repository policy with **`aws:PrincipalOrgID`**."
+  ]],
+  ["ECR", [
+    "Only signed images may run → **AWS Signer + Notation** + an admission controller (Kyverno / Ratify) in EKS."
+  ]],
+  ["CodePipeline", [
+    "Start on an image push (no code repository) → **ECR source action** (outputs `imageDetail.json`).",
+    "One template → many accounts, OUs and Regions (+ new accounts) → **StackSets actions**, service-managed, automatic deployment.",
+    "Different parameters, tags or stack policy per environment → **TemplateConfiguration** file per stage.",
+    "Automated approval check → Lambda: `GetPipelineState` → **`PutApprovalResult`**.",
+    "Cross-account CodeCommit source → **EventBridge rule in the source account → Tools event bus**.",
+    "Pipeline updates its own definition → **CDK Pipelines self-mutation**.",
+    "Stop immediately → **Stop and abandon** · let running actions finish → **Stop and wait**."
+  ]]
+].forEach(([topic, items]) => {
+  const c = window.CHEATSHEETS.find(x => x.topic === topic);
+  if (c) c.sections.push({ h: "More exam scenarios", items });
+});
