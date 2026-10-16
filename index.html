@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOP-C02 Study Hub</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --surface: #ffffff; --surface-2: #eef1f6; --text: #1b2333; --muted: #5d6779;
+    --border: #d9dee7; --accent: #e8761a; --accent-ink: #ffffff; --navy: #1f2a44;
+    --ok: #1a7f4b; --ok-bg: #e5f5ec; --bad: #c0352b; --bad-bg: #fcebea; --tip-bg: #fff4e8;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 14px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f141d; --surface: #171e2b; --surface-2: #1f2838; --text: #e6eaf2; --muted: #9aa5b8;
+      --border: #2c3648; --accent: #f08a35; --accent-ink: #1a1206; --navy: #0b1220;
+      --ok: #4cc38a; --ok-bg: #12301f; --bad: #f0786e; --bad-bg: #3a1714; --tip-bg: #2e2112;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f141d; --surface: #171e2b; --surface-2: #1f2838; --text: #e6eaf2; --muted: #9aa5b8;
+    --border: #2c3648; --accent: #f08a35; --accent-ink: #1a1206; --navy: #0b1220;
+    --ok: #4cc38a; --ok-bg: #12301f; --bad: #f0786e; --bad-bg: #3a1714; --tip-bg: #2e2112;
+    --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header.top { background: var(--navy); color: #fff; border-bottom: 3px solid var(--accent); }
+  header.top .in { max-width: 860px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  header.top h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .2px; flex: 1; }
+  header.top button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 5px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .domain { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .domain .dh { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); }
+  .domain .dh strong { flex: 1; font-size: 14px; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .topics { padding: 6px 12px 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .topic { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; user-select: none; }
+  .topic input { accent-color: var(--accent); }
+  .topic .stat { font-size: 12px; color: var(--muted); }
+  .soon { padding: 8px 12px 12px; font-size: 13px; color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+  select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .btn { font: inherit; font-weight: 600; border-radius: 9px; padding: 10px 18px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .progress { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 6px 0 14px; }
+  .progress > div { height: 100%; background: var(--accent); transition: width .25s; }
+  .qmeta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+  .chip { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: var(--tip-bg); color: var(--accent); border: 1px solid transparent; }
+  .chip.multi { background: var(--surface-2); color: var(--text); }
+  .qtext { font-size: 16px; margin: 12px 0 14px; }
+  .choice { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+            border-radius: 10px; padding: 11px 13px; margin-bottom: 9px; cursor: pointer; font: inherit; }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice .k { flex: 0 0 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--surface-2); }
+  .choice.sel { border-color: var(--accent); background: var(--tip-bg); }
+  .choice.sel .k { background: var(--accent); color: var(--accent-ink); }
+  .choice:disabled { cursor: default; }
+  .choice.right { border-color: var(--ok); background: var(--ok-bg); }
+  .choice.right .k { background: var(--ok); color: #fff; }
+  .choice.wrong { border-color: var(--bad); background: var(--bad-bg); }
+  .choice.wrong .k { background: var(--bad); color: #fff; }
+  .choice .body { flex: 1; }
+  .why { display: block; margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+  .why b { color: var(--text); }
+  .verdict { border-radius: 10px; padding: 10px 14px; font-weight: 650; margin: 4px 0 10px; }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  .verdict.bad { background: var(--bad-bg); color: var(--bad); }
+  .tip { background: var(--tip-bg); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 14px; margin-top: 6px; }
+  .score { font-size: 42px; font-weight: 750; margin: 0; }
+  .bar { display: grid; grid-template-columns: 140px 1fr 70px; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+  .bar .track { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+  .bar .track > div { height: 100%; }
+  details.rev { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  details.rev summary { cursor: pointer; font-size: 14px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+  .kbd { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  header.top .in { flex-wrap: wrap; }
+  nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.tabs button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.sm { padding: 6px 12px; font-size: 13px; }
+  .topicbox { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .tbh { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .tbh strong { flex: 1; font-size: 14px; }
+  .mat { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .mi { font-size: 11px; font-weight: 700; color: #fff; background: var(--bad); border-radius: 5px; padding: 2px 6px; }
+  .mt { flex: 1; min-width: 160px; overflow-wrap: anywhere; font-size: 14px; }
+  .viewer iframe { width: 100%; height: 78vh; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  .notice { background: var(--tip-bg); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+  input.search { font: inherit; padding: 8px 11px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 100%; margin-top: 12px; }
+  .cs h3 { font-size: 15px; margin: 20px 0 8px; color: var(--accent); }
+  .cs ul { margin: 0; padding-left: 20px; }
+  .cs li { margin: 6px 0; }
+  .tablewrap { overflow-x: auto; }
+  table.cst { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.cst th { background: var(--navy); color: #fff; text-align: left; padding: 7px 9px; font-weight: 600; }
+  table.cst td { border-bottom: 1px solid var(--border); padding: 7px 9px; vertical-align: top; }
+  @media print {
+    header.top, .noprint { display: none !important; }
+    body { background: #fff; color: #000; }
+    .card { box-shadow: none; border: none; }
+  }
+  @media (max-width: 560px) { .bar { grid-template-columns: 96px 1fr 56px; } .score { font-size: 34px; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <h1>AWS DevOps Pro (DOP-C02) · Study Hub</h1>
+  <nav class="tabs">
+    <button data-nav="quiz">Quiz</button>
+    <button data-nav="study">Study PDFs</button>
+    <button data-nav="cheat">Cheat sheets</button>
+  </nav>
+  <button id="themeBtn" title="Toggle theme">Theme</button>
+</div></header>
+<main id="app"></main>
+
+<script src="questions.js"></script>
+<script src="cheatsheets.js"></script>
+<script src="materials.js"></script>
+<script>
+(() => {
+  const app = document.getElementById("app");
+  const LS_KEY = "dopc02-quiz-v1";
+  const store = {
+    load() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; } },
+    save(d) { try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch {} }
+  };
+  let saved = store.load();               // { results: {qid: true/false}, prefs: {...}, theme }
+  saved.results = saved.results || {};
+  saved.prefs = saved.prefs || { count: "all", shuffleQ: true, shuffleO: true, topics: null };
+
+  // theme
+  const applyTheme = () => { if (saved.theme) document.documentElement.dataset.theme = saved.theme; };
+  applyTheme();
+  document.getElementById("themeBtn").onclick = () => {
+    const dark = saved.theme ? saved.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    saved.theme = dark ? "light" : "dark"; applyTheme(); store.save(saved);
+  };
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmt = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const key = (d, t) => d + "::" + t;
+  const LETTERS = "ABCDEFGH";
+
+  let state = null;
+
+  // ───────── Home ─────────
+  function home() {
+    state = null; setNav("quiz");
+    const allTopicKeys = [];
+    const domainsHtml = DOMAINS.map(d => {
+      const topics = d.topics.map(t => {
+        const qs = QUESTIONS.filter(q => q.domain === d.id && q.topic === t);
+        const tried = qs.filter(q => q.id in saved.results);
+        const right = tried.filter(q => saved.results[q.id]).length;
+        const k = key(d.id, t); allTopicKeys.push(k);
+        const checked = !saved.prefs.topics || saved.prefs.topics.includes(k);
+        const stat = tried.length ? `${right}/${tried.length} right` : "not tried";
+        return `<label class="topic"><input type="checkbox" data-k="${k}" ${checked ? "checked" : ""} ${qs.length ? "" : "disabled"}>
+                <span>${esc(t)} <span class="stat">· ${qs.length} Q · ${stat}</span></span></label>`;
+      }).join("");
+      const total = QUESTIONS.filter(q => q.domain === d.id).length;
+      return `<div class="domain"><div class="dh"><strong>${esc(d.name)}</strong>
+              <span class="pill">${d.weight}% of exam</span><span class="pill">${total} questions</span></div>
+              ${d.topics.length ? `<div class="topics">${topics}</div>` : `<div class="soon">Coming soon — questions will be added as you study this domain.</div>`}</div>`;
+    }).join("");
+
+    const missed = QUESTIONS.filter(q => saved.results[q.id] === false).length;
+    const p = saved.prefs;
+    app.innerHTML = `
+      <div class="card">
+        <h2>Choose domains & topics</h2>
+        <p class="muted small" style="margin-top:-4px">Scenario-based questions in the real exam style. After each answer you'll see why the right option is right and why each other option is wrong.</p>
+        ${domainsHtml}
+      </div>
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="row">
+          <label class="opt">Questions:
+            <select id="count">${["all", 5, 10, 20, 30].map(v => `<option value="${v}" ${String(p.count) === String(v) ? "selected" : ""}>${v === "all" ? "All selected" : v}</option>`).join("")}</select>
+          </label>
+          <label class="opt"><input type="checkbox" id="shQ" ${p.shuffleQ ? "checked" : ""}> Shuffle questions</label>
+          <label class="opt"><input type="checkbox" id="shO" ${p.shuffleO ? "checked" : ""}> Shuffle answer options</label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="start">Start quiz</button>
+          <button class="btn" id="missed" ${missed ? "" : "disabled"}>Practice missed questions (${missed})</button>
+          <button class="btn" id="reset">Reset progress</button>
+        </div>
+        <div id="msg" class="small muted" style="margin-top:8px"></div>
+      </div>`;
+
+    const readPrefs = () => {
+      p.count = document.getElementById("count").value;
+      p.shuffleQ = document.getElementById("shQ").checked;
+      p.shuffleO = document.getElementById("shO").checked;
+      p.topics = [...app.querySelectorAll(".topic input:checked")].map(i => i.dataset.k);
+      store.save(saved);
+    };
+    app.querySelectorAll(".topic input, #count, #shQ, #shO").forEach(el => el.onchange = readPrefs);
+    document.getElementById("start").onclick = () => {
+      readPrefs();
+      const pool = QUESTIONS.filter(q => p.topics.includes(key(q.domain, q.topic)));
+      if (!pool.length) { document.getElementById("msg").textContent = "Select at least one topic."; return; }
+      start(pool);
+    };
+    document.getElementById("missed").onclick = () => { readPrefs(); start(QUESTIONS.filter(q => saved.results[q.id] === false)); };
+    document.getElementById("reset").onclick = () => {
+      if (confirm("Clear all saved results?")) { saved.results = {}; store.save(saved); home(); }
+    };
+  }
+
+  // ───────── Quiz ─────────
+  function start(pool) {
+    const p = saved.prefs;
+    let qs = p.shuffleQ ? shuffle(pool) : pool.slice();
+    if (p.count !== "all") qs = qs.slice(0, Number(p.count));
+    state = {
+      items: qs.map(q => ({ q, order: p.shuffleO ? shuffle(q.options.map((_, i) => i)) : q.options.map((_, i) => i), picked: [], done: false, correct: false })),
+      i: 0
+    };
+    render();
+  }
+
+  function render() {
+    state.view = "quiz";
+    const it = state.items[state.i], q = it.q, n = state.items.length;
+    const need = q.answer.length;
+    const dom = DOMAINS.find(d => d.id === q.domain);
+    const answered = state.items.filter(x => x.done).length;
+    const right = state.items.filter(x => x.correct).length;
+
+    const choices = it.order.map((oi, pos) => {
+      const o = q.options[oi];
+      let cls = "choice";
+      if (!it.done && it.picked.includes(oi)) cls += " sel";
+      if (it.done) {
+        if (q.answer.includes(oi)) cls += " right";
+        else if (it.picked.includes(oi)) cls += " wrong";
+      }
+      const label = it.done ? (q.answer.includes(oi) ? "<b>Why it's right:</b> " : "<b>Why it's wrong:</b> ") : "";
+      return `<button class="${cls}" data-oi="${oi}" ${it.done ? "disabled" : ""}>
+                <span class="k">${LETTERS[pos]}</span>
+                <span class="body">${fmt(o.t)}${it.done ? `<span class="why">${label}${fmt(o.why)}</span>` : ""}</span>
+              </button>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="card">
+        <div class="qmeta">
+          <span>Question ${state.i + 1} of ${n}</span><span>·</span><span>Score ${right}/${answered}</span>
+          <span style="flex:1"></span>
+          <span class="chip">${esc(q.topic)}</span>
+          ${need > 1 ? `<span class="chip multi">Choose ${need}</span>` : ""}
+        </div>
+        <div class="progress"><div style="width:${(answered / n) * 100}%"></div></div>
+        <div class="small muted">${esc(dom ? dom.name : "")}</div>
+        <div class="qtext">${fmt(q.q)}</div>
+        <div id="choices">${choices}</div>
+        ${it.done ? `<div class="verdict ${it.correct ? "ok" : "bad"}">${it.correct ? "✓ Correct" : "✗ Incorrect — the correct answer is " +
+            it.order.map((oi, pos) => q.answer.includes(oi) ? LETTERS[pos] : null).filter(Boolean).join(" + ")}</div>
+            <div class="tip"><b>Exam tip:</b> ${fmt(q.tip)}</div>` : ""}
+        <div class="actions">
+          ${it.done
+            ? `<button class="btn primary" id="next">${state.i + 1 < n ? "Next question →" : "See results"}</button>`
+            : `<button class="btn primary" id="submit" ${it.picked.length === need ? "" : "disabled"}>Submit answer</button>`}
+          ${state.i > 0 ? `<button class="btn" id="prev">← Back</button>` : ""}
+          ${it.done && (window.CHEATSHEETS || []).some(c => key(c.domain, c.topic) === key(q.domain, q.topic)) ? `<button class="btn" id="cs">${esc(q.topic)} cheat sheet</button>` : ""}
+          <button class="btn" id="quit">End quiz</button>
+        </div>
+        <div class="kbd">Keys: A–${LETTERS[q.options.length - 1]} to select · Enter to submit / next</div>
+      </div>`;
+
+    app.querySelectorAll(".choice").forEach(b => b.onclick = () => pick(Number(b.dataset.oi)));
+    const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
+    on("submit", submit);
+    on("next", next);
+    on("prev", () => { state.i--; render(); });
+    on("quit", results);
+    on("cs", () => { if (!state.items.some(x => !x.done) || confirm("Leave the quiz to read the cheat sheet?")) cheats(key(q.domain, q.topic)); });
+  }
+
+  function pick(oi) {
+    const it = state.items[state.i]; if (it.done) return;
+    const need = it.q.answer.length;
+    if (need === 1) it.picked = [oi];
+    else if (it.picked.includes(oi)) it.picked = it.picked.filter(x => x !== oi);
+    else if (it.picked.length < need) it.picked.push(oi);
+    render();
+  }
+
+  function submit() {
+    const it = state.items[state.i], need = it.q.answer.length;
+    if (it.done || it.picked.length !== need) return;
+    it.done = true;
+    it.correct = it.picked.length === need && it.picked.every(x => it.q.answer.includes(x));
+    saved.results[it.q.id] = it.correct; store.save(saved);
+    render();
+  }
+
+  function next() {
+    if (state.i + 1 < state.items.length) { state.i++; render(); window.scrollTo(0, 0); }
+    else results();
+  }
+
+  // ───────── Results ─────────
+  function results() {
+    state.view = "results";
+    const done = state.items.filter(x => x.done);
+    const right = done.filter(x => x.correct).length;
+    const pct = done.length ? Math.round((right / done.length) * 100) : 0;
+    const pass = pct >= 75;
+
+    const byTopic = {};
+    done.forEach(x => { const t = x.q.topic; byTopic[t] = byTopic[t] || { r: 0, n: 0 }; byTopic[t].n++; if (x.correct) byTopic[t].r++; });
+    const bars = Object.entries(byTopic).map(([t, v]) => {
+      const p = Math.round((v.r / v.n) * 100);
+      return `<div class="bar"><span>${esc(t)}</span><div class="track"><div style="width:${p}%;background:${p >= 75 ? "var(--ok)" : "var(--bad)"}"></div></div><span>${v.r}/${v.n}</span></div>`;
+    }).join("");
+
+    const wrong = done.filter(x => !x.correct);
+    const review = wrong.map(x => {
+      const q = x.q;
+      const opts = q.options.map((o, i) => `<div style="margin:6px 0"><b style="color:${q.answer.includes(i) ? "var(--ok)" : x.picked.includes(i) ? "var(--bad)" : "var(--muted)"}">
+          ${q.answer.includes(i) ? "✓" : x.picked.includes(i) ? "✗" : "•"}</b> ${fmt(o.t)}<div class="why">${fmt(o.why)}</div></div>`).join("");
+      return `<details class="rev"><summary><span class="chip">${esc(q.topic)}</span> ${fmt(q.q.slice(0, 110))}…</summary>
+              <p>${fmt(q.q)}</p>${opts}<div class="tip"><b>Exam tip:</b> ${fmt(q.tip)}</div></details>`;
+    }).join("");
+
+    app.innerHTML = `
+      <div class="card">
+        <div class="muted small">Your result</div>
+        <p class="score" style="color:${pass ? "var(--ok)" : "var(--bad)"}">${pct}%</p>
+        <div>${right} of ${done.length} correct${done.length < state.items.length ? ` (${state.items.length - done.length} not answered)` : ""} ·
+          <b style="color:${pass ? "var(--ok)" : "var(--bad)"}">${pass ? "Exam-ready on these topics (≥ 75%)" : "Keep practicing — aim for 75%+"}</b></div>
+        ${bars ? `<h2 style="margin-top:18px">By topic</h2>${bars}` : ""}
+        <div class="actions">
+          ${wrong.length ? `<button class="btn primary" id="retry">Retry the ${wrong.length} wrong question${wrong.length > 1 ? "s" : ""}</button>` : ""}
+          <button class="btn" id="again">Same quiz again</button>
+          <button class="btn" id="home">Back to topics</button>
+        </div>
+      </div>
+      ${wrong.length ? `<div class="card"><h2>Review your wrong answers</h2>${review}</div>` : ""}`;
+
+    const pool = state.items.map(x => x.q);
+    const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
+    on("retry", () => start(wrong.map(x => x.q)));
+    on("again", () => start(pool));
+    on("home", home);
+    window.scrollTo(0, 0);
+  }
+
+  // ───────── Navigation ─────────
+  function setNav(v) {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.nav === v));
+  }
+  document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => {
+    if (state && state.view === "quiz" && state.items.some(x => x.done) && !confirm("Leave the current quiz?")) return;
+    ({ quiz: home, study: () => study(), cheat: () => cheats() })[b.dataset.nav]();
+    window.scrollTo(0, 0);
+  });
+
+  // ───────── Uploaded PDFs (IndexedDB, falls back to memory) ─────────
+  const idb = (() => {
+    let dbp = null, persistent = true, mem = [], memId = 1;
+    function open() {
+      if (!dbp) dbp = new Promise((res, rej) => {
+        try {
+          const r = indexedDB.open("dopc02-materials", 1);
+          r.onupgradeneeded = () => r.result.createObjectStore("files", { keyPath: "id", autoIncrement: true });
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        } catch (e) { rej(e); }
+      }).catch(() => { persistent = false; return null; });
+      return dbp;
+    }
+    const run = (db, mode, fn) => new Promise((res, rej) => {
+      const t = db.transaction("files", mode), req = fn(t.objectStore("files"));
+      t.oncomplete = () => res(req.result); t.onerror = () => rej(t.error);
+    });
+    return {
+      get persistent() { return persistent; },
+      async all() { const db = await open(); return db ? run(db, "readonly", s => s.getAll()) : mem.slice(); },
+      async add(rec) { const db = await open(); if (db) return run(db, "readwrite", s => s.add(rec)); rec.id = memId++; mem.push(rec); },
+      async del(id) { const db = await open(); if (db) return run(db, "readwrite", s => s.delete(id)); mem = mem.filter(r => r.id !== id); }
+    };
+  })();
+
+  // ───────── Study PDFs ─────────
+  let blobUrl = null;
+  function openPdf(url, title) {
+    const v = document.getElementById("viewer");
+    v.innerHTML = `<div class="card viewer">
+        <div class="tbh"><strong>${esc(title)}</strong>
+          <a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Open in new tab</a>
+          <button class="btn sm" id="closeViewer">Close</button></div>
+        <iframe src="${esc(url)}" title="${esc(title)}"></iframe></div>`;
+    document.getElementById("closeViewer").onclick = () => { v.innerHTML = ""; };
+    v.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function study(focusKey) {
+    state = null; setNav("study");
+    let files = [];
+    try { files = await idb.all(); } catch {}
+    const box = (title, k, builtins) => {
+      const ups = files.filter(f => f.topicKey === k);
+      const rows =
+        builtins.map(m => `<div class="mat"><span class="mi">PDF</span>
+            <span class="mt">${esc(m.title)} <span class="pill">built-in</span></span>
+            <button class="btn sm" data-file="${esc(m.file)}" data-title="${esc(m.title)}">Open</button></div>`).join("") +
+        ups.map(f => `<div class="mat"><span class="mi">PDF</span>
+            <span class="mt">${esc(f.name)} <span class="muted small">· ${f.size < 1048576 ? Math.max(1, Math.round(f.size / 1024)) + " KB" : (f.size / 1048576).toFixed(1) + " MB"} · added ${new Date(f.added).toLocaleDateString()}</span></span>
+            <button class="btn sm" data-id="${f.id}">Open</button><button class="btn sm" data-del="${f.id}">Remove</button></div>`).join("");
+      return `<div class="topicbox" id="tb-${esc(k)}"><div class="tbh"><strong>${esc(title)}</strong>
+          <label class="btn sm primary">Upload PDF<input type="file" accept="application/pdf,.pdf" multiple data-up="${esc(k)}" hidden></label></div>
+          ${rows || `<div class="muted small">No PDFs yet. Upload your notes, slides or AWS docs for this topic.</div>`}</div>`;
+    };
+    const domains = DOMAINS.map(d => `<div class="card"><h2>${esc(d.name)} <span class="pill">${d.weight}%</span></h2>
+        ${d.topics.map(t => box(t, key(d.id, t), MATERIALS.filter(m => m.domain === d.id && m.topics.includes(t)))).join("")}
+        ${box(d.topics.length ? "Other material for this domain" : "Domain material", key(d.id, "_domain"),
+              MATERIALS.filter(m => m.domain === d.id && !m.topics.length))}</div>`).join("");
+
+    app.innerHTML = `
+      <div id="viewer"></div>
+      <div class="card">
+        <h2>Study PDFs</h2>
+        <p class="muted small" style="margin-top:-4px">Upload a PDF to any topic and read it here. Uploaded files are saved in this browser on this computer only.</p>
+        ${idb.persistent ? "" : `<div class="notice">Your browser blocked saving files, so uploads will only last until you close this tab.</div>`}
+        ${box("General", "general", MATERIALS.filter(m => !m.domain))}
+      </div>
+      ${domains}`;
+
+    app.querySelectorAll("[data-file]").forEach(b => b.onclick = () => openPdf(b.dataset.file, b.dataset.title));
+    app.querySelectorAll("[data-id]").forEach(b => b.onclick = () => {
+      const f = files.find(x => x.id === Number(b.dataset.id)); if (!f) return;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      blobUrl = URL.createObjectURL(new Blob([f.blob], { type: "application/pdf" }));
+      openPdf(blobUrl, f.name);
+    });
+    app.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+      const f = files.find(x => x.id === Number(b.dataset.del));
+      if (f && confirm(`Remove "${f.name}" from this topic?`)) { await idb.del(f.id); study(f.topicKey); }
+    });
+    app.querySelectorAll("[data-up]").forEach(inp => inp.onchange = async () => {
+      const k = inp.dataset.up;
+      for (const file of inp.files) {
+        if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) { alert(`${file.name} is not a PDF.`); continue; }
+        try { await idb.add({ topicKey: k, name: file.name, size: file.size, added: Date.now(), blob: file }); }
+        catch { alert(`Could not save ${file.name}. It may be too large for browser storage.`); }
+      }
+      study(k);
+    });
+    if (focusKey) { const el = document.getElementById("tb-" + focusKey); if (el) el.scrollIntoView({ block: "center" }); }
+  }
+
+  // ───────── Cheat sheets ─────────
+  function cheats(k) {
+    state = null; setNav("cheat");
+    const list = window.CHEATSHEETS || [];
+    if (!list.length) { app.innerHTML = `<div class="card">No cheat sheets yet.</div>`; return; }
+    const cur = list.find(c => key(c.domain, c.topic) === k) || list[0];
+    const ck = key(cur.domain, cur.topic);
+    const dom = DOMAINS.find(d => d.id === cur.domain);
+    const md = s => fmt(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+
+    const picker = DOMAINS.map(d => {
+      const cs = list.filter(c => c.domain === d.id);
+      return cs.length ? `<div class="small muted" style="margin:8px 0 6px">${esc(d.name)}</div>
+        <div class="row" style="gap:8px">${cs.map(c => `<button class="btn sm ${key(c.domain, c.topic) === ck ? "primary" : ""}" data-cs="${esc(key(c.domain, c.topic))}">${esc(c.topic)}</button>`).join("")}</div>` : "";
+    }).join("");
+
+    const sections = cur.sections.map(s => `<section class="cssec"><h3>${md(s.h)}</h3>${
+      s.items ? `<ul>${s.items.map(i => `<li>${md(i)}</li>`).join("")}</ul>`
+              : `<div class="tablewrap"><table class="cst"><tr>${s.table[0].map(h => `<th>${md(h)}</th>`).join("")}</tr>
+                 ${s.table.slice(1).map(r => `<tr>${r.map(c => `<td>${md(c)}</td>`).join("")}</tr>`).join("")}</table></div>`
+    }</section>`).join("");
+
+    const n = QUESTIONS.filter(q => key(q.domain, q.topic) === ck).length;
+    app.innerHTML = `
+      <div class="card noprint">
+        <h2>Cheat sheets</h2>
+        ${picker}
+        <input class="search" id="csSearch" placeholder="Search this cheat sheet (for example: KMS, VPC, token)…">
+      </div>
+      <div class="card cs">
+        <div class="small muted">${esc(dom ? dom.name : "")}</div>
+        <h2 style="font-size:20px;margin:2px 0 0">${esc(cur.topic)}</h2>
+        <div id="csBody">${sections}</div>
+        <div id="csNone" class="muted small" style="display:none;margin-top:12px">Nothing matches your search.</div>
+        <div class="actions noprint">
+          ${n ? `<button class="btn primary" id="csQuiz">Quiz me on ${esc(cur.topic)} (${n} questions)</button>` : ""}
+          <button class="btn" id="csPdf">Study PDFs for this topic</button>
+          <button class="btn" id="csPrint">Print / save as PDF</button>
+        </div>
+      </div>`;
+
+    app.querySelectorAll("[data-cs]").forEach(b => b.onclick = () => cheats(b.dataset.cs));
+    document.getElementById("csSearch").oninput = e => {
+      const term = e.target.value.trim().toLowerCase(); let any = false;
+      app.querySelectorAll(".cssec").forEach(sec => {
+        let hits = 0;
+        sec.querySelectorAll("li, table.cst tr:not(:first-child)").forEach(row => {
+          const show = !term || row.textContent.toLowerCase().includes(term);
+          row.style.display = show ? "" : "none"; if (show) hits++;
+        });
+        const head = sec.querySelector("h3").textContent.toLowerCase().includes(term);
+        sec.style.display = hits || head ? "" : "none"; if (hits || head) any = true;
+      });
+      document.getElementById("csNone").style.display = any ? "none" : "";
+    };
+    const q = document.getElementById("csQuiz");
+    if (q) q.onclick = () => { saved.prefs.topics = [ck]; store.save(saved); start(QUESTIONS.filter(x => key(x.domain, x.topic) === ck)); };
+    document.getElementById("csPdf").onclick = () => study(ck);
+    document.getElementById("csPrint").onclick = () => window.print();
+  }
+
+  // keyboard
+  document.addEventListener("keydown", e => {
+    if (!state || state.view !== "quiz" || e.target.tagName === "SELECT") return;
+    const it = state.items[state.i];
+    if (e.key === "Enter") { e.preventDefault(); it.done ? next() : submit(); return; }
+    const pos = LETTERS.indexOf(e.key.toUpperCase());
+    if (pos >= 0 && pos < it.order.length && !it.done) pick(it.order[pos]);
+  });
+
+  home();
+})();
+</script>
+</body>
+</html>
