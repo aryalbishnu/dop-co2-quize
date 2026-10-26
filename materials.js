@@ -11,5 +11,6 @@ window.MATERIALS = [
   { domain: "d1", topics: ["CodePipeline"], title: "Week 1 notes - AWS CodePipeline", file: "pdfs/Week1_CodePipeline.pdf" },
   { domain: "d1", topics: ["CodeConnections"], title: "Week 1 notes - AWS CodeConnections", file: "pdfs/Week1_CodeConnections.pdf" },
   { domain: "d1", topics: ["CodeGuru"], title: "Week 1 notes - Amazon CodeGuru Reviewer and Profiler", file: "pdfs/Week1_CodeGuru.pdf" },
-  { domain: "d1", topics: ["CI/CD Concepts"], title: "Week 1 notes - CI/CD concepts, testing, artifacts, third-party CI", file: "pdfs/Week1_CICD_Concepts.pdf" }
+  { domain: "d1", topics: ["CI/CD Concepts"], title: "Week 1 notes - CI/CD concepts, testing, artifacts, third-party CI", file: "pdfs/Week1_CICD_Concepts.pdf" },
+  { domain: "d1", topics: ["CodeDeploy"], title: "Week 2 notes - AWS CodeDeploy", file: "pdfs/Week2_CodeDeploy.pdf" }
 ];

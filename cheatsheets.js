@@ -400,6 +400,60 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "CodeDeploy",
+  sections: [
+    { h: "Platforms", table: [
+      ["Platform", "Types", "Traffic", "Hooks"],
+      ["EC2 / on-premises", "**In-place** or **blue/green** (EC2 only, needs a load balancer)", "Instance by instance, or the load balancer switches", "**Scripts** (the agent)"],
+      ["Lambda", "Traffic shifting", "The **alias** moves between versions", "**Lambda functions**"],
+      ["ECS", "Blue/green", "Listener → new **task set**", "**Lambda functions**"]
+    ]},
+    { h: "Agent, targets, revision", items: [
+      "Install and update the agent with **Systems Manager** (State Manager, `AWSCodeDeployAgent`). **Outbound 443 only**. Private subnets → CodeDeploy VPC endpoints + **S3 gateway endpoint** (or NAT).",
+      "The **instance profile** reads the revision (`s3:GetObject` + `kms:Decrypt`). The **service role** is CodeDeploy's own role.",
+      "Targets: EC2 tags (up to 3 groups: AND between groups, OR inside one) · Auto Scaling groups · on-premises tags (register with an **IAM session ARN**). On-premises = **in-place only**.",
+      "**`appspec.yml` at the root** of the bundle (S3 zip / tar / tgz, or GitHub). Logs: `/opt/codedeploy-agent/deployment-root/`."
+    ]},
+    { h: "EC2 hooks (in-place)", items: [
+      "(load balancer) BeforeBlockTraffic → BlockTraffic → AfterBlockTraffic",
+      "**ApplicationStop → DownloadBundle → BeforeInstall → Install → AfterInstall → ApplicationStart → ValidateService**",
+      "(load balancer) BeforeAllowTraffic → AllowTraffic → AfterAllowTraffic. DownloadBundle, Install, BlockTraffic and AllowTraffic are CodeDeploy's own steps (no scripts).",
+      "Non-zero exit or timeout (maximum **3600 seconds**) = failure. **ValidateService** = health check.",
+      "**ApplicationStop runs the PREVIOUS revision's script** → if it's broken, use `--ignore-application-stop-failures`.",
+      "`file_exists_behavior`: **DISALLOW** (default, fails) · OVERWRITE · RETAIN."
+    ]},
+    { h: "EC2 deployment configurations", table: [
+      ["Configuration", "Succeeds if"],
+      ["AllAtOnce", "At least 1 instance succeeds"],
+      ["HalfAtATime", "At least half succeed"],
+      ["OneAtATime", "All succeed (**except the last may fail**)"],
+      ["Custom", "Minimum healthy hosts: **HOST_COUNT** or **FLEET_PERCENT** (fails with HEALTH_CONSTRAINTS)"],
+      ["Zonal", "**One AZ at a time** + monitoring wait after each"]
+    ]},
+    { h: "Blue/green EC2 and Auto Scaling", items: [
+      "Blue/green: **copy the Auto Scaling group** (or tagged instances) → move traffic **immediately or after you continue** → **terminate the original after a wait, or keep it** (fast rollback).",
+      "Auto Scaling in the deployment group → a lifecycle hook gives new instances the **last successful revision**. Scale-out during a deployment → **follow-up deployment** (or pause scaling).",
+      "New instances launched and terminated in a loop + hook abandoned → the deployment on new instances is failing."
+    ]},
+    { h: "Lambda and ECS", items: [
+      "Lambda AppSpec: function Name, **Alias**, CurrentVersion, TargetVersion. Hooks: **BeforeAllowTraffic, AfterAllowTraffic**.",
+      "ECS: **`CODE_DEPLOY` controller + 2 target groups + production listener (+ test listener)**. Hooks: BeforeInstall → AfterInstall → **AfterAllowTestTraffic** → BeforeAllowTraffic → AfterAllowTraffic.",
+      "Hook functions must call **`PutLifecycleEventHookExecutionStatus`** (otherwise they fail after about 1 hour).",
+      "Canary = X% **then all the rest** · Linear = **+X% every N minutes** · AllAtOnce. Lambda: `LambdaCanary10Percent5/10/15/30Minutes`, `LambdaLinear10PercentEvery1/2/3/10Minute(s)`. ECS: `ECSCanary10Percent5/15Minutes`, `ECSLinear10PercentEvery1/3Minutes`.",
+      "**SAM**: `AutoPublishAlias` + `DeploymentPreference` (Type, Alarms, PreTraffic / PostTraffic hooks).",
+      "ECS service role: `AWSCodeDeployRoleForECS` + **`iam:PassRole`** on the task roles. Pipeline: `taskdef.json` + `appspec.yaml` + `imageDetail.json`.",
+      "ECS **rolling update** = ECS's own controller, not CodeDeploy."
+    ]},
+    { h: "Rollback, alarms, monitoring", items: [
+      "Automatic rollback **on failure** and/or **on alarm** (needs alarms on the group). Can be overridden per deployment.",
+      "EC2 rollback = a **new deployment of the last good revision** (new ID). Lambda / ECS / blue-green = **traffic moves back**. No good revision = nothing to roll back to.",
+      "**Up to 10 alarms** per group. An alarm in ALARM → **stop** (+ roll back). Emergency → **ignore alarm configuration**.",
+      "Triggers → **SNS** · **EventBridge** 'Deployment State-change' → Lambda or tickets · notification rules → Slack · CloudTrail."
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

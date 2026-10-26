@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -2526,5 +2526,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "On-premises servers → AWS without keys → IAM Roles Anywhere (X.509 certificates). EC2 → instance profile."
+  },
+
+  // ───────────────────────────── CodeDeploy ─────────────────────────────
+  {
+    id: "cd-01", domain: "d1", topic: "CodeDeploy",
+    q: "A company runs 300 EC2 instances across several Auto Scaling groups and wants to use CodeDeploy. The CodeDeploy agent must be installed on every instance, including new ones, and kept up to date automatically with the LEAST operational overhead. What should the DevOps engineer do?",
+    options: [
+      { t: "Use an AWS Systems Manager State Manager association that installs the AWSCodeDeployAgent package and keeps it updated on a schedule, targeting the instances by tag.",
+        why: "Correct. Systems Manager installs the agent and keeps it updated across the whole fleet automatically, including new instances that match the target tags." },
+      { t: "SSH into each instance and install the agent manually.",
+        why: "Manual work that doesn't scale and doesn't cover new instances." },
+      { t: "Bake the agent into the AMI and never update it.",
+        why: "This works for new instances, but the agent goes out of date." },
+      { t: "The agent isn't needed for EC2 deployments.",
+        why: "EC2 and on-premises deployments require the agent. Only Lambda and ECS deployments don't." }
+    ],
+    answer: [0],
+    tip: "Install and update the CodeDeploy agent at scale → Systems Manager (State Manager + AWSCodeDeployAgent)."
+  },
+  {
+    id: "cd-02", domain: "d1", topic: "CodeDeploy",
+    q: "EC2 instances in private subnets with no NAT gateway are targets of a CodeDeploy deployment group. Deployments stay 'Pending' and eventually time out. The agent is running and the instance profile has S3 read access. What should the DevOps engineer add?",
+    options: [
+      { t: "Interface VPC endpoints for CodeDeploy (codedeploy and codedeploy-commands-secure) and an S3 gateway endpoint for downloading the revision.",
+        why: "Correct. The agent has to reach CodeDeploy over HTTPS and download the bundle from S3. Endpoints provide both without internet access." },
+      { t: "An inbound security group rule for port 443 from CodeDeploy.",
+        why: "The agent connects OUT to CodeDeploy. No inbound rule is needed." },
+      { t: "Elastic IPs on the instances.",
+        why: "The instances are in private subnets with no internet route, so public IPs don't help." },
+      { t: "Switch the deployment to blue/green.",
+        why: "The agent still can't reach CodeDeploy." }
+    ],
+    answer: [0],
+    tip: "Agent in private subnets → CodeDeploy VPC endpoints + S3 gateway endpoint (or a NAT gateway). Outbound 443 only."
+  },
+  {
+    id: "cd-03", domain: "d1", topic: "CodeDeploy",
+    q: "A deployment to EC2 fails at the DownloadBundle step with an access denied error. The revision is stored in an S3 bucket encrypted with a customer-managed KMS key. What is the MOST likely fix?",
+    options: [
+      { t: "Give the EC2 instance profile s3:GetObject on the revision bucket and kms:Decrypt on the key (and allow the role in the key policy).",
+        why: "Correct. The agent downloads the bundle using the INSTANCE's role, so it needs S3 read access and KMS decrypt." },
+      { t: "Add S3 permissions to the CodeDeploy service role only.",
+        why: "The service role doesn't download the bundle. The agent does, using the instance profile." },
+      { t: "Make the bucket public.",
+        why: "Insecure and unnecessary." },
+      { t: "Increase the hook timeout.",
+        why: "This is a permissions problem, not a timeout." }
+    ],
+    answer: [0],
+    tip: "DownloadBundle access denied → instance profile needs S3 GetObject (+ kms:Decrypt)."
+  },
+  {
+    id: "cd-04", domain: "d1", topic: "CodeDeploy",
+    q: "A team's deployment fails with 'The CodeDeploy agent did not find an AppSpec file within the unpacked revision directory'. The ZIP contains a folder named myapp/ with appspec.yml, scripts/ and src/ inside it. What is wrong?",
+    options: [
+      { t: "appspec.yml must be at the ROOT of the revision bundle. Zip the contents of myapp/ rather than the folder itself.",
+        why: "Correct. CodeDeploy looks for appspec.yml in the top level of the revision." },
+      { t: "The file must be named appspec.json.",
+        why: "For EC2, the file name is appspec.yml." },
+      { t: "Revisions must be .tar files.",
+        why: ".zip, .tar and .tgz are all supported." },
+      { t: "The agent version is too old.",
+        why: "The error clearly says where the file is missing." }
+    ],
+    answer: [0],
+    tip: "AppSpec not found → appspec.yml must be at the root of the bundle."
+  },
+  {
+    id: "cd-05", domain: "d1", topic: "CodeDeploy",
+    q: "In an in-place EC2 deployment, the team needs a step that runs AFTER the application has started and FAILS the deployment if the app's /health endpoint doesn't return HTTP 200. Which lifecycle hook should run this check?",
+    options: [
+      { t: "ValidateService, with a script such as 'curl --fail http://localhost/health' that exits non-zero when the check fails.",
+        why: "Correct. ValidateService is the last scriptable step and is meant for checking the deployment. A non-zero exit fails it." },
+      { t: "BeforeInstall.",
+        why: "This runs before the new files are installed and before the app starts." },
+      { t: "DownloadBundle.",
+        why: "You can't add scripts to DownloadBundle." },
+      { t: "ApplicationStop.",
+        why: "This runs at the start, to stop the OLD version." }
+    ],
+    answer: [0],
+    tip: "Order: ApplicationStop → BeforeInstall → AfterInstall → ApplicationStart → ValidateService (check here, exit non-zero to fail)."
+  },
+  {
+    id: "cd-06", domain: "d1", topic: "CodeDeploy",
+    q: "A bad revision broke the stop_server.sh script. The team fixed the script in a NEW revision, but every new deployment still fails at the ApplicationStop step on all instances. What should the DevOps engineer do?",
+    options: [
+      { t: "Redeploy the fixed revision with the --ignore-application-stop-failures option (console: don't fail the deployment if ApplicationStop fails).",
+        why: "Correct. ApplicationStop runs the PREVIOUS revision's script, which is still broken. Ignoring that one failure lets the fixed revision install." },
+      { t: "Raise the ApplicationStop timeout.",
+        why: "The script fails, it doesn't just run slowly." },
+      { t: "Delete the deployment group.",
+        why: "This loses the configuration, and the instances still hold the broken revision's information." },
+      { t: "Rename the script in the new revision.",
+        why: "The new revision isn't used at ApplicationStop. The previous revision is." }
+    ],
+    answer: [0],
+    tip: "ApplicationStop uses the previous revision's script → --ignore-application-stop-failures."
+  },
+  {
+    id: "cd-07", domain: "d1", topic: "CodeDeploy",
+    q: "A deployment fails at the Install step because files already exist in /var/www/html. Those files were placed there by a manual setup, not by a previous CodeDeploy deployment. The new revision's files should replace them. What should be changed?",
+    options: [
+      { t: "Set file_exists_behavior to OVERWRITE in appspec.yml (or on the deployment).",
+        why: "Correct. The default, DISALLOW, fails when a file exists that the previous deployment didn't create. OVERWRITE replaces it." },
+      { t: "Set file_exists_behavior to RETAIN.",
+        why: "RETAIN keeps the OLD files, but the requirement is to replace them." },
+      { t: "Add a permissions section.",
+        why: "Permissions set owner and mode. They don't resolve file conflicts." },
+      { t: "Use the AllAtOnce configuration.",
+        why: "The deployment speed doesn't affect file conflicts." }
+    ],
+    answer: [0],
+    tip: "file_exists_behavior: DISALLOW (default, fails) · OVERWRITE (replace) · RETAIN (keep existing)."
+  },
+  {
+    id: "cd-08", domain: "d1", topic: "CodeDeploy",
+    q: "An e-commerce site runs on EC2 instances in an Auto Scaling group behind an ALB. Deployments must cause NO loss of serving capacity, and the team must be able to switch back to the previous version within seconds if problems appear. Which CodeDeploy setup fits BEST?",
+    options: [
+      { t: "A blue/green deployment that copies the Auto Scaling group, moves traffic through the ALB, and keeps the original instances for a while before terminating them.",
+        why: "Correct. A full new fleet takes traffic, and the original fleet stays available for a fast rollback." },
+      { t: "In-place with AllAtOnce.",
+        why: "Every instance updates at the same time, which risks downtime and gives no quick switch back." },
+      { t: "In-place with OneAtATime.",
+        why: "It reduces capacity during the deployment, and rollback means a slow redeployment." },
+      { t: "Blue/green on on-premises servers.",
+        why: "Not supported. These are EC2 instances anyway." }
+    ],
+    answer: [0],
+    tip: "No capacity loss + fast rollback on EC2 → blue/green (copy the Auto Scaling group + load balancer, keep the original fleet for a while)."
+  },
+  {
+    id: "cd-09", domain: "d1", topic: "CodeDeploy",
+    q: "A company deploys to 40 EC2 instances. During any deployment, at least 75% of the instances must stay healthy and serving traffic. Which deployment configuration should be used?",
+    options: [
+      { t: "A custom deployment configuration with minimum healthy hosts of type FLEET_PERCENT and value 75.",
+        why: "Correct. Minimum healthy hosts controls how many instances must stay healthy. CodeDeploy then updates the rest in batches." },
+      { t: "CodeDeployDefault.HalfAtATime.",
+        why: "Only 50% stay healthy, which is below the requirement." },
+      { t: "CodeDeployDefault.AllAtOnce.",
+        why: "Every instance updates at the same time." },
+      { t: "CodeDeployDefault.LambdaLinear10PercentEvery1Minute.",
+        why: "That configuration is for Lambda, not EC2." }
+    ],
+    answer: [0],
+    tip: "\"Keep X% healthy\" → custom configuration with minimum healthy hosts (FLEET_PERCENT or HOST_COUNT)."
+  },
+  {
+    id: "cd-10", domain: "d1", topic: "CodeDeploy",
+    q: "A service runs on EC2 instances spread across three Availability Zones. A bad release once broke every AZ before monitoring noticed. The team wants each release deployed one AZ at a time, with a waiting period to watch metrics before moving to the next AZ. What should they use?",
+    options: [
+      { t: "A zonal deployment configuration, with a monitoring duration after each Availability Zone (and an extra wait after the first one), plus CloudWatch alarms for automatic rollback.",
+        why: "Correct. Zonal configurations deploy AZ by AZ with waits in between, so a bad release only reaches one AZ." },
+      { t: "CodeDeployDefault.OneAtATime.",
+        why: "This goes instance by instance, without regard to AZs and without a monitoring wait." },
+      { t: "Three separate deployment groups started at the same time.",
+        why: "Running them together gives no isolation between AZs." },
+      { t: "Blue/green with immediate traffic rerouting.",
+        why: "All traffic moves at once. There's no AZ-by-AZ protection." }
+    ],
+    answer: [0],
+    tip: "Contain a bad release to one AZ → zonal deployment configuration (with monitoring waits) + alarms."
+  },
+  {
+    id: "cd-11", domain: "d1", topic: "CodeDeploy",
+    q: "An Auto Scaling group is part of a CodeDeploy deployment group. During busy periods, new instances launched by scale-out start serving traffic running an OLD version that is missing the latest changes. What explains this, and what is the best practice?",
+    options: [
+      { t: "Instances launched while a deployment is in progress can receive the previous revision. CodeDeploy starts a follow-up deployment for them; best practice is to pause scaling during deployments (or rely on the follow-up).",
+        why: "Correct. CodeDeploy's lifecycle hook gives new instances the last SUCCESSFUL revision. During a deployment, that may still be the old one." },
+      { t: "Auto Scaling groups can't be used with CodeDeploy.",
+        why: "They're supported through a lifecycle hook that CodeDeploy adds." },
+      { t: "The CodeDeploy agent must be removed from the AMI.",
+        why: "The agent is needed for new instances to receive the revision." },
+      { t: "Use the AllAtOnce configuration.",
+        why: "This doesn't change what new instances receive while a deployment is running." }
+    ],
+    answer: [0],
+    tip: "New Auto Scaling instances get the last successful revision. Scale-out during a deployment → follow-up deployment, or pause scaling."
+  },
+  {
+    id: "cd-12", domain: "d1", topic: "CodeDeploy",
+    q: "A company wants to deploy new Lambda function versions by sending 10% of traffic to the new version, waiting 10 minutes, and then sending ALL remaining traffic if no alarms go off. It uses AWS SAM. What should the template contain?",
+    options: [
+      { t: "AutoPublishAlias on the function and a DeploymentPreference of Type Canary10Percent10Minutes with the CloudWatch alarms listed under Alarms.",
+        why: "Correct. SAM creates the CodeDeploy setup, shifts the alias traffic as a canary, and rolls back if an alarm goes off." },
+      { t: "DeploymentPreference Type Linear10PercentEvery10Minutes.",
+        why: "Linear adds 10% every 10 minutes, so it takes 100 minutes to finish, not 10% followed by everything else." },
+      { t: "DeploymentPreference Type AllAtOnce.",
+        why: "It sends all traffic at once, with no canary." },
+      { t: "A Route 53 weighted record between two function URLs.",
+        why: "Custom and manual, with no automatic rollback." }
+    ],
+    answer: [0],
+    tip: "Canary = X% then all the rest · Linear = another X% every N minutes. SAM: AutoPublishAlias + DeploymentPreference."
+  },
+  {
+    id: "cd-13", domain: "d1", topic: "CodeDeploy",
+    q: "A Lambda deployment uses a BeforeAllowTraffic hook function to run integration tests against the new version. The tests pass in about 30 seconds, but every deployment fails roughly an hour later at the BeforeAllowTraffic step. What is the cause?",
+    options: [
+      { t: "The hook function never calls codedeploy:PutLifecycleEventHookExecutionStatus with Succeeded, so CodeDeploy waits until the hook times out.",
+        why: "Correct. Hook functions must report their result back to CodeDeploy. The hook function's role also needs this permission." },
+      { t: "Lambda hooks only run for ECS deployments.",
+        why: "Lambda deployments support BeforeAllowTraffic and AfterAllowTraffic hooks." },
+      { t: "The function's memory is too low.",
+        why: "The tests finish quickly. The missing piece is reporting the result." },
+      { t: "BeforeAllowTraffic must be a shell script.",
+        why: "For Lambda and ECS deployments, hooks are Lambda functions, not scripts." }
+    ],
+    answer: [0],
+    tip: "Lambda or ECS hook functions → must call PutLifecycleEventHookExecutionStatus (otherwise they fail after about 1 hour)."
+  },
+  {
+    id: "cd-14", domain: "d1", topic: "CodeDeploy",
+    q: "A team is moving an Amazon ECS Fargate service to CodeDeploy blue/green deployments. Which set of resources is REQUIRED?",
+    options: [
+      { t: "An ECS service with the CODE_DEPLOY deployment controller, an ALB or NLB with two target groups, and a production listener (plus an optional test listener).",
+        why: "Correct. CodeDeploy moves traffic between the two target groups through the listeners." },
+      { t: "An ECS service with the default ECS deployment controller and one target group.",
+        why: "That's the ECS rolling update, not CodeDeploy blue/green." },
+      { t: "The CodeDeploy agent installed in each container.",
+        why: "ECS deployments don't use the agent." },
+      { t: "Route 53 weighted records for the two task sets.",
+        why: "CodeDeploy uses load balancer listeners and target groups, not DNS." }
+    ],
+    answer: [0],
+    tip: "ECS blue/green = CODE_DEPLOY controller + 2 target groups + production listener (+ test listener)."
+  },
+  {
+    id: "cd-15", domain: "d1", topic: "CodeDeploy",
+    q: "During an ECS blue/green deployment, the QA team must run automated API tests against the NEW tasks on port 8080 BEFORE any production traffic reaches them. If the tests fail, the deployment must stop and roll back. How should this be configured?",
+    options: [
+      { t: "Add a test listener (port 8080) to the deployment group and an AfterAllowTestTraffic hook Lambda function that runs the tests and reports Failed if they fail. Turn on automatic rollback.",
+        why: "Correct. AfterAllowTestTraffic runs when the test listener points at the new task set but before production traffic moves." },
+      { t: "Use an AfterAllowTraffic hook.",
+        why: "This runs AFTER production traffic has moved, which is too late." },
+      { t: "Use a ValidateService script.",
+        why: "ValidateService is for EC2 and on-premises. ECS hooks are Lambda functions." },
+      { t: "Use ECSAllAtOnce with no hooks.",
+        why: "Nothing would be tested before production traffic." }
+    ],
+    answer: [0],
+    tip: "ECS order: … AfterInstall → AllowTestTraffic → AfterAllowTestTraffic (test here) → BeforeAllowTraffic → AllowTraffic → AfterAllowTraffic."
+  },
+  {
+    id: "cd-16", domain: "d1", topic: "CodeDeploy",
+    q: "A Lambda deployment uses LambdaLinear10PercentEvery1Minute. The team wants the deployment to STOP and traffic to return to the old version automatically if the new version's error rate rises during the rollout. What should be configured on the deployment group?",
+    options: [
+      { t: "A CloudWatch alarm on the function alias's Errors metric attached to the deployment group, with 'Roll back when alarm thresholds are met' turned on.",
+        why: "Correct. An alarm in ALARM stops the deployment, and alarm-based rollback moves the alias back to the original version." },
+      { t: "Only 'Roll back when a deployment fails'.",
+        why: "Without an alarm, rising errors don't fail the deployment, so nothing triggers a rollback." },
+      { t: "An SNS trigger for deployment failures.",
+        why: "This only sends notifications. It doesn't stop or roll back anything." },
+      { t: "Use AllAtOnce so errors appear sooner.",
+        why: "This removes the gradual safety net." }
+    ],
+    answer: [0],
+    tip: "Gradual rollout + automatic rollback on errors → CloudWatch alarm on the deployment group + roll back when alarm thresholds are met."
+  },
+  {
+    id: "cd-17", domain: "d1", topic: "CodeDeploy",
+    q: "An in-place EC2 deployment of revision v5 fails. Automatic rollback is turned on, and v4 was the last successful revision. What does CodeDeploy actually do?",
+    options: [
+      { t: "It creates a NEW deployment (with a new deployment ID) that redeploys revision v4 to the instances, running the lifecycle hooks again.",
+        why: "Correct. On EC2 and on-premises, a rollback is a new deployment of the last known good revision." },
+      { t: "It restores a snapshot of each instance from before the deployment.",
+        why: "CodeDeploy doesn't take or restore snapshots." },
+      { t: "It instantly switches the alias back to v4.",
+        why: "That's how Lambda rollbacks work, not EC2 in-place ones." },
+      { t: "It does nothing. Rollback only works with blue/green.",
+        why: "Automatic rollback works with in-place deployments too." }
+    ],
+    answer: [0],
+    tip: "EC2 rollback = a new deployment of the last good revision · Lambda / ECS / blue-green = move traffic back."
+  },
+  {
+    id: "cd-18", domain: "d1", topic: "CodeDeploy",
+    q: "A critical security fix must be deployed immediately. A CloudWatch alarm attached to the deployment group is currently in ALARM because of the very bug being fixed, so every deployment is stopped as soon as it starts. What should the DevOps engineer do?",
+    options: [
+      { t: "Start the deployment with the 'ignore alarm configuration' option for this deployment, then go back to normal alarm checks.",
+        why: "Correct. Ignoring the alarm configuration lets an emergency fix go out while the alarm is firing, without changing the deployment group permanently." },
+      { t: "Delete the CloudWatch alarm.",
+        why: "This permanently removes protection." },
+      { t: "Switch to AllAtOnce.",
+        why: "The alarm would still stop the deployment." },
+      { t: "Wait for the alarm to clear by itself.",
+        why: "It won't clear until the fix is deployed." }
+    ],
+    answer: [0],
+    tip: "Deploy while an alarm is firing → ignore alarm configuration (for that deployment only)."
+  },
+  {
+    id: "cd-19", domain: "d1", topic: "CodeDeploy",
+    q: "An ECS blue/green deployment fails right away when it starts. The deployment error says CodeDeploy isn't authorized to perform iam:PassRole. The service uses a task execution role and a task role. What is the fix?",
+    options: [
+      { t: "Add iam:PassRole for the task execution role and task role to the CodeDeploy service role (the AWSCodeDeployRoleForECS policy doesn't cover passing your own task roles).",
+        why: "Correct. CodeDeploy creates the new task set with your task definition, so it must be allowed to pass the roles that the task definition uses." },
+      { t: "Add iam:PassRole to the developers' IAM users.",
+        why: "CodeDeploy's service role creates the task set, not the developers." },
+      { t: "Install the CodeDeploy agent in the containers.",
+        why: "ECS deployments don't use the agent." },
+      { t: "Switch the service to the ECS deployment controller.",
+        why: "That removes CodeDeploy blue/green altogether." }
+    ],
+    answer: [0],
+    tip: "ECS blue/green service role → AWSCodeDeployRoleForECS + iam:PassRole on the task roles."
+  },
+  {
+    id: "cd-20", domain: "d1", topic: "CodeDeploy",
+    q: "An Auto Scaling group used by a CodeDeploy deployment group keeps launching new instances that are terminated a few minutes later. The ALB health checks are fine for existing instances. Scaling activity shows the lifecycle hook was abandoned. What is the MOST likely cause?",
+    options: [
+      { t: "The deployment that CodeDeploy runs on each new instance through the lifecycle hook is failing (for example a broken script in the last revision), so the instance is never marked ready and is replaced.",
+        why: "Correct. CodeDeploy's lifecycle hook only lets an instance go InService after its deployment succeeds. If that deployment fails, the instance is replaced. Check that instance's deployment in CodeDeploy." },
+      { t: "The ALB is in the wrong VPC.",
+        why: "Existing instances are healthy, so the ALB setup works." },
+      { t: "The Auto Scaling group has too many instances.",
+        why: "Unrelated to the abandoned lifecycle hook." },
+      { t: "CloudTrail is turned off.",
+        why: "CloudTrail doesn't affect instance launches." }
+    ],
+    answer: [0],
+    tip: "New instances in a loop of launch and terminate + lifecycle hook abandoned → the CodeDeploy deployment on new instances is failing."
+  },
+  {
+    id: "cd-21", domain: "d1", topic: "CodeDeploy",
+    multi: true,
+    q: "A deployment group uses OneAtATime across 4 EC2 instances. Which TWO statements about this configuration are true? (Choose TWO.)",
+    options: [
+      { t: "Instances are updated one at a time, so the deployment is the slowest of the built-in options but has the smallest effect at any moment.",
+        why: "Correct. Only one instance is out of service at a time." },
+      { t: "The deployment still counts as successful if only the LAST instance fails.",
+        why: "Correct. OneAtATime succeeds if every instance succeeds, except that a failure on the last instance is allowed." },
+      { t: "The deployment succeeds if at least one instance succeeds.",
+        why: "That's the rule for AllAtOnce." },
+      { t: "Half of the instances are updated at the same time.",
+        why: "That's HalfAtATime." },
+      { t: "OneAtATime can be used for Lambda deployments.",
+        why: "Lambda uses canary, linear, or all-at-once traffic-shifting configurations." }
+    ],
+    answer: [0, 1],
+    tip: "Success rules: AllAtOnce = at least 1 instance · HalfAtATime = at least half · OneAtATime = all except the last may fail."
+  },
+  {
+    id: "cd-22", domain: "d1", topic: "CodeDeploy",
+    q: "An operations team wants a message in Slack and a ticket created automatically whenever a CodeDeploy deployment FAILS or is ROLLED BACK in any deployment group. Which solution needs the LEAST custom work for both?",
+    options: [
+      { t: "An EventBridge rule on 'CodeDeploy Deployment State-change Notification' with state FAILURE that targets a Lambda function to create the ticket, and a notification rule to Slack through Chatbot.",
+        why: "Correct. EventBridge gives an event-driven hook for the ticket automation, and notification rules send to Slack without code." },
+      { t: "Poll ListDeployments every minute with a cron job.",
+        why: "Polling and custom code." },
+      { t: "Read the agent logs on every instance.",
+        why: "Lambda and ECS deployments have no agent, and this is manual." },
+      { t: "CloudTrail log file validation.",
+        why: "That checks log integrity. It doesn't send alerts." }
+    ],
+    answer: [0],
+    tip: "React to deployment results → EventBridge (automation) + notification rules / SNS triggers (people)."
   }
 ];
