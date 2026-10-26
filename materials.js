@@ -4,7 +4,9 @@
 
 window.MATERIALS = [
   { domain: null, topics: [], title: "DOP-C02 study timeline (Oct 13 - Dec 17)", file: "pdfs/DOP-C02_Study_Timeline.pdf" },
-  { domain: "d1", topics: ["CodeCommit", "CodeBuild", "CodeArtifact"], title: "Week 1 notes - CI/CD building blocks", file: "pdfs/Week1_CICD_Building_Blocks.pdf" },
+  { domain: "d1", topics: ["CodeCommit"], title: "Week 1 notes - AWS CodeCommit", file: "pdfs/Week1_CodeCommit.pdf" },
+  { domain: "d1", topics: ["CodeBuild"], title: "Week 1 notes - AWS CodeBuild", file: "pdfs/Week1_CodeBuild.pdf" },
+  { domain: "d1", topics: ["CodeArtifact"], title: "Week 1 notes - AWS CodeArtifact", file: "pdfs/Week1_CodeArtifact.pdf" },
   { domain: "d1", topics: ["ECR"], title: "Week 1 notes - Amazon ECR", file: "pdfs/Week1_ECR.pdf" },
   { domain: "d1", topics: ["CodePipeline"], title: "Week 1 notes - AWS CodePipeline", file: "pdfs/Week1_CodePipeline.pdf" },
   { domain: "d1", topics: ["CodeConnections"], title: "Week 1 notes - AWS CodeConnections", file: "pdfs/Week1_CodeConnections.pdf" },
