@@ -507,6 +507,74 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "Elastic Beanstalk",
+  sections: [
+    { h: "Deployment policies", table: [
+      ["Policy", "Downtime", "Capacity", "Rollback", "Cost"],
+      ["All at once", "**Yes**", "Zero during deploy", "Manual redeploy", "None"],
+      ["Rolling", "No", "Reduced by one batch", "Manual redeploy (mixed versions)", "None"],
+      ["Rolling with additional batch", "No", "**Full**", "Manual redeploy (mixed versions)", "One extra batch"],
+      ["Immutable", "No", "Double briefly", "**Terminate temporary ASG** (safest)", "High"],
+      ["Traffic splitting", "No", "Double briefly", "**Automatic** (ALB canary)", "High"],
+      ["Blue/green (swap URLs)", "No", "Two environments", "**Swap back**", "Highest"]
+    ]},
+    { h: "Key facts", items: [
+      "Namespace `aws:elasticbeanstalk:command`: `DeploymentPolicy`, `BatchSizeType`, `BatchSize`, **`Timeout` (default 600 s)**, `IgnoreHealthCheck`",
+      "Traffic splitting: `NewVersionPercent` + `EvaluationTime`, **needs an ALB**",
+      "**Single-instance** environments: only All at once or Immutable",
+      "**Config changes** that replace instances use **rolling updates** (`aws:autoscaling:updatepolicy:rollingupdate`, type **Time / Health / Immutable**), not DeploymentPolicy",
+      "**Managed platform updates**: weekly window, minor + patch only, uses immutable, **needs enhanced health**",
+      "**Load balancer type can't be changed** after creation; major platform branch change → new environment + swap URLs",
+      "Application version limit **1,000** → **lifecycle policy** (by count or age)",
+      "Beanstalk runs a **CloudFormation stack**: change resources through Beanstalk, never directly (drift)",
+      "**Service role** = Beanstalk calls AWS for you · **instance profile** = your app's permissions",
+      "A terminated environment can be **restored within 6 weeks**"
+    ]},
+    { h: ".ebextensions", items: [
+      "Folder `.ebextensions/` at the **bundle root**, files end in **`.config`**, YAML or JSON, processed **alphabetically**",
+      "Order: packages → groups → users → sources → files → **commands** (before app extracted) → services → **container_commands** (after app staged, before live)",
+      "**`leader_only: true`** on container_commands = run once (DB migrations)",
+      "`Resources` = extra CloudFormation resources, **deleted with the environment**",
+      "Priority: **direct settings (console/CLI/API) > saved config > .ebextensions > defaults**",
+      "Keep **RDS outside** Beanstalk for production and for blue/green",
+      "Also: `.platform/hooks/` (prebuild, predeploy, postdeploy), `.platform/confighooks/`, `.platform/nginx/conf.d/`, `Procfile`, `Buildfile`, `env.yaml` (manifest + environment links)",
+      "Logs: `aws:elasticbeanstalk:cloudwatch:logs` StreamLogs · X-Ray: `aws:elasticbeanstalk:xray` XRayEnabled",
+      "Secrets: **Secrets Manager / Parameter Store** references, never in .ebextensions"
+    ]},
+    { h: "Swap environment URLs", items: [
+      "Clone or create green → deploy → test → **`eb swap` / SwapEnvironmentCNAMEs** → keep blue until DNS TTL expires → swap back to roll back",
+      "Same **application** and **Region**; both running",
+      "It's a **DNS (CNAME) swap**: not instant, cached clients still hit blue",
+      "Gradual shift between two environments → **Route 53 weighted records**",
+      "Use for: platform branch change, LB type change, separate test environment, fastest rollback"
+    ]},
+    { h: "Worker environments", items: [
+      "Web tier → **SQS** → **sqsd** daemon → HTTP POST to **localhost** (`HttpPath`)",
+      "**200 OK = delete**; anything else = retry after visibility timeout → **DLQ** after `MaxRetries`",
+      "**VisibilityTimeout > job time**, or the job runs twice; raise `InactivityTimeout` for long jobs",
+      "No load balancer; queue auto-created or your own; FIFO supported (no cron with FIFO)",
+      "**`cron.yaml`** periodic tasks: **leader election via DynamoDB** → runs once, not per instance",
+      "Scale on **ApproximateNumberOfMessagesVisible**, not CPU",
+      "Web role needs `sqs:SendMessage`; link tiers with **environment links** in `env.yaml`"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["10% of live traffic for 15 min, auto rollback", "Traffic splitting"],
+      ["Failure must not touch running instances", "Immutable"],
+      ["Full capacity, lowest extra cost", "Rolling with additional batch"],
+      ["Migration runs on every instance", "container_commands + leader_only"],
+      [".ebextensions change ignored", "Direct setting overrides it, or file not at bundle root / not .config"],
+      ["Change LB type or platform branch", "New environment + swap URLs"],
+      ["Requests take minutes", "Worker environment + SQS"],
+      ["Scheduled job runs on every instance", "cron.yaml in a worker"],
+      ["Deploy fails at ~10 minutes", "Raise command Timeout"],
+      ["Database deleted with environment", "Create RDS outside Beanstalk"],
+      ["Version limit reached", "Application version lifecycle policy"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -3240,5 +3240,361 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "In-flight requests cut during a switch → ALB deregistration delay (connection draining)."
+  },
+
+  // ───────────────────────────── Elastic Beanstalk ─────────────────────────────
+  {
+    id: "eb-01", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A company runs a Python app on Elastic Beanstalk with 10 instances behind an ALB. Before each release reaches everyone, the team wants 10% of real production traffic to go to the new version for 15 minutes, and Beanstalk must automatically return all traffic to the old version if the new instances become unhealthy. What should they configure?",
+    options: [
+      { t: "Set the deployment policy to TrafficSplitting with NewVersionPercent 10 and EvaluationTime 15.",
+        why: "Correct. Traffic splitting launches a new set of instances, uses the ALB to send the chosen percentage for the evaluation time, and rolls back automatically if health drops." },
+      { t: "Set the deployment policy to Rolling with a batch size of 10%.",
+        why: "Rolling updates existing instances batch by batch with no evaluation period and no automatic rollback." },
+      { t: "Set the deployment policy to Immutable.",
+        why: "Immutable checks health on new instances but does not send a set percentage of live traffic for a fixed time." },
+      { t: "Create a second environment and use Swap environment URLs.",
+        why: "A URL swap moves all traffic at once through DNS. It is not a percentage-based canary with automatic rollback." }
+    ],
+    answer: [0],
+    tip: "Beanstalk canary with automatic rollback → TrafficSplitting (NewVersionPercent + EvaluationTime, needs ALB)."
+  },
+  {
+    id: "eb-02", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A Django app on a load-balanced Elastic Beanstalk environment runs database schema migrations during deployment. With 6 instances, the migration runs 6 times at once and sometimes corrupts the schema. How should the DevOps engineer make the migration run only once per deployment?",
+    options: [
+      { t: "Run the migration in .ebextensions container_commands with leader_only: true.",
+        why: "Correct. leader_only runs the command on a single instance during the deployment, which is the standard pattern for migrations." },
+      { t: "Run the migration in .ebextensions commands.",
+        why: "commands run on every instance, and before the application is extracted, so the migration code isn't even in place yet." },
+      { t: "Put the migration in cron.yaml.",
+        why: "cron.yaml schedules periodic tasks in worker environments. It isn't tied to deployments." },
+      { t: "Switch the deployment policy to All at once.",
+        why: "All instances would still run the migration, and the change adds downtime." }
+    ],
+    answer: [0],
+    tip: "Run something once per deployment → container_commands + leader_only: true."
+  },
+  {
+    id: "eb-03", domain: "d1", topic: "Elastic Beanstalk",
+    q: "An Elastic Beanstalk environment was created with a Classic Load Balancer. The team now needs an Application Load Balancer for path-based routing, with no downtime for users. What is the correct approach?",
+    options: [
+      { t: "Create a new environment with an ALB, deploy the same version, test it, then swap environment URLs.",
+        why: "Correct. The load balancer type can't be changed after an environment is created, so blue/green with a CNAME swap is the zero-downtime way." },
+      { t: "Change the load balancer type in the environment's configuration and apply it.",
+        why: "Beanstalk doesn't allow changing the load balancer type of an existing environment." },
+      { t: "Add an ALB in .ebextensions Resources and register the instances.",
+        why: "This creates an unmanaged extra load balancer that Beanstalk doesn't use for health, scaling or deployments." },
+      { t: "Rebuild the environment.",
+        why: "Rebuilding recreates the same configuration, still with the Classic Load Balancer, and causes downtime." }
+    ],
+    answer: [0],
+    tip: "Load balancer type change (or platform branch change) → new environment + swap URLs."
+  },
+  {
+    id: "eb-04", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A web environment generates large PDF reports. Requests take up to 4 minutes and often time out at the load balancer, and users see errors. The team wants the web tier to stay responsive. What should they do?",
+    options: [
+      { t: "Create an Elastic Beanstalk worker environment. The web tier sends a message to SQS, and the worker's daemon posts it to the app that builds the report.",
+        why: "Correct. Worker environments are made for long-running background tasks. The web tier returns at once, and the sqsd daemon delivers each job to the worker app." },
+      { t: "Raise the ALB idle timeout to 10 minutes.",
+        why: "Requests still hold web instances for minutes, so the web tier stays slow and doesn't scale well." },
+      { t: "Raise the deployment command Timeout.",
+        why: "That setting controls how long deployments may take, not request handling." },
+      { t: "Use larger instance types for the web environment.",
+        why: "This may shorten processing a little, but long synchronous requests still block the web tier." }
+    ],
+    answer: [0],
+    tip: "Long-running work in a web app → SQS + Beanstalk worker environment."
+  },
+  {
+    id: "eb-05", domain: "d1", topic: "Elastic Beanstalk",
+    q: "In an Elastic Beanstalk worker environment, a video-encoding job takes about 8 minutes. The team sees the same video encoded two or three times. Logs show the app returns HTTP 200 after each job. What is the MOST likely cause?",
+    options: [
+      { t: "The SQS visibility timeout is shorter than the job duration, so the message becomes visible again and another instance picks it up.",
+        why: "Correct. If processing takes longer than VisibilityTimeout, the message reappears before it is deleted. Set VisibilityTimeout (and InactivityTimeout) above the longest job time." },
+      { t: "The queue is a FIFO queue.",
+        why: "FIFO queues reduce duplicates. They don't cause them." },
+      { t: "The dead-letter queue is not configured.",
+        why: "A DLQ catches messages that fail too often. It doesn't stop duplicates caused by a short visibility timeout." },
+      { t: "cron.yaml is missing.",
+        why: "cron.yaml is only for scheduled tasks." }
+    ],
+    answer: [0],
+    tip: "Worker job processed twice → VisibilityTimeout shorter than the job."
+  },
+  {
+    id: "eb-06", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A nightly clean-up job was set up with a Linux cron entry through .ebextensions on a web environment with 5 instances. The job now runs 5 times every night. The team wants it to run exactly once a night, managed by Elastic Beanstalk. What should they do?",
+    options: [
+      { t: "Move the job to a worker environment and define it in cron.yaml.",
+        why: "Correct. Periodic tasks in cron.yaml use leader election (with a DynamoDB table), so only one instance queues each task and it runs once." },
+      { t: "Add leader_only: true to the cron file in .ebextensions files.",
+        why: "leader_only only applies to container_commands during deployment. After scaling or replacement, a different instance may run the job, or none may." },
+      { t: "Reduce the web environment to one instance.",
+        why: "This removes high availability and capacity just to fix scheduling." },
+      { t: "Use the Rolling with additional batch deployment policy.",
+        why: "Deployment policies don't affect how scheduled jobs run." }
+    ],
+    answer: [0],
+    tip: "Scheduled task once across many instances → worker environment + cron.yaml (leader election)."
+  },
+  {
+    id: "eb-07", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A developer added an option in .ebextensions to change the instance type from t3.small to t3.large and deployed. The environment still uses t3.small. Earlier, an engineer had set the instance type in the Elastic Beanstalk console. Why didn't the change apply?",
+    options: [
+      { t: "Settings applied directly to the environment (console, CLI, API) override .ebextensions settings.",
+        why: "Correct. The order is: direct settings, then saved configurations, then .ebextensions, then defaults. Remove the direct setting so the config file wins." },
+      { t: "The .ebextensions file is processed after the default settings.",
+        why: "Defaults are the lowest priority, so they wouldn't block the change." },
+      { t: "Instance types can only be changed with a new environment.",
+        why: "Instance types can be changed in place. Beanstalk applies it with a rolling update." },
+      { t: ".ebextensions only supports JSON.",
+        why: ".ebextensions supports YAML and JSON." }
+    ],
+    answer: [0],
+    tip: "Settings priority: direct (console/CLI/API) > saved config > .ebextensions > defaults."
+  },
+  {
+    id: "eb-08", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A company terminated an old Elastic Beanstalk environment to replace it, and its production RDS database was deleted with it. What should the team do for future environments to keep the database independent of the environment lifecycle?",
+    options: [
+      { t: "Create the RDS database outside Elastic Beanstalk and give its endpoint to the app through environment properties or Secrets Manager.",
+        why: "Correct. A database created outside the environment survives termination and can be shared between blue and green environments." },
+      { t: "Create the RDS database in .ebextensions Resources.",
+        why: "Resources in .ebextensions are part of the environment's stack, so they are deleted with the environment too." },
+      { t: "Enable Multi-AZ on the environment's RDS database.",
+        why: "Multi-AZ helps availability, but the database is still deleted with the environment." },
+      { t: "Turn on managed platform updates.",
+        why: "Managed updates change the platform version. They don't affect the database lifecycle." }
+    ],
+    answer: [0],
+    tip: "Production database → outside Beanstalk (also required for blue/green swaps)."
+  },
+  {
+    id: "eb-09", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A team's deployments to Elastic Beanstalk start failing with an error that the application version limit has been reached. What is the BEST long-term fix?",
+    options: [
+      { t: "Configure an application version lifecycle policy to keep a set number of versions, or delete versions older than a set age.",
+        why: "Correct. The account limit is 1,000 application versions. A lifecycle policy deletes old ones automatically, never versions in use." },
+      { t: "Request a service quota increase for environments.",
+        why: "The issue is application versions, not environments, and a lifecycle policy is the intended fix." },
+      { t: "Delete the S3 bucket that Elastic Beanstalk uses.",
+        why: "This would break the environments and the versions that are still needed." },
+      { t: "Create a new Elastic Beanstalk application for each release.",
+        why: "This is messy and doesn't stop versions from piling up." }
+    ],
+    answer: [0],
+    tip: "Application version limit (1,000) → application version lifecycle policy (by count or age)."
+  },
+  {
+    id: "eb-10", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A team uses blue/green on Elastic Beanstalk. After swapping environment URLs, some users still reach the old (blue) environment for several minutes. The team plans to terminate blue right after the swap to save money. What should they know?",
+    options: [
+      { t: "Swap URLs changes DNS CNAME records, so cached DNS entries keep sending some users to blue. Keep blue running until DNS caches expire.",
+        why: "Correct. The swap is a DNS change, not instant. Terminating blue too early causes errors for users with cached records, and it also removes the quick rollback option." },
+      { t: "The swap failed and must be repeated.",
+        why: "Some users reaching blue after a swap is expected DNS caching behavior." },
+      { t: "The environments must be in different Regions.",
+        why: "Swap URLs needs both environments in the same application and Region." },
+      { t: "Use the Immutable policy instead, because it switches DNS faster.",
+        why: "Immutable doesn't use DNS at all, and it isn't a separate environment like blue/green." }
+    ],
+    answer: [0],
+    tip: "Swap URLs = DNS swap → keep blue up until TTLs expire; swap back to roll back."
+  },
+  {
+    id: "eb-11", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A company must move an Elastic Beanstalk environment from the Amazon Linux 2 platform branch to Amazon Linux 2023, with minimal risk and a fast rollback. What should they do?",
+    options: [
+      { t: "Create a new environment on the AL2023 platform branch, deploy and test the app, then swap environment URLs.",
+        why: "Correct. Major platform branch changes are done with blue/green. Rollback is a swap back to the AL2 environment." },
+      { t: "Enable managed platform updates for major versions.",
+        why: "Managed platform updates only apply minor and patch updates within the same branch." },
+      { t: "Change the platform version with a Rolling deployment.",
+        why: "This changes instances in place with mixed platforms and no fast rollback, and branch changes aren't supported this way." },
+      { t: "Use .ebextensions to install the new OS packages.",
+        why: "You can't change the operating system through .ebextensions." }
+    ],
+    answer: [0],
+    tip: "Major platform branch upgrade → blue/green (new environment + swap URLs)."
+  },
+  {
+    id: "eb-12", domain: "d1", topic: "Elastic Beanstalk", multi: true,
+    q: "A company wants Elastic Beanstalk to apply OS and runtime patches automatically every week, with no downtime and no manual work. What is needed? (Choose TWO.)",
+    options: [
+      { t: "Turn on managed platform updates with a weekly maintenance window.",
+        why: "Correct. Beanstalk applies minor and patch updates in the maintenance window." },
+      { t: "Turn on enhanced health reporting.",
+        why: "Correct. Managed platform updates use immutable deployments, which need enhanced health." },
+      { t: "Set the deployment policy to All at once.",
+        why: "Managed updates always use an immutable deployment. All at once would cause downtime anyway." },
+      { t: "Create a Lambda function to call UpdateEnvironment every week.",
+        why: "Unnecessary custom work. Managed platform updates already do this." },
+      { t: "Store the platform version in cron.yaml.",
+        why: "cron.yaml is for worker periodic tasks, not platform updates." }
+    ],
+    answer: [0, 1],
+    tip: "Managed platform updates = weekly window + enhanced health (uses immutable)."
+  },
+  {
+    id: "eb-13", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A team changes the instance type of a production Elastic Beanstalk environment. They want the instances replaced batch by batch, and the next batch should only start after the new instances pass health checks. Which setting applies?",
+    options: [
+      { t: "aws:autoscaling:updatepolicy:rollingupdate with RollingUpdateType set to Health.",
+        why: "Correct. Instance type is a configuration change, so it uses rolling updates. Health-based rolling waits for new instances to be healthy before continuing." },
+      { t: "aws:elasticbeanstalk:command with DeploymentPolicy set to Rolling.",
+        why: "Deployment policies apply to new application versions, not configuration changes that replace instances." },
+      { t: "aws:autoscaling:updatepolicy:rollingupdate with RollingUpdateType set to Time.",
+        why: "Time-based rolling waits a fixed PauseTime, not for health checks." },
+      { t: "aws:elasticbeanstalk:trafficsplitting with NewVersionPercent set to 100.",
+        why: "Traffic splitting is a deployment policy for application versions." }
+    ],
+    answer: [0],
+    tip: "Config change replacing instances → rolling updates (Time / Health / Immutable), not DeploymentPolicy."
+  },
+  {
+    id: "eb-14", domain: "d1", topic: "Elastic Beanstalk",
+    q: "An Elastic Beanstalk worker environment's SQS queue builds up thousands of messages during busy hours, while the instances' CPU stays low because jobs mostly wait on external APIs. How should the team scale the worker environment?",
+    options: [
+      { t: "Scale the Auto Scaling group on the SQS ApproximateNumberOfMessagesVisible metric.",
+        why: "Correct. Queue depth shows how much work is waiting. Add a CloudWatch alarm and scaling policy on it, for example through .ebextensions or the scaling trigger settings." },
+      { t: "Keep scaling on CPU but lower the threshold to 10%.",
+        why: "CPU doesn't reflect the backlog for I/O-bound jobs, so scaling stays unreliable." },
+      { t: "Add a load balancer to the worker environment.",
+        why: "Worker environments don't use a load balancer. Work arrives through SQS." },
+      { t: "Increase the RetentionPeriod.",
+        why: "This keeps messages longer but doesn't process them faster." }
+    ],
+    answer: [0],
+    tip: "Scale workers on queue depth (ApproximateNumberOfMessagesVisible), not CPU."
+  },
+  {
+    id: "eb-15", domain: "d1", topic: "Elastic Beanstalk",
+    q: "In a worker environment, some messages contain bad data. The worker app returns HTTP 500 for them, and they're retried endlessly, wasting capacity. What should the team do?",
+    options: [
+      { t: "Configure a dead-letter queue with a maximum receive count (MaxRetries), so failing messages are moved aside after a few attempts.",
+        why: "Correct. After the set number of retries, the message goes to the DLQ for investigation instead of looping forever." },
+      { t: "Return HTTP 200 for every message.",
+        why: "The message would be deleted and the failure lost with no record." },
+      { t: "Increase the VisibilityTimeout to 12 hours.",
+        why: "This only slows the retries. It doesn't stop them." },
+      { t: "Switch to a FIFO queue.",
+        why: "FIFO keeps order. A failing message at the head could even block the messages behind it." }
+    ],
+    answer: [0],
+    tip: "Poison messages in a worker → DLQ / MaxRetries."
+  },
+  {
+    id: "eb-16", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A deployment to an Elastic Beanstalk environment fails after about 10 minutes because the app's startup script downloads large ML models. Logs show the commands didn't finish before the deployment timed out. What should the engineer change FIRST?",
+    options: [
+      { t: "Raise the Timeout option in aws:elasticbeanstalk:command.",
+        why: "Correct. The default command timeout is 600 seconds (10 minutes). Raising it lets long deployments finish. Baking the models into a custom AMI is a good longer-term improvement." },
+      { t: "Raise the ALB idle timeout.",
+        why: "The ALB timeout affects client requests, not deployment commands." },
+      { t: "Set IgnoreHealthCheck to true.",
+        why: "The problem is the timeout, not health checks, and ignoring health is risky." },
+      { t: "Change the deployment policy to All at once.",
+        why: "Commands still take as long, so the same timeout is hit, plus there's downtime." }
+    ],
+    answer: [0],
+    tip: "Deployment fails at ~10 minutes → raise command Timeout (default 600 s); custom AMI to speed up."
+  },
+  {
+    id: "eb-17", domain: "d1", topic: "Elastic Beanstalk",
+    q: "An administrator increased the Auto Scaling group's maximum size directly in the EC2 console for an Elastic Beanstalk environment. A few days later, a configuration update changed it back and the environment shows warnings. What is the correct practice?",
+    options: [
+      { t: "Make changes through Elastic Beanstalk configuration options (console, EB CLI, API or .ebextensions), not directly on the underlying resources.",
+        why: "Correct. Beanstalk manages its resources through a CloudFormation stack. Direct changes cause drift and get overwritten." },
+      { t: "Turn on termination protection for the Auto Scaling group.",
+        why: "This doesn't stop Beanstalk from overwriting settings." },
+      { t: "Edit the Beanstalk CloudFormation stack template directly.",
+        why: "The stack is managed by Beanstalk, so direct edits also drift and are overwritten." },
+      { t: "Detach the Auto Scaling group from the environment.",
+        why: "This breaks Beanstalk's management of scaling and deployments." }
+    ],
+    answer: [0],
+    tip: "Change Beanstalk resources only through Beanstalk options, never directly (drift)."
+  },
+  {
+    id: "eb-18", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A CodePipeline pipeline builds a Node.js app with CodeBuild and deploys it with the Elastic Beanstalk deploy action. The .ebextensions settings in the repository are ignored after deployment. The build artifact is a zip containing a folder 'app/' with all the files inside it. What is the problem?",
+    options: [
+      { t: "The .ebextensions folder must be at the root of the source bundle, not inside a top-level folder.",
+        why: "Correct. Beanstalk only reads .ebextensions at the bundle root. Configure the buildspec artifacts (for example base-directory: app) so files land at the root." },
+      { t: "The Elastic Beanstalk deploy action doesn't support .ebextensions.",
+        why: "It does. The deploy action uploads the artifact as a normal application version." },
+      { t: "The .ebextensions files must end in .yaml.",
+        why: "They must end in .config, and the content can be YAML or JSON." },
+      { t: "CodeBuild must deploy with eb deploy instead.",
+        why: "The deploy action works fine. The bundle structure is the problem." }
+    ],
+    answer: [0],
+    tip: ".ebextensions ignored → must be at the bundle root, files must end in .config, valid YAML/JSON."
+  },
+  {
+    id: "eb-19", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A Beanstalk app needs a database password. Security requires that it is never stored in source control or in plain text in the environment configuration, and that it can be rotated. What is the BEST approach?",
+    options: [
+      { t: "Store the password in AWS Secrets Manager and reference it as an environment secret (or read it at runtime using the instance profile).",
+        why: "Correct. The secret stays in Secrets Manager, with rotation, and the instance profile only needs permission to read that secret." },
+      { t: "Put the password in .ebextensions option_settings as an environment property.",
+        why: "This stores it in source control in plain text." },
+      { t: "Hard-code the password in the application and use an encrypted S3 bucket for the bundle.",
+        why: "The password is still in the code and can't be rotated without a new deployment." },
+      { t: "Put the password in env.yaml.",
+        why: "env.yaml is part of the bundle, so the password is still in source control." }
+    ],
+    answer: [0],
+    tip: "Secrets for Beanstalk → Secrets Manager / Parameter Store references + instance profile permissions."
+  },
+  {
+    id: "eb-20", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A team wants to shift traffic from a blue Elastic Beanstalk environment to a green one gradually over a day (10%, then 50%, then 100%), keeping both environments running separately with their own instances. What should they use?",
+    options: [
+      { t: "Route 53 weighted records pointing to the two environments' URLs, changing the weights over time.",
+        why: "Correct. Swap URLs moves all traffic at once. Weighted DNS records allow a gradual shift between two separate environments." },
+      { t: "Swap environment URLs three times.",
+        why: "Each swap moves all traffic, not a percentage." },
+      { t: "Traffic splitting policy with an EvaluationTime of 24 hours.",
+        why: "Traffic splitting works within one environment using a temporary ASG, not between two separate environments." },
+      { t: "Rolling deployment with a 10% batch size.",
+        why: "Rolling updates instances in place within one environment." }
+    ],
+    answer: [0],
+    tip: "Gradual shift between two Beanstalk environments → Route 53 weighted records."
+  },
+  {
+    id: "eb-21", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A team needs to install an OS package, write a config file, and add a DynamoDB table used only by this environment, all defined in the application's repository. Where should this be defined?",
+    options: [
+      { t: "In an .ebextensions .config file, using packages, files and Resources.",
+        why: "Correct. .ebextensions handles packages, files and extra CloudFormation resources together, and it is versioned with the code. Remember the table is deleted when the environment is terminated." },
+      { t: "In the Procfile.",
+        why: "The Procfile only defines the processes that start the app." },
+      { t: "In cron.yaml.",
+        why: "cron.yaml only defines periodic tasks for worker environments." },
+      { t: "In a saved configuration.",
+        why: "Saved configurations hold option settings, not packages, files or extra resources." }
+    ],
+    answer: [0],
+    tip: ".ebextensions: option_settings, packages, files, commands, container_commands, Resources."
+  },
+  {
+    id: "eb-22", domain: "d1", topic: "Elastic Beanstalk",
+    q: "A development environment for a small team runs on one instance. It must be cheap, and the team wants deployments that don't take the app down if the new version fails to start. Which setup meets this?",
+    options: [
+      { t: "A single-instance environment with the Immutable deployment policy.",
+        why: "Correct. Single-instance environments support All at once and Immutable. Immutable launches the new instance first, so a failed start doesn't affect the running instance." },
+      { t: "A single-instance environment with Rolling with additional batch.",
+        why: "Rolling policies need a load-balanced environment with multiple instances." },
+      { t: "A single-instance environment with Traffic splitting.",
+        why: "Traffic splitting needs an ALB, which single-instance environments don't have." },
+      { t: "A load-balanced environment with 4 instances and All at once.",
+        why: "More expensive, and All at once takes the app down if the new version fails." }
+    ],
+    answer: [0],
+    tip: "Single-instance environment → only All at once or Immutable."
   }
 ];
