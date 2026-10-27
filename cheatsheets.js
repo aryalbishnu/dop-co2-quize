@@ -454,6 +454,59 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "Deployment Patterns",
+  sections: [
+    { h: "Patterns compared", table: [
+      ["Pattern", "Downtime", "Capacity", "Mixed versions", "Rollback", "Extra cost"],
+      ["**All at once**", "**Yes**", "Drops to 0", "No", "Slow (redeploy)", "None · fastest"],
+      ["**Rolling**", "No", "**Minus one batch**", "**Yes**", "Slow (redeploy)", "None"],
+      ["**Rolling + additional batch**", "No", "**Full**", "Yes", "Slow (redeploy)", "One extra batch"],
+      ["**Immutable**", "No", "Full (briefly double)", "Briefly", "**Terminate new servers**", "Double, briefly"],
+      ["**Blue/green**", "No", "Full (two environments)", "**No**", "**Fastest: switch back**", "Highest"],
+      ["**Canary**", "No", "Full", "Yes (on purpose)", "Fast (shift back)", "Low to medium"],
+      ["**Linear**", "No", "Full", "Yes", "Fast (shift back)", "Low to medium"],
+      ["**Traffic splitting** (Beanstalk)", "No", "Full (briefly double)", "Yes", "Automatic, quick", "Double, briefly"]
+    ]},
+    { h: "Key ideas", items: [
+      "**Mutable** (in-place: all at once, rolling, + batch) vs **immutable** (new servers: immutable, blue/green, new AMIs, instance refresh) → no drift.",
+      "**Canary** = X% → wait → **all the rest** · **Linear** = **+X% every N minutes** · **Traffic splitting** = Beanstalk's canary (split % + evaluation time).",
+      "Blue/green switching: **ALB target groups (weighted) = instant**. Route 53 DNS = slowed by **TTL caching**. Beanstalk = **Swap environment URLs**.",
+      "Blue/green needs: a shared database with **expand and contract** schema changes · sessions in **ElastiCache / DynamoDB** · ALB **deregistration delay** · Beanstalk **RDS outside the environment**.",
+      "**Feature flags (AppConfig)** = release separately from deploy (linear / exponential, bake time, alarm rollback). Evidently is retired."
+    ]},
+    { h: "Elastic Beanstalk policies", items: [
+      "All at once · Rolling (batch size, healthy threshold, ignore health check) · Rolling with additional batch · Immutable (temporary Auto Scaling group) · Traffic splitting (ALB).",
+      "**Blue/green is NOT a policy** → clone the environment + **Swap environment URLs** (or Route 53).",
+      "Deployment policies = **application versions**. Rolling updates (time / health based) = **configuration changes**."
+    ]},
+    { h: "Patterns by service", table: [
+      ["Service", "How"],
+      ["CodeDeploy EC2 / on-premises", "In-place (AllAtOnce, Half, One, minimum healthy hosts, **zonal**) · blue/green (EC2 + load balancer). On-premises = **in-place only**."],
+      ["CodeDeploy Lambda / ECS", "**Canary**, **Linear**, AllAtOnce (alias / two target groups)"],
+      ["ECS native", "Rolling (`minimumHealthyPercent` / `maximumPercent`) + **deployment circuit breaker** rollback"],
+      ["EKS", "RollingUpdate (`maxSurge`, `maxUnavailable`), Recreate · Argo Rollouts / Flagger for canary or blue/green"],
+      ["Auto Scaling group", "**Instance refresh**: MinHealthyPercentage, checkpoints, skip matching, automatic rollback"],
+      ["CloudFormation", "`AutoScalingRollingUpdate` = rolling · **`AutoScalingReplacingUpdate` (WillReplace)** = immutable"],
+      ["Lambda (no CodeDeploy)", "**Alias weighted routing** (e.g. 90/10)"],
+      ["API Gateway", "**Stage canary release** → promote"],
+      ["ALB / Route 53", "**Weighted target groups** (instant) / weighted records (DNS)"],
+      ["CloudFront", "**Continuous deployment** (staging distribution, % or header)"]
+    ]},
+    { h: "Pick the pattern", table: [
+      ["Requirement", "Pattern"],
+      ["Cheapest, fastest, downtime OK", "All at once"],
+      ["No downtime, less capacity OK, no extra cost", "Rolling"],
+      ["Full capacity, lowest extra cost", "Rolling with additional batch"],
+      ["Failure must not touch running servers", "Immutable"],
+      ["Fastest rollback, **no mixed versions**", "Blue/green (switch everything at once)"],
+      ["Few real users first, then all", "Canary / Beanstalk traffic splitting"],
+      ["Even steps over time", "Linear"],
+      ["Release features without deploying", "AppConfig feature flags"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

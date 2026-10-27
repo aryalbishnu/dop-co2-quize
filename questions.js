@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -2883,5 +2883,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "React to deployment results → EventBridge (automation) + notification rules / SNS triggers (people)."
+  },
+
+  // ───────────────────────────── Deployment Patterns ─────────────────────────────
+  {
+    id: "dp-01", domain: "d1", topic: "Deployment Patterns",
+    q: "A production web app runs on Elastic Beanstalk with 8 instances. Deployments must cause NO downtime and must NOT reduce serving capacity at any point, at the LOWEST additional cost. Which deployment policy should be used?",
+    options: [
+      { t: "Rolling with additional batch.",
+        why: "Correct. An extra batch is launched first, so full capacity is kept, and you only pay for one extra batch during the deployment." },
+      { t: "Rolling.",
+        why: "Capacity drops by one batch while each batch updates." },
+      { t: "Immutable.",
+        why: "Keeps full capacity, but briefly doubles the whole fleet, which costs more than one extra batch." },
+      { t: "All at once.",
+        why: "Causes downtime." }
+    ],
+    answer: [0],
+    tip: "Beanstalk: full capacity at the lowest extra cost → rolling with additional batch."
+  },
+  {
+    id: "dp-02", domain: "d1", topic: "Deployment Patterns",
+    q: "A team's Elastic Beanstalk rolling deployments sometimes fail halfway, leaving some instances on the new version and others on the old one, and recovery takes a long manual redeployment. The team wants a failed deployment to NEVER affect the running instances, and to recover simply by discarding the new ones. Which policy should they use?",
+    options: [
+      { t: "Immutable.",
+        why: "Correct. A full new set of instances is launched in a temporary Auto Scaling group. If they fail health checks, they're terminated and the original instances are never touched." },
+      { t: "Rolling with additional batch.",
+        why: "Existing instances are still updated in place, so a failure can still leave mixed versions." },
+      { t: "All at once.",
+        why: "Updates every running instance and causes downtime." },
+      { t: "Rolling with a smaller batch size.",
+        why: "Still changes existing instances in place." }
+    ],
+    answer: [0],
+    tip: "Failed deployment must not touch existing servers → immutable (rollback = terminate the new instances)."
+  },
+  {
+    id: "dp-03", domain: "d1", topic: "Deployment Patterns",
+    q: "On Elastic Beanstalk, the product team wants 15% of real user traffic sent to a new version for 20 minutes. If health stays good, all traffic should move to it; if not, traffic should go back automatically. What should the DevOps engineer configure?",
+    options: [
+      { t: "The Traffic splitting deployment policy with a 15% traffic split and a 20-minute evaluation time.",
+        why: "Correct. Traffic splitting is Beanstalk's built-in canary: new instances get a share of traffic for the evaluation time, then everything moves or rolls back." },
+      { t: "Rolling with a batch size of 15%.",
+        why: "This updates 15% of the instances, not 15% of the traffic, and it doesn't evaluate the new version before going on." },
+      { t: "Immutable.",
+        why: "Immutable doesn't send a chosen share of traffic for an evaluation period." },
+      { t: "Clone the environment and swap URLs after 20 minutes.",
+        why: "A URL swap moves ALL traffic at once. That's blue/green, not a 15% split." }
+    ],
+    answer: [0],
+    tip: "Beanstalk canary (X% of traffic for Y minutes) → traffic splitting."
+  },
+  {
+    id: "dp-04", domain: "d1", topic: "Deployment Patterns",
+    q: "A company wants a blue/green deployment for an Elastic Beanstalk application: test the new version in a full separate environment, then switch all users to it, with the option to switch back quickly. How should this be done?",
+    options: [
+      { t: "Clone the environment (or create a new one), deploy the new version to it and test it, then use 'Swap environment URLs' to exchange the CNAMEs.",
+        why: "Correct. Beanstalk blue/green works by swapping environment URLs (or with Route 53). Swapping back is the rollback." },
+      { t: "Select 'Blue/green' as the deployment policy.",
+        why: "Blue/green isn't a Beanstalk deployment policy." },
+      { t: "Use the Rolling policy with a 100% batch size.",
+        why: "This updates the same environment in place." },
+      { t: "Delete the old environment first, then create the new one.",
+        why: "Causes downtime and leaves no way to roll back." }
+    ],
+    answer: [0],
+    tip: "Beanstalk blue/green = separate environment + Swap environment URLs (CNAME swap)."
+  },
+  {
+    id: "dp-05", domain: "d1", topic: "Deployment Patterns",
+    q: "After a blue/green switch on Elastic Beanstalk, the team terminated the old (blue) environment. Shortly afterwards, the application lost all its data, because the RDS database had been created as part of the blue environment. How should future environments be designed?",
+    options: [
+      { t: "Create the RDS database separately from Elastic Beanstalk, and pass its connection details to both environments (for example through environment properties or Secrets Manager).",
+        why: "Correct. A database created inside a Beanstalk environment shares that environment's lifecycle. A separate database survives environment swaps and terminations." },
+      { t: "Take an RDS snapshot before every swap and keep the database in the environment.",
+        why: "This lets you restore, but the database is still deleted with the environment, which causes downtime and data loss risk." },
+      { t: "Use the Immutable policy instead.",
+        why: "Unrelated. The problem is where the database lives." },
+      { t: "Never terminate old environments.",
+        why: "Costly, and it doesn't fix the design." }
+    ],
+    answer: [0],
+    tip: "Blue/green with Beanstalk → keep RDS outside the environments."
+  },
+  {
+    id: "dp-06", domain: "d1", topic: "Deployment Patterns",
+    q: "A company switches traffic from blue to green by changing a Route 53 record. Even 30 minutes after the switch, some users still reach the blue environment, and a rollback also takes a long time to take effect. The company wants an INSTANT switch in both directions. What should it change?",
+    options: [
+      { t: "Put both environments behind one Application Load Balancer and switch the listener between target groups (or change weighted target group weights).",
+        why: "Correct. ALB listener and target group changes take effect immediately, without DNS caching." },
+      { t: "Raise the Route 53 record TTL.",
+        why: "A higher TTL makes clients cache longer, which is slower." },
+      { t: "Use Route 53 failover routing.",
+        why: "Still DNS-based, so the same caching problem." },
+      { t: "Ask users to clear their DNS cache.",
+        why: "Not practical." }
+    ],
+    answer: [0],
+    tip: "DNS switches are slowed by TTL caching. Instant blue/green → ALB target groups (weighted)."
+  },
+  {
+    id: "dp-07", domain: "d1", topic: "Deployment Patterns",
+    q: "Users complain that they are logged out every time the team does a blue/green deployment. Sessions are currently stored in memory on each EC2 instance. What should the DevOps engineer change?",
+    options: [
+      { t: "Store sessions outside the instances, in a shared store such as Amazon ElastiCache or DynamoDB, so both environments can read them.",
+        why: "Correct. Externalized sessions survive any switch between environments or instances." },
+      { t: "Turn on ALB sticky sessions.",
+        why: "Stickiness keeps a user on one instance, but the green instances still don't have the session." },
+      { t: "Increase the ALB deregistration delay.",
+        why: "This only lets in-flight requests finish. It doesn't move sessions." },
+      { t: "Use rolling deployments instead.",
+        why: "Users would still lose sessions when their instance is updated." }
+    ],
+    answer: [0],
+    tip: "Users logged out after deployments → keep sessions outside the servers (ElastiCache / DynamoDB)."
+  },
+  {
+    id: "dp-08", domain: "d1", topic: "Deployment Patterns",
+    q: "During a blue/green release, the new version needs a database column renamed from 'phone' to 'mobile_phone'. Both environments share the same database, and the team must be able to roll back to blue at any time. What is the SAFEST approach?",
+    options: [
+      { t: "Use expand and contract: add the new column while keeping the old one, deploy code that works with both, migrate the data, and remove the old column in a later release.",
+        why: "Correct. Backward-compatible schema changes let blue and green both work with the shared database, so rolling back stays safe." },
+      { t: "Rename the column in the same release as the code change.",
+        why: "Blue would break immediately, and rolling back would fail." },
+      { t: "Give each environment its own copy of the database.",
+        why: "The data would split, and syncing it is complex." },
+      { t: "Stop the application during the rename.",
+        why: "Causes downtime, which defeats the purpose of blue/green." }
+    ],
+    answer: [0],
+    tip: "Shared database in blue/green → backward-compatible (expand and contract) schema changes."
+  },
+  {
+    id: "dp-09", domain: "d1", topic: "Deployment Patterns",
+    q: "A company releases a new Lambda version. It wants 10% of traffic on the new version for 15 minutes; if CloudWatch alarms stay OK, ALL remaining traffic should then move at once, otherwise traffic must go back automatically. Which approach fits?",
+    options: [
+      { t: "CodeDeploy with a canary configuration (CodeDeployDefault.LambdaCanary10Percent15Minutes), with the alarms on the deployment group and rollback on alarm.",
+        why: "Correct. Canary means one small step, a wait, then everything, and CodeDeploy rolls back on alarms." },
+      { t: "LambdaLinear10PercentEvery1Minute.",
+        why: "Linear adds 10% each minute, not 10% for 15 minutes followed by the rest." },
+      { t: "LambdaAllAtOnce.",
+        why: "No test period with a small share of traffic." },
+      { t: "Point Route 53 weighted records at two function URLs.",
+        why: "Manual, and it has no automatic alarm-based rollback." }
+    ],
+    answer: [0],
+    tip: "Canary = X%, wait, then the rest · Linear = +X% every N minutes."
+  },
+  {
+    id: "dp-10", domain: "d1", topic: "Deployment Patterns",
+    q: "A risk-averse team wants traffic to a new ECS service version to increase GRADUALLY in equal steps, 10% more every 3 minutes, checking alarms at each step and rolling back if one goes off. Which option should they choose?",
+    options: [
+      { t: "CodeDeploy ECS blue/green with CodeDeployDefault.ECSLinear10PercentEvery3Minutes and CloudWatch alarms with rollback.",
+        why: "Correct. Linear moves traffic in equal steps, and alarms can stop and roll back the deployment at any step." },
+      { t: "ECSCanary10Percent15Minutes.",
+        why: "Canary moves 10%, waits, then the rest. That's not equal steps." },
+      { t: "ECSAllAtOnce.",
+        why: "Not gradual." },
+      { t: "An ECS rolling update with minimumHealthyPercent 90.",
+        why: "This replaces tasks, but it doesn't shift traffic in controlled steps with alarm checks at each one." }
+    ],
+    answer: [0],
+    tip: "Equal traffic steps over time → linear (ECSLinear… / LambdaLinear…)."
+  },
+  {
+    id: "dp-11", domain: "d1", topic: "Deployment Patterns",
+    q: "A team wants to send 5% of a Lambda function's traffic to a new version for a quick manual check, WITHOUT setting up CodeDeploy. What is the simplest way?",
+    options: [
+      { t: "Publish the new version and set the alias's weighted routing (routing configuration) so 95% goes to the current version and 5% to the new one.",
+        why: "Correct. Lambda aliases can split traffic between two versions by weight. Change the weights by hand to finish or roll back." },
+      { t: "Create a second function and use an ALB with weighted target groups.",
+        why: "Possible, but much more setup." },
+      { t: "Set reserved concurrency to 5% on the new version.",
+        why: "Concurrency limits how many requests run at once. It doesn't split traffic." },
+      { t: "Use $LATEST for 5% of calls.",
+        why: "$LATEST can't be given a percentage of traffic like this." }
+    ],
+    answer: [0],
+    tip: "Manual Lambda canary → alias weighted routing between two versions."
+  },
+  {
+    id: "dp-12", domain: "d1", topic: "Deployment Patterns",
+    q: "An API Gateway REST API's 'prod' stage serves all users. The team wants 10% of production requests to use a new deployment, compare its error rates, and then make it the main version. What should they use?",
+    options: [
+      { t: "An API Gateway canary release on the prod stage with 10% canary traffic, then promote the canary when it looks healthy.",
+        why: "Correct. Stage canary settings send a percentage of requests to the new deployment, and promoting it makes it the stage's main deployment." },
+      { t: "Create a separate 'prod2' stage and tell 10% of users to use it.",
+        why: "Manual, and users would need different URLs." },
+      { t: "Throttle the prod stage to 10%.",
+        why: "Throttling limits request rates. It doesn't route requests to a new version." },
+      { t: "Use CloudFront continuous deployment for the API.",
+        why: "API Gateway has a built-in stage canary, which is the simplest option here." }
+    ],
+    answer: [0],
+    tip: "REST API canary → API Gateway stage canary release, then promote."
+  },
+  {
+    id: "dp-13", domain: "d1", topic: "Deployment Patterns",
+    q: "A company changes several cache behaviours and headers on a busy CloudFront distribution. It wants to test the new configuration with 5% of real viewers (or only requests with a test header) before applying it to everyone. What should it use?",
+    options: [
+      { t: "CloudFront continuous deployment: a staging distribution with the new configuration and a weight-based (5%) or header-based traffic policy, then promote it.",
+        why: "Correct. Continuous deployment sends part of the traffic to a staging distribution and lets you promote it when it's ready." },
+      { t: "Edit the production distribution directly and watch the logs.",
+        why: "Every viewer is affected at once." },
+      { t: "Route 53 weighted records between two distributions.",
+        why: "This works, but DNS caching and two separate distributions make it harder. Continuous deployment is built for this." },
+      { t: "Lambda@Edge randomly rewriting requests.",
+        why: "Custom code. Not needed." }
+    ],
+    answer: [0],
+    tip: "Canary for CloudFront configuration → CloudFront continuous deployment (staging distribution)."
+  },
+  {
+    id: "dp-14", domain: "d1", topic: "Deployment Patterns",
+    q: "During an ECS rolling update, a bad image makes every new task crash on start-up. The deployment keeps trying to start tasks for a long time, and the service never stabilizes. The team wants ECS to detect this and roll back to the last working deployment automatically. What should they turn on?",
+    options: [
+      { t: "The ECS deployment circuit breaker with rollback turned on.",
+        why: "Correct. The circuit breaker notices when tasks keep failing to reach steady state, fails the deployment, and rolls back to the last completed deployment." },
+      { t: "Raise minimumHealthyPercent to 100.",
+        why: "This keeps old tasks running, but it doesn't detect the failure or roll back." },
+      { t: "Turn on Container Insights.",
+        why: "It gives visibility only. No rollback." },
+      { t: "Switch to the Fargate Spot capacity provider.",
+        why: "Unrelated to deployment failures." }
+    ],
+    answer: [0],
+    tip: "ECS rolling update keeps failing → deployment circuit breaker + rollback (or CloudWatch alarm rollback)."
+  },
+  {
+    id: "dp-15", domain: "d1", topic: "Deployment Patterns",
+    q: "An Auto Scaling group of 20 instances must move to a new AMI. Instances must be replaced gradually, at least 90% must stay healthy, the rollout should pause at 50% for checks, and it should roll back automatically if a CloudWatch alarm goes off. What should the DevOps engineer use?",
+    options: [
+      { t: "Update the launch template and start an Auto Scaling instance refresh with MinHealthyPercentage 90, a checkpoint at 50%, and automatic rollback with alarms.",
+        why: "Correct. Instance refresh is the native rolling replacement for Auto Scaling groups, with checkpoints and rollback." },
+      { t: "Terminate all instances so Auto Scaling launches new ones.",
+        why: "Causes downtime." },
+      { t: "Change the AMI in the launch template and wait for normal scaling to replace instances.",
+        why: "Old instances may run indefinitely. Nothing controls the rollout." },
+      { t: "Create a new Auto Scaling group by hand and move traffic yourself.",
+        why: "Possible, but more manual than instance refresh." }
+    ],
+    answer: [0],
+    tip: "Roll a new AMI through an Auto Scaling group → instance refresh (MinHealthyPercentage, checkpoints, automatic rollback)."
+  },
+  {
+    id: "dp-16", domain: "d1", topic: "Deployment Patterns",
+    q: "A CloudFormation stack manages an Auto Scaling group. When the launch template changes, the team wants CloudFormation to create an ENTIRELY NEW Auto Scaling group, keep the old one until the new one succeeds, and remove the old one only then (an immutable update). Which UpdatePolicy should they use?",
+    options: [
+      { t: "AutoScalingReplacingUpdate with WillReplace: true (usually with a CreationPolicy and cfn-signal for the new instances).",
+        why: "Correct. A replacing update creates a new group and keeps the old one if the new one fails, so the update is immutable." },
+      { t: "AutoScalingRollingUpdate with MaxBatchSize 1.",
+        why: "This replaces instances inside the SAME group in batches. That's rolling, not immutable." },
+      { t: "AutoScalingScheduledAction.",
+        why: "This controls scheduled actions during updates. It doesn't make updates immutable." },
+      { t: "DeletionPolicy: Retain.",
+        why: "This controls what happens when the stack is deleted, not how updates work." }
+    ],
+    answer: [0],
+    tip: "CloudFormation: AutoScalingRollingUpdate = rolling · AutoScalingReplacingUpdate (WillReplace) = immutable."
+  },
+  {
+    id: "dp-17", domain: "d1", topic: "Deployment Patterns",
+    q: "A financial trading app must NEVER serve two different versions to users at the same time, because the versions calculate prices differently. Deployments must have no downtime and allow a fast rollback. Which pattern should be used?",
+    options: [
+      { t: "Blue/green, switching ALL traffic from blue to green at once (for example by switching the ALB listener), keeping blue for rollback.",
+        why: "Correct. Users only ever see one version, there's no downtime, and switching back is instant." },
+      { t: "Rolling.",
+        why: "Old and new versions serve users at the same time during the rollout." },
+      { t: "Canary.",
+        why: "Canary deliberately sends part of the traffic to the new version while the rest uses the old one." },
+      { t: "All at once.",
+        why: "Causes downtime." }
+    ],
+    answer: [0],
+    tip: "No mixed versions + no downtime + fast rollback → blue/green with an all-at-once switch."
+  },
+  {
+    id: "dp-18", domain: "d1", topic: "Deployment Patterns",
+    q: "A development environment on Elastic Beanstalk is redeployed dozens of times a day. Brief downtime is acceptable, and the team wants deployments to be as FAST and CHEAP as possible. Which policy should they use?",
+    options: [
+      { t: "All at once.",
+        why: "Correct. It's the fastest, adds no extra instances, and its downtime is acceptable in dev." },
+      { t: "Immutable.",
+        why: "Slowest and most expensive (a duplicate fleet)." },
+      { t: "Traffic splitting.",
+        why: "Needs new instances and an evaluation period, so it's slow." },
+      { t: "Blue/green with URL swaps.",
+        why: "Needs a second environment, which is slow and costs more." }
+    ],
+    answer: [0],
+    tip: "Dev or test, downtime OK, fastest and cheapest → all at once."
+  },
+  {
+    id: "dp-19", domain: "d1", topic: "Deployment Patterns",
+    q: "A team deploys new code to production every day, but it wants to turn a big new feature on for 5% of users, then 25%, then everyone, with automatic rollback of the CONFIGURATION if error alarms go off, and without redeploying code. What should it use?",
+    options: [
+      { t: "AWS AppConfig feature flags with a linear or exponential deployment strategy, a bake time, and CloudWatch alarms for automatic rollback.",
+        why: "Correct. Feature flags separate releasing from deploying, and AppConfig rolls out the flag change gradually with alarm-based rollback." },
+      { t: "A new CodeDeploy deployment for every percentage step.",
+        why: "This redeploys code, which the team wants to avoid." },
+      { t: "Store the flag in an environment variable and redeploy.",
+        why: "Requires a redeploy, with no gradual rollout and no automatic rollback." },
+      { t: "Use CloudWatch Evidently.",
+        why: "Evidently has been retired. AppConfig is the current answer." }
+    ],
+    answer: [0],
+    tip: "Gradual feature release without redeploying → AppConfig feature flags + deployment strategy + alarms."
+  },
+  {
+    id: "dp-20", domain: "d1", topic: "Deployment Patterns",
+    q: "A company wants every deployment to replace servers instead of changing them, so that no server ever drifts from its known configuration and every instance can be recreated exactly. Which approach follows this IMMUTABLE infrastructure principle?",
+    options: [
+      { t: "Bake each release into a new AMI (for example with EC2 Image Builder) and roll it out by replacing instances (instance refresh, immutable, or blue/green deployments).",
+        why: "Correct. New, versioned images replace old servers, so there's no drift and everything can be repeated." },
+      { t: "SSH into the servers and apply updates by hand.",
+        why: "This changes servers in place, which causes drift." },
+      { t: "Use the in-place AllAtOnce configuration on long-lived instances.",
+        why: "In-place deployments change existing servers." },
+      { t: "Run yum update with a nightly cron job on every server.",
+        why: "Changes servers in place, so they drift apart over time." }
+    ],
+    answer: [0],
+    tip: "Immutable infrastructure = new AMIs or images + replace servers (instance refresh, immutable, blue/green). Mutable = in-place changes."
+  },
+  {
+    id: "dp-21", domain: "d1", topic: "Deployment Patterns",
+    multi: true,
+    q: "Which TWO of these deployment patterns keep 100% of serving capacity throughout the deployment? (Choose TWO.)",
+    options: [
+      { t: "Elastic Beanstalk Rolling with additional batch.",
+        why: "Correct. An extra batch is added before any instances are taken out of service." },
+      { t: "Elastic Beanstalk Immutable.",
+        why: "Correct. A full new fleet is launched alongside the existing one." },
+      { t: "Elastic Beanstalk Rolling.",
+        why: "Capacity drops by one batch while it updates." },
+      { t: "Elastic Beanstalk All at once.",
+        why: "Every instance updates at once, so capacity drops to zero." },
+      { t: "CodeDeploy in-place with HalfAtATime.",
+        why: "Half the instances are out of service at a time." }
+    ],
+    answer: [0, 1],
+    tip: "Full capacity: rolling with additional batch, immutable, traffic splitting, blue/green. Reduced: rolling, in-place batches. Zero: all at once."
+  },
+  {
+    id: "dp-22", domain: "d1", topic: "Deployment Patterns",
+    q: "During a blue/green switch on an ALB, some users' long-running uploads to the old (blue) instances are cut off as soon as traffic moves to green. What should the DevOps engineer adjust?",
+    options: [
+      { t: "Increase the target group's deregistration delay (connection draining) so in-flight requests to blue instances can finish before they're removed.",
+        why: "Correct. The deregistration delay keeps existing connections open while new requests go to the new targets." },
+      { t: "Turn on cross-zone load balancing.",
+        why: "This changes how traffic spreads across AZs, not how connections end." },
+      { t: "Lower the health check interval.",
+        why: "This affects how quickly unhealthy targets are detected, not draining." },
+      { t: "Switch to Route 53 weighted records.",
+        why: "DNS doesn't drain connections, and it adds caching delays." }
+    ],
+    answer: [0],
+    tip: "In-flight requests cut during a switch → ALB deregistration delay (connection draining)."
   }
 ];
