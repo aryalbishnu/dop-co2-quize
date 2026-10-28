@@ -641,6 +641,77 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "ECS and Fargate",
+  sections: [
+    { h: "Task definitions", items: [
+      "`family:revision`, revisions are **immutable**; a deployment = service uses a new revision",
+      "**Execution role** = pull image from ECR, send logs, **fetch secrets at start** · **Task role** = your app's AWS calls",
+      "Fargate: **`awsvpc` only** (own ENI + security group), **task-level cpu/memory required**, no privileged, ephemeral storage 20 GiB (up to 200)",
+      "`secrets` valueFrom SSM / Secrets Manager → injected **at task start only** → **force new deployment** after rotation",
+      "`memory` = hard limit (**exit 137 OutOfMemory**) · `memoryReservation` = soft · `essential` container stops → task stops",
+      "`dependsOn` START / COMPLETE / SUCCESS / HEALTHY for sidecars · `stopTimeout` up to 120 s on Fargate",
+      "Logs: `awslogs` or **FireLens** (`awsfirelens`) · container `healthCheck`",
+      "Same tag, new image → **`--force-new-deployment`**; better: unique tag per build + **ECR tag immutability**",
+      "Private subnet, no NAT → endpoints **ecr.api, ecr.dkr, S3 gateway**, logs (+ ssm / secretsmanager)"
+    ]},
+    { h: "Rolling updates", table: [
+      ["min / max (desired 4)", "Result"],
+      ["**100 / 200** (default)", "4 new first, then stop old · full capacity, needs double room"],
+      ["**50 / 100**", "Stop 2, start 2 · **no extra capacity**"],
+      ["100 / 150", "2 extra at a time"],
+      ["0 / 100", "Stop all · downtime"],
+      ["**100 / 100**", "**Stuck**: can't stop or add tasks"]
+    ]},
+    { h: "Rolling: key settings", items: [
+      "**`healthCheckGracePeriodSeconds`** > start-up time, or slow tasks are killed repeatedly",
+      "ALB **deregistration delay** = draining old tasks (default 300 s)",
+      "States: PRIMARY / ACTIVE / INACTIVE · rolloutState IN_PROGRESS / COMPLETED / FAILED",
+      "Without circuit breaker a broken deployment **retries forever**",
+      "CloudFormation waits for service stable; circuit breaker makes it fail fast → stack rollback"
+    ]},
+    { h: "Circuit breaker and alarms", items: [
+      "`deploymentCircuitBreaker: {enable, rollback}` · **ECS (rolling) controller only**, not CODE_DEPLOY",
+      "Stage 1: tasks fail to reach RUNNING · Stage 2: tasks fail health checks",
+      "Threshold = **half the desired count, min 3, max 200** → FAILED; rollback → **last COMPLETED** deployment",
+      "**`deploymentConfiguration.alarms`** (5XX, latency) with rollback → catches **healthy-but-bad** code",
+      "EventBridge **ECS Deployment State Change**: SERVICE_DEPLOYMENT_FAILED / COMPLETED"
+    ]},
+    { h: "CodeDeploy blue/green", items: [
+      "Service with **`deploymentController: CODE_DEPLOY`** (fixed at creation)",
+      "ALB or NLB, **two target groups**, production listener + optional **test listener**",
+      "Replacement (green) task set → test traffic → production shift → blue kept for **termination wait (up to 2,880 min)** → instant rollback",
+      "Configs: ECSAllAtOnce, ECSLinear10PercentEvery1/3Minutes, ECSCanary10Percent5/15Minutes, custom · **NLB = AllAtOnce only**",
+      "Hooks (Lambda): BeforeInstall, AfterInstall, **AfterAllowTestTraffic**, BeforeAllowTraffic, AfterAllowTraffic · must call PutLifecycleEventHookExecutionStatus",
+      "Can't change task definition / LB / network via UpdateService → use a CodeDeploy deployment",
+      "Rollback via deployment group **alarms** and failed hooks",
+      "Newer: ECS built-in **BLUE_GREEN** (bake time, lifecycle hooks), linear and canary strategies (2025)"
+    ]},
+    { h: "CodePipeline", table: [
+      ["", "Rolling", "Blue/green"],
+      ["Action", "**Amazon ECS** (ECS)", "**Amazon ECS (Blue/Green)** (CodeDeployToECS)"],
+      ["Input", "**`imagedefinitions.json`** (container name + imageUri)", "**`taskdef.json` + `appspec.yaml`** (+ `imageDetail.json`)"],
+      ["Placeholders", "None", "`<IMAGE1_NAME>`, `<TASK_DEFINITION>`"]
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Auto rollback when tasks fail to start / health checks", "Circuit breaker + rollback"],
+      ["Rollback when 5XX rises (rolling)", "deploymentConfiguration alarms"],
+      ["Test on another port before production", "CodeDeploy blue/green + AfterAllowTestTraffic"],
+      ["10% for 5 minutes then all", "ECSCanary10Percent5Minutes (ALB)"],
+      ["Instant rollback later", "Longer termination wait time"],
+      ["No spare capacity", "min 50 / max 100"],
+      ["Slow start, tasks killed", "healthCheckGracePeriodSeconds"],
+      ["App AccessDenied", "Task role"],
+      ["Can't pull image / read secret", "Execution role + network route"],
+      ["Rotated secret, new same-tag image", "--force-new-deployment"],
+      ["Fargate targets unhealthy", "Task SG must allow ALB SG; target type ip"],
+      ["Cheap but some guaranteed tasks", "FARGATE base + FARGATE_SPOT weight"],
+      ["Shell into container, audited", "ECS Exec"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

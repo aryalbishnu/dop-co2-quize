@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -3952,5 +3952,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "SnapStart and provisioned concurrency work on published versions / aliases, not $LATEST."
+  },
+
+  // ───────────────────────────── ECS and Fargate ─────────────────────────────
+  {
+    id: "ecs-01", domain: "d1", topic: "ECS and Fargate",
+    q: "An ECS service on Fargate uses rolling updates. A recent release had a bad image tag, and ECS kept launching failing tasks for hours until an engineer noticed. The team wants failed deployments to be detected and the previous working version restored automatically, with the LEAST effort. What should they do?",
+    options: [
+      { t: "Enable the deployment circuit breaker with rollback on the service.",
+        why: "Correct. The circuit breaker detects tasks that fail to start or fail health checks, marks the deployment FAILED, and rolls back to the last COMPLETED deployment." },
+      { t: "Switch the service to the CODE_DEPLOY deployment controller.",
+        why: "Possible, but it needs a new service, two target groups and CodeDeploy setup. Much more effort than turning on the circuit breaker." },
+      { t: "Create an EventBridge rule on task stopped events that calls a Lambda function to update the service back.",
+        why: "Custom code that the built-in circuit breaker already replaces." },
+      { t: "Set minimumHealthyPercent to 0.",
+        why: "This allows downtime and doesn't detect or roll back failures." }
+    ],
+    answer: [0],
+    tip: "Rolling ECS deployment + automatic rollback on failed tasks → deployment circuit breaker (enable + rollback)."
+  },
+  {
+    id: "ecs-02", domain: "d1", topic: "ECS and Fargate",
+    q: "A new release of an ECS service passes all ALB health checks, but the application returns many HTTP 500 errors to users. The rolling deployment with the circuit breaker completed without rolling back. How can the team make the deployment roll back automatically in this situation?",
+    options: [
+      { t: "Add CloudWatch alarms (for example ALB 5XX count) to the service's deploymentConfiguration alarms with rollback enabled.",
+        why: "Correct. The circuit breaker only sees tasks failing to start or failing health checks. Alarm-based rollback catches healthy tasks that serve bad results." },
+      { t: "Lower the circuit breaker threshold.",
+        why: "The threshold can't be set, and the tasks weren't failing anyway." },
+      { t: "Increase healthCheckGracePeriodSeconds.",
+        why: "This makes health checks more lenient, the opposite of what's needed." },
+      { t: "Use a container health check instead of the ALB health check.",
+        why: "If the health endpoint returns OK, a container health check passes too." }
+    ],
+    answer: [0],
+    tip: "Healthy-but-bad code in a rolling deploy → deploymentConfiguration alarms with rollback."
+  },
+  {
+    id: "ecs-03", domain: "d1", topic: "ECS and Fargate",
+    q: "A containerized app on Fargate gets AccessDenied errors when it calls DynamoDB. The task starts, pulls its image from ECR and writes logs to CloudWatch without problems. What should be fixed?",
+    options: [
+      { t: "Add the DynamoDB permissions to the task role (taskRoleArn).",
+        why: "Correct. The task role provides credentials to the application code inside the containers." },
+      { t: "Add the DynamoDB permissions to the task execution role.",
+        why: "The execution role is used by ECS/Fargate to pull images, send logs and fetch secrets, not by your code." },
+      { t: "Add the permissions to the ECS service-linked role.",
+        why: "The service-linked role lets ECS manage resources such as ENIs and load balancer registration." },
+      { t: "Add a DynamoDB VPC endpoint only.",
+        why: "Network access doesn't fix an AccessDenied permission error." }
+    ],
+    answer: [0],
+    tip: "App's own AWS calls → task role. Pull image / logs / secrets at start → execution role."
+  },
+  {
+    id: "ecs-04", domain: "d1", topic: "ECS and Fargate",
+    q: "Fargate tasks in private subnets with no NAT gateway fail to start with CannotPullContainerError for an image in the same account's ECR. The execution role uses the AmazonECSTaskExecutionRolePolicy managed policy. What should be done? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Create interface VPC endpoints for ecr.api and ecr.dkr.",
+        why: "Correct. Tasks need private access to the ECR API and the Docker registry endpoint." },
+      { t: "Create an S3 gateway endpoint.",
+        why: "Correct. ECR stores image layers in S3, so tasks also need a route to S3." },
+      { t: "Add ecr:* to the task role.",
+        why: "Image pulls use the execution role, which already has the permissions." },
+      { t: "Turn on ECR tag immutability.",
+        why: "Tag immutability prevents overwriting tags. It doesn't affect network access." },
+      { t: "Use the bridge network mode.",
+        why: "Fargate only supports awsvpc." }
+    ],
+    answer: [0, 1],
+    tip: "Private Fargate + no NAT → VPC endpoints ecr.api, ecr.dkr, S3 gateway (+ logs, ssm/secretsmanager)."
+  },
+  {
+    id: "ecs-05", domain: "d1", topic: "ECS and Fargate",
+    q: "An ECS service reads a database password from Secrets Manager through the secrets section of its task definition. The secret was rotated, but the running tasks still use the old password. What is the simplest way to make the service use the new value?",
+    options: [
+      { t: "Force a new deployment of the service so new tasks start and read the current secret.",
+        why: "Correct. ECS injects secrets only when a task starts. New tasks get the rotated value." },
+      { t: "Wait. ECS refreshes injected secrets every 15 minutes.",
+        why: "ECS never refreshes injected secrets in running tasks." },
+      { t: "Register a new task definition revision with the same settings and leave the service unchanged.",
+        why: "A new revision does nothing until the service is updated to use it." },
+      { t: "Restart the ECS agent.",
+        why: "There's no agent to restart on Fargate, and it wouldn't change environment variables." }
+    ],
+    answer: [0],
+    tip: "Secrets are read at task start only → force a new deployment after rotation (or read at runtime)."
+  },
+  {
+    id: "ecs-06", domain: "d1", topic: "ECS and Fargate",
+    q: "An ECS service with a desired count of 1 has minimumHealthyPercent 100 and maximumPercent 100. A new task definition was set on the service, but the deployment never starts replacing the task. Why?",
+    options: [
+      { t: "ECS can't stop the old task (minimum 100%) and can't add a new one (maximum 100%), so it can't make progress.",
+        why: "Correct. Raise maximumPercent (for example 200) to start the new task first, or lower minimumHealthyPercent to allow the old one to stop." },
+      { t: "The circuit breaker blocked the deployment.",
+        why: "The circuit breaker reacts to failing tasks. Here no new task is even launched." },
+      { t: "Services with one task can't be updated.",
+        why: "They can, if the percentages allow it." },
+      { t: "Fargate only allows maximumPercent of 100.",
+        why: "Fargate supports up to 200%." }
+    ],
+    answer: [0],
+    tip: "min 100 / max 100 → deployment can't proceed; one limit must give."
+  },
+  {
+    id: "ecs-07", domain: "d1", topic: "ECS and Fargate",
+    q: "An ECS service on EC2 has 10 tasks and no spare cluster capacity. The team can accept reduced capacity during deployments but can't add instances. Which deployment settings allow rolling deployments?",
+    options: [
+      { t: "minimumHealthyPercent 50 and maximumPercent 100.",
+        why: "Correct. ECS stops up to 5 old tasks first and starts new ones in their place, never running more than 10 tasks." },
+      { t: "minimumHealthyPercent 100 and maximumPercent 200.",
+        why: "This needs room for up to 20 tasks, which the cluster doesn't have." },
+      { t: "minimumHealthyPercent 100 and maximumPercent 100.",
+        why: "The deployment can't make progress." },
+      { t: "minimumHealthyPercent 0 and maximumPercent 200.",
+        why: "Allows all tasks to stop at once, and still needs extra room." }
+    ],
+    answer: [0],
+    tip: "No spare capacity → lower minimumHealthyPercent (e.g. 50) with maximumPercent 100."
+  },
+  {
+    id: "ecs-08", domain: "d1", topic: "ECS and Fargate",
+    q: "A Java service behind an ALB takes about 3 minutes to start. During every deployment, new tasks are stopped and replaced repeatedly, and the deployment takes far too long. The ALB health check is correct once the app is up. What should be changed?",
+    options: [
+      { t: "Set the service's healthCheckGracePeriodSeconds longer than the start-up time, for example 240 seconds.",
+        why: "Correct. During the grace period ECS ignores ELB health check failures, so slow-starting tasks aren't killed." },
+      { t: "Increase the ALB deregistration delay.",
+        why: "This affects how long old targets drain, not how new tasks are judged." },
+      { t: "Disable the ALB health check.",
+        why: "Then broken tasks would receive traffic." },
+      { t: "Raise maximumPercent to 300.",
+        why: "maximumPercent can't go above 200, and it doesn't fix tasks being killed." }
+    ],
+    answer: [0],
+    tip: "Slow-starting tasks killed during deploys → healthCheckGracePeriodSeconds."
+  },
+  {
+    id: "ecs-09", domain: "d1", topic: "ECS and Fargate",
+    q: "A company wants to deploy a new version of an ECS service, run integration tests against it on a separate port BEFORE any production traffic reaches it, then shift 10% of production traffic for 5 minutes before the rest. Which solution meets this?",
+    options: [
+      { t: "Use the CODE_DEPLOY deployment controller with two target groups, a test listener, an AfterAllowTestTraffic hook, and the ECSCanary10Percent5Minutes configuration.",
+        why: "Correct. The test listener sends test traffic to the green task set, the hook runs tests, then CodeDeploy shifts 10% for 5 minutes, then 100%." },
+      { t: "Use rolling updates with minimumHealthyPercent 90.",
+        why: "Rolling updates don't test before traffic or shift a set percentage for a set time." },
+      { t: "Use rolling updates with the circuit breaker.",
+        why: "The circuit breaker detects failures but doesn't give a test listener or canary." },
+      { t: "Create a second service and use Route 53 weighted records.",
+        why: "Possible but manual, with DNS caching and no hooks or automatic rollback." }
+    ],
+    answer: [0],
+    tip: "Test listener + tests before traffic + canary → CodeDeploy ECS blue/green (AfterAllowTestTraffic)."
+  },
+  {
+    id: "ecs-10", domain: "d1", topic: "ECS and Fargate",
+    q: "In a CodeDeploy blue/green deployment for ECS, at which lifecycle hook should integration tests run against the new version through the test listener?",
+    options: [
+      { t: "AfterAllowTestTraffic.",
+        why: "Correct. At this point the test listener routes to the replacement (green) task set, but production traffic hasn't moved." },
+      { t: "BeforeInstall.",
+        why: "The green task set doesn't exist yet." },
+      { t: "AfterAllowTraffic.",
+        why: "Production traffic has already shifted, which is too late for pre-release tests." },
+      { t: "ValidateService.",
+        why: "ValidateService is an EC2/on-premises hook, not an ECS hook." }
+    ],
+    answer: [0],
+    tip: "ECS hooks: BeforeInstall, AfterInstall, AfterAllowTestTraffic, BeforeAllowTraffic, AfterAllowTraffic."
+  },
+  {
+    id: "ecs-11", domain: "d1", topic: "ECS and Fargate",
+    q: "A team uses CodeDeploy blue/green for an ECS service behind a Network Load Balancer. They try to use the ECSCanary10Percent5Minutes deployment configuration, but it isn't accepted. Why?",
+    options: [
+      { t: "With an NLB, only CodeDeployDefault.ECSAllAtOnce is supported.",
+        why: "Correct. Canary and linear traffic shifting for ECS need an Application Load Balancer." },
+      { t: "Canary configurations need a test listener.",
+        why: "A test listener is optional and not the cause." },
+      { t: "Canary configurations only work with the EC2 launch type.",
+        why: "They work with Fargate and EC2 behind an ALB." },
+      { t: "The circuit breaker must be enabled first.",
+        why: "The circuit breaker doesn't apply to CodeDeploy deployments." }
+    ],
+    answer: [0],
+    tip: "ECS blue/green with NLB → AllAtOnce only; canary/linear need ALB."
+  },
+  {
+    id: "ecs-12", domain: "d1", topic: "ECS and Fargate",
+    q: "After an ECS blue/green deployment completed, a serious bug is found 30 minutes later. The team wants to switch back instantly. What should they have configured?",
+    options: [
+      { t: "A longer termination wait time for the original task set in the deployment group (for example 60 minutes or more).",
+        why: "Correct. While the blue task set is still running, rollback simply reroutes the listener back to it. The wait can be up to 2,880 minutes." },
+      { t: "A shorter ALB deregistration delay.",
+        why: "This only affects draining connections." },
+      { t: "The deployment circuit breaker.",
+        why: "Not available with the CODE_DEPLOY controller, and it reacts to failing tasks, not later bugs." },
+      { t: "A larger desired count.",
+        why: "Doesn't keep the old version running." }
+    ],
+    answer: [0],
+    tip: "Keep blue around for instant rollback → termination wait time (up to 2 days)."
+  },
+  {
+    id: "ecs-13", domain: "d1", topic: "ECS and Fargate",
+    q: "A CodePipeline uses CodeBuild to build a Docker image and the standard Amazon ECS deploy action (rolling update). The deploy action fails with an error that it can't find the image definitions. What must the build produce?",
+    options: [
+      { t: "An imagedefinitions.json artifact listing each container name and its imageUri.",
+        why: "Correct. The ECS (rolling) deploy action reads imagedefinitions.json, swaps the images into a new task definition revision and updates the service." },
+      { t: "An imageDetail.json artifact.",
+        why: "imageDetail.json is used by the Amazon ECS (Blue/Green) action." },
+      { t: "An appspec.yaml file.",
+        why: "appspec.yaml is for CodeDeploy blue/green deployments." },
+      { t: "A buildspec.yml in the artifact.",
+        why: "The buildspec defines the build. It isn't read by the deploy action." }
+    ],
+    answer: [0],
+    tip: "ECS rolling deploy action → imagedefinitions.json (container name must match)."
+  },
+  {
+    id: "ecs-14", domain: "d1", topic: "ECS and Fargate",
+    q: "A team is switching their pipeline to the Amazon ECS (Blue/Green) deploy action (CodeDeployToECS). Which input files does this action need?",
+    options: [
+      { t: "taskdef.json and appspec.yaml, plus imageDetail.json for the image when it comes from the build or ECR source.",
+        why: "Correct. The action fills the image placeholder in taskdef.json, registers it, and puts the task definition into the appspec's TASK_DEFINITION placeholder." },
+      { t: "Only imagedefinitions.json.",
+        why: "That's the input for the standard (rolling) ECS deploy action." },
+      { t: "A CloudFormation template.",
+        why: "This action doesn't use CloudFormation." },
+      { t: "An env.yaml manifest.",
+        why: "env.yaml is an Elastic Beanstalk file." }
+    ],
+    answer: [0],
+    tip: "ECS blue/green action → taskdef.json + appspec.yaml (+ imageDetail.json)."
+  },
+  {
+    id: "ecs-15", domain: "d1", topic: "ECS and Fargate",
+    q: "A team pushes new images using the same tag ':prod' to ECR. After each push, the running ECS service doesn't change. How should they deploy the new image, and what is the better long-term practice?",
+    options: [
+      { t: "Run update-service with --force-new-deployment now; long term, use a unique tag per build (such as the commit SHA) with a new task definition revision and turn on ECR tag immutability.",
+        why: "Correct. A forced deployment starts new tasks that resolve the current image. Unique tags make each release traceable and easy to roll back." },
+      { t: "Restart the ECS cluster.",
+        why: "There's no cluster restart, and it wouldn't be a controlled deployment." },
+      { t: "Deregister the current task definition revision.",
+        why: "Deregistering doesn't replace running tasks." },
+      { t: "Increase the desired count by one.",
+        why: "Only a new task might get the new image, leaving mixed versions." }
+    ],
+    answer: [0],
+    tip: "Same tag, new image → --force-new-deployment; better: unique tags + immutable tags."
+  },
+  {
+    id: "ecs-16", domain: "d1", topic: "ECS and Fargate",
+    q: "An ECS service uses the CODE_DEPLOY deployment controller. An engineer tries to update the service's task definition with aws ecs update-service and gets an error. What is the correct way to release a new task definition?",
+    options: [
+      { t: "Create a CodeDeploy deployment (for example through CodePipeline's ECS Blue/Green action) with an appspec pointing to the new task definition.",
+        why: "Correct. With CODE_DEPLOY, task definition, load balancer and network changes go through CodeDeploy deployments." },
+      { t: "Change the deployment controller to ECS temporarily.",
+        why: "The deployment controller can't be changed after the service is created." },
+      { t: "Delete and recreate the service for each release.",
+        why: "This causes downtime and isn't needed." },
+      { t: "Use update-service with --force-new-deployment.",
+        why: "This doesn't change the task definition for a CODE_DEPLOY service." }
+    ],
+    answer: [0],
+    tip: "CODE_DEPLOY service → new versions only via CodeDeploy; controller fixed at creation."
+  },
+  {
+    id: "ecs-17", domain: "d1", topic: "ECS and Fargate",
+    q: "A Fargate task stops shortly after starting. The stopped reason shows OutOfMemoryError, and the container exited with code 137. What is the MOST likely cause and fix?",
+    options: [
+      { t: "The container went over its hard memory limit. Increase the container memory (and task memory) or fix the memory usage.",
+        why: "Correct. Exit code 137 means the process was killed, here for exceeding its memory limit." },
+      { t: "The execution role can't pull the image.",
+        why: "That gives CannotPullContainerError, and the container would never start." },
+      { t: "The health check grace period is too short.",
+        why: "Health check failures stop tasks with a health check reason, not OutOfMemoryError." },
+      { t: "The task needs the bridge network mode.",
+        why: "Fargate only supports awsvpc, and networking doesn't cause memory errors." }
+    ],
+    answer: [0],
+    tip: "Exit 137 / OutOfMemoryError → container hit its hard memory limit."
+  },
+  {
+    id: "ecs-18", domain: "d1", topic: "ECS and Fargate",
+    q: "Fargate tasks fail to start with ResourceInitializationError: unable to pull secrets. The task definition references an SSM parameter encrypted with a customer managed KMS key. The tasks run in a subnet with a NAT gateway. What is the MOST likely fix?",
+    options: [
+      { t: "Give the task execution role ssm:GetParameters and kms:Decrypt for that key.",
+        why: "Correct. ECS fetches secrets at startup using the execution role, which needs permission to read the parameter and decrypt it." },
+      { t: "Give the task role ssm:GetParameters.",
+        why: "The task role is for the app's own calls. Secrets in the task definition are fetched with the execution role." },
+      { t: "Add an S3 gateway endpoint.",
+        why: "The subnet already has a NAT gateway, and S3 isn't used for SSM parameters." },
+      { t: "Change the parameter to a plain environment variable.",
+        why: "This exposes the secret in the task definition." }
+    ],
+    answer: [0],
+    tip: "ResourceInitializationError fetching secrets → execution role (ssm/secretsmanager + kms:Decrypt) or network route."
+  },
+  {
+    id: "ecs-19", domain: "d1", topic: "ECS and Fargate",
+    q: "A company runs a batch-processing ECS service that can tolerate interruptions and wants to cut compute costs as much as possible, while always keeping at least 2 tasks on regular capacity. What should they configure?",
+    options: [
+      { t: "A capacity provider strategy with FARGATE base 2 and the remaining weight on FARGATE_SPOT.",
+        why: "Correct. The base guarantees 2 tasks on regular Fargate, and the rest run on Fargate Spot at a large discount." },
+      { t: "Run all tasks on FARGATE_SPOT.",
+        why: "Cheapest, but nothing guarantees 2 tasks stay running when Spot capacity is reclaimed." },
+      { t: "Use the EC2 launch type with On-Demand instances only.",
+        why: "This costs more and adds instance management." },
+      { t: "Reduce the task memory to the minimum.",
+        why: "This may break the app and doesn't use Spot savings." }
+    ],
+    answer: [0],
+    tip: "Cheap but some guaranteed capacity → capacity provider strategy: FARGATE base + FARGATE_SPOT weight."
+  },
+  {
+    id: "ecs-20", domain: "d1", topic: "ECS and Fargate",
+    q: "The operations team wants to be notified in Slack whenever an ECS rolling deployment fails or is rolled back by the circuit breaker. What is the BEST approach?",
+    options: [
+      { t: "Create an EventBridge rule for ECS Deployment State Change events with SERVICE_DEPLOYMENT_FAILED and send them to SNS or Amazon Q Developer in chat applications (Slack).",
+        why: "Correct. ECS emits deployment state change events that EventBridge can route to notifications." },
+      { t: "Poll describe-services every minute with a cron job.",
+        why: "Works, but it's custom polling when events already exist." },
+      { t: "Enable Container Insights.",
+        why: "Container Insights gives metrics and dashboards, not deployment failure notifications." },
+      { t: "Turn on ECS Exec.",
+        why: "ECS Exec is for shell access to containers." }
+    ],
+    answer: [0],
+    tip: "React to ECS deployment failures → EventBridge ECS Deployment State Change (SERVICE_DEPLOYMENT_FAILED)."
+  },
+  {
+    id: "ecs-21", domain: "d1", topic: "ECS and Fargate",
+    q: "Fargate tasks behind an ALB register to the target group but stay unhealthy. The health check path is correct and the app works when tested inside the task. The target group uses target type 'ip'. What is the MOST likely cause?",
+    options: [
+      { t: "The tasks' security group doesn't allow inbound traffic on the container port from the ALB's security group.",
+        why: "Correct. With awsvpc, each task has its own security group, which must allow the ALB to reach the container port." },
+      { t: "The target type must be 'instance' for Fargate.",
+        why: "Fargate (awsvpc) needs target type 'ip'." },
+      { t: "The tasks need privileged mode.",
+        why: "Privileged mode isn't allowed on Fargate and isn't related." },
+      { t: "The ALB needs a test listener.",
+        why: "Test listeners are only for CodeDeploy blue/green testing." }
+    ],
+    answer: [0],
+    tip: "Fargate targets unhealthy → task security group must allow the ALB SG; target type ip."
+  },
+  {
+    id: "ecs-22", domain: "d1", topic: "ECS and Fargate",
+    q: "An engineer needs to open a shell in a running Fargate container to troubleshoot a production issue, without SSH or opening ports, and the sessions must be audited. What should they use?",
+    options: [
+      { t: "ECS Exec (aws ecs execute-command) with enableExecuteCommand on the service, SSM permissions in the task role, and session logging to CloudWatch Logs or S3.",
+        why: "Correct. ECS Exec uses Systems Manager Session Manager, needs no open ports, and can log every session." },
+      { t: "SSH to the Fargate host.",
+        why: "Fargate hosts aren't accessible." },
+      { t: "Add port 22 to the task security group and run an SSH server in the container.",
+        why: "Opens a port, adds an SSH server, and has no central auditing." },
+      { t: "Use CloudWatch Logs Insights.",
+        why: "Useful for reading logs, but it doesn't give a shell." }
+    ],
+    answer: [0],
+    tip: "Shell into Fargate containers → ECS Exec (SSM; task role permissions; logged sessions)."
   }
 ];
