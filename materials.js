@@ -14,5 +14,6 @@ window.MATERIALS = [
   { domain: "d1", topics: ["CI/CD Concepts"], title: "Week 1 notes - CI/CD concepts, testing, artifacts, third-party CI", file: "pdfs/Week1_CICD_Concepts.pdf" },
   { domain: "d1", topics: ["CodeDeploy"], title: "Week 2 notes - AWS CodeDeploy", file: "pdfs/Week2_CodeDeploy.pdf" },
   { domain: "d1", topics: ["Deployment Patterns"], title: "Week 2 notes - Deployment patterns", file: "pdfs/Week2_Deployment_Patterns.pdf" },
-  { domain: "d1", topics: ["Elastic Beanstalk"], title: "Week 2 notes - AWS Elastic Beanstalk", file: "pdfs/Week2_Elastic_Beanstalk.pdf" }
+  { domain: "d1", topics: ["Elastic Beanstalk"], title: "Week 2 notes - AWS Elastic Beanstalk", file: "pdfs/Week2_Elastic_Beanstalk.pdf" },
+  { domain: "d1", topics: ["Lambda Versions and Aliases"], title: "Week 2 notes - Lambda versions, aliases and SAM deployments", file: "pdfs/Week2_Lambda_Versions_Aliases.pdf" }
 ];

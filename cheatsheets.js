@@ -575,6 +575,72 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "Lambda Versions and Aliases",
+  sections: [
+    { h: "Versions", items: [
+      "**$LATEST** = mutable; **published version** = immutable snapshot of **code + config (env vars too)**, numbered, never reused",
+      "Changed config in production → **publish a new version** and repoint the alias (or read settings from Parameter Store)",
+      "**Reserved concurrency** = per function (all versions) · **provisioned concurrency** = per version or alias, **never $LATEST**",
+      "**SnapStart** applies only to published versions",
+      "PublishVersion with no changes returns the existing version; pass **`CodeSha256`** to publish only the tested code",
+      "Can't delete a version an alias points to; old versions count toward the **75 GB code storage** quota → clean up",
+      "Unqualified ARN = **$LATEST** · `:7` = version · `:prod` = alias",
+      "Metrics dimension **`ExecutedVersion`** = the version that actually ran"
+    ]},
+    { h: "Aliases", items: [
+      "Named, movable pointer to a version (`dev`, `prod`); own ARN; **can't point to another alias**",
+      "Production callers (API Gateway, event source mappings, S3, SNS, EventBridge) use the **alias ARN**",
+      "**Fastest rollback** = `update-alias` to the previous version",
+      "Permissions are **per qualifier** → `add-permission --qualifier prod` (else API Gateway 500 \"Invalid permissions\")",
+      "API Gateway stage → alias via **stage variable** `${stageVariables.lambdaAlias}`",
+      "Alias can hold provisioned concurrency (scale with Application Auto Scaling), function URL, destinations"
+    ]},
+    { h: "Weighted aliases", items: [
+      "`--routing-config AdditionalVersionWeights={\"8\"=0.1}` → 90% main, 10% v8",
+      "**Two published versions max**, **no $LATEST**, **same execution role**, **same DLQ config**",
+      "Routing is **random per invocation**, not sticky → only for backward-compatible changes",
+      "Manual weights = you watch and roll back; **CodeDeploy** = automatic shifting, alarms, hooks, rollback"
+    ]},
+    { h: "SAM DeploymentPreference", items: [
+      "**`AutoPublishAlias: live`** = publish a new version on code change and move the alias (required for DeploymentPreference)",
+      "`DeploymentPreference`: **Type**, **Alarms**, **Hooks** (PreTraffic, PostTraffic), TriggerConfigurations (SNS), Role, Enabled",
+      "SAM creates the CodeDeploy application, deployment group, service role and alias `UpdatePolicy`",
+      "**Alarm in ALARM** or **hook Failed / timed out** → alias back to the old version, **stack update fails**",
+      "Hooks must call **`PutLifecycleEventHookExecutionStatus`** (Succeeded or Failed); **1-hour timeout**",
+      "Default role invokes only hooks named **`CodeDeployHook_*`**; hook role needs `lambda:InvokeFunction` on the new version",
+      "Scope alarms with **`ExecutedVersion`** so only the new version's errors count"
+    ]},
+    { h: "Deployment types", table: [
+      ["Type", "Behaviour"],
+      ["Canary10Percent5/10/15/30Minutes", "10% for N minutes, then 100% (**two steps**)"],
+      ["Linear10PercentEvery1/2/3/10Minutes", "+10% every N minutes (**equal steps**)"],
+      ["AllAtOnce", "100% now (hooks and alarms still run)"],
+      ["Custom config", "Your own CodeDeploy config, referenced by name"]
+    ]},
+    { h: "Without SAM", items: [
+      "CloudFormation `AWS::Lambda::Version` **doesn't republish** on code change unless the logical ID changes → SAM AutoPublishAlias",
+      "`AWS::Lambda::Alias` + **`UpdatePolicy: CodeDeployLambdaAliasUpdate`** (ApplicationName, DeploymentGroupName, Before/AfterAllowTrafficHook)",
+      "CodeDeploy Lambda appspec: Name, Alias, **CurrentVersion**, **TargetVersion**; hooks only **BeforeAllowTraffic / AfterAllowTraffic**",
+      "CDK: `LambdaDeploymentGroup` with deploymentConfig, alarms, preHook, postHook"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Gradual shift + auto rollback, least code", "SAM AutoPublishAlias + DeploymentPreference + Alarms"],
+      ["Test new version before any traffic", "PreTraffic hook"],
+      ["Deployment stuck ~1 hour", "Hook didn't call PutLifecycleEventHookExecutionStatus"],
+      ["Hook AccessDenied", "Name it CodeDeployHook_* or custom Role"],
+      ["Env var change not in production", "Publish new version + update alias"],
+      ["API Gateway 500 after using alias", "add-permission with --qualifier"],
+      ["Saved console code broke production", "Trigger used $LATEST → point it at an alias"],
+      ["Fastest rollback", "update-alias to previous version"],
+      ["Weights rejected", "$LATEST used, different role or DLQ, or >2 versions"],
+      ["Rolled back though new version fine", "Scope alarm with ExecutedVersion"],
+      ["Code storage limit", "Delete old versions"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

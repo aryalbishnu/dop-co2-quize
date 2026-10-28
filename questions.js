@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -3596,5 +3596,361 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Single-instance environment → only All at once or Immutable."
+  },
+
+  // ───────────────────────────── Lambda Versions and Aliases ─────────────────────────────
+  {
+    id: "lam-01", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A company deploys a serverless app with AWS SAM. Each release must first send 10% of traffic to the new Lambda code for 10 minutes, then the rest. If the function's error alarm fires during the deployment, traffic must return to the previous code automatically. Which solution needs the LEAST custom code?",
+    options: [
+      { t: "Set AutoPublishAlias on the function and add DeploymentPreference with Type Canary10Percent10Minutes and the error alarm in Alarms.",
+        why: "Correct. SAM publishes a new version, and CodeDeploy shifts the alias 10% for 10 minutes, watching the alarm and rolling back automatically." },
+      { t: "Write a Lambda function on an EventBridge schedule that updates the alias weights and checks the alarm.",
+        why: "This works but is custom code that you must build, test and maintain. SAM and CodeDeploy do it for you." },
+      { t: "Set DeploymentPreference with Type Linear10PercentEvery10Minutes.",
+        why: "Linear moves 10% every 10 minutes (100 minutes in total), which is not 10% then the rest." },
+      { t: "Publish a new version and point the unqualified function ARN at it with a 10% weight.",
+        why: "Weights are set on an alias, not on the unqualified ARN, and there would be no automatic rollback." }
+    ],
+    answer: [0],
+    tip: "SAM gradual Lambda deploy + auto rollback → AutoPublishAlias + DeploymentPreference (Type + Alarms)."
+  },
+  {
+    id: "lam-02", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A team changed an environment variable on a Lambda function in the console, but production, which invokes the function through the prod alias pointing to version 12, still uses the old value. Why?",
+    options: [
+      { t: "Published versions are immutable. The change only affected $LATEST, so the team must publish a new version and point the prod alias to it.",
+        why: "Correct. A version freezes code and configuration, including environment variables." },
+      { t: "Environment variables take up to an hour to propagate.",
+        why: "Changes apply to $LATEST right away. The alias simply points to an older, unchanged version." },
+      { t: "Aliases cache environment variables until provisioned concurrency is reset.",
+        why: "Aliases don't cache anything. They only point to a version." },
+      { t: "The function must be redeployed with reserved concurrency set to zero first.",
+        why: "Reserved concurrency doesn't affect configuration values." }
+    ],
+    answer: [0],
+    tip: "Versions freeze code + config (env vars too) → publish a new version and repoint the alias."
+  },
+  {
+    id: "lam-03", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A SAM deployment with a PreTraffic hook stays in progress for about an hour and then rolls back. The hook function's logs show the tests passed. What is the MOST likely cause?",
+    options: [
+      { t: "The hook didn't call PutLifecycleEventHookExecutionStatus to report Succeeded to CodeDeploy.",
+        why: "Correct. CodeDeploy waits for the hook to report a status. Without it, the hook times out after 1 hour and the deployment fails." },
+      { t: "The canary period was set too long.",
+        why: "Canary periods are at most 30 minutes, and the deployment would continue afterwards." },
+      { t: "PreTraffic hooks only work with Linear deployment types.",
+        why: "Hooks work with every deployment type, including AllAtOnce." },
+      { t: "The alias had provisioned concurrency.",
+        why: "Provisioned concurrency doesn't block hooks." }
+    ],
+    answer: [0],
+    tip: "Hook passed but deployment times out (~1 h) → hook must call PutLifecycleEventHookExecutionStatus."
+  },
+  {
+    id: "lam-04", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A SAM template defines a PreTraffic hook function named orders-pre-traffic-test. Deployments fail because CodeDeploy gets an AccessDenied error when invoking the hook. SAM uses its default CodeDeploy service role. What is the simplest fix?",
+    options: [
+      { t: "Rename the hook function so its name starts with CodeDeployHook_.",
+        why: "Correct. The default AWSCodeDeployRoleForLambda policy only allows invoking functions whose names start with CodeDeployHook_." },
+      { t: "Give the hook function's execution role lambda:InvokeFunction.",
+        why: "That lets the hook invoke the target function, but the error is CodeDeploy invoking the hook." },
+      { t: "Move the hook to a PostTraffic hook.",
+        why: "PostTraffic hooks are invoked the same way and would fail the same way." },
+      { t: "Turn on AutoPublishAlias for the hook function.",
+        why: "Hook functions don't need versions or aliases, and this doesn't change the permission." }
+    ],
+    answer: [0],
+    tip: "Default CodeDeploy Lambda role can only invoke hooks named CodeDeployHook_* (or use a custom Role)."
+  },
+  {
+    id: "lam-05", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "An API Gateway REST API uses a stage variable lambdaAlias in its integration URI so the prod stage calls the prod alias. After the change, the prod stage returns 500 errors and the logs show 'Invalid permissions on Lambda function'. What should be done?",
+    options: [
+      { t: "Add a resource-based permission allowing API Gateway to invoke the function with the qualifier prod (the alias ARN).",
+        why: "Correct. Lambda permissions are per qualifier. A permission on the unqualified function doesn't cover the prod alias." },
+      { t: "Add lambda:InvokeFunction to the API Gateway CloudWatch logging role.",
+        why: "The logging role is only for writing logs. Invocation permission comes from the function's resource policy." },
+      { t: "Point the alias at $LATEST.",
+        why: "This runs untested code in production and doesn't fix the missing permission." },
+      { t: "Redeploy the API to the prod stage.",
+        why: "Redeploying doesn't add the missing Lambda permission." }
+    ],
+    answer: [0],
+    tip: "API Gateway + alias → add-permission with --qualifier for EACH alias."
+  },
+  {
+    id: "lam-06", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "An engineer tries to configure the prod alias with 90% to version 5 and 10% to $LATEST so new code can be tested on live traffic. The API returns an error. Why?",
+    options: [
+      { t: "Weighted aliases can only route between two published versions. $LATEST isn't allowed.",
+        why: "Correct. Publish the new code as a version (for example 6) and give that version the 10% weight." },
+      { t: "The weight must be at least 50%.",
+        why: "Weights can be anywhere from 0.0 to 1.0." },
+      { t: "Weighted routing needs provisioned concurrency.",
+        why: "Provisioned concurrency is optional." },
+      { t: "Aliases can't have routing configuration if they have a function URL.",
+        why: "Function URLs and weighted routing can be used together." }
+    ],
+    answer: [0],
+    tip: "Weighted alias: two PUBLISHED versions only (no $LATEST), same role, same DLQ config."
+  },
+  {
+    id: "lam-07", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "An SQS queue triggers a Lambda function through an event source mapping that uses the function's unqualified ARN. A developer saved experimental code in the console, and production orders immediately started failing. How should the team prevent this?",
+    options: [
+      { t: "Point the event source mapping at a prod alias that references a tested, published version.",
+        why: "Correct. The unqualified ARN invokes $LATEST, so any saved change goes straight to production. An alias pins production to a known version." },
+      { t: "Turn on reserved concurrency for the function.",
+        why: "Reserved concurrency limits scale. It doesn't control which code runs." },
+      { t: "Increase the SQS visibility timeout.",
+        why: "This only affects retries, not which version runs." },
+      { t: "Enable SnapStart on $LATEST.",
+        why: "SnapStart is for startup speed, and only applies to published versions anyway." }
+    ],
+    answer: [0],
+    tip: "Unqualified ARN = $LATEST → production triggers should use an alias ARN."
+  },
+  {
+    id: "lam-08", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A production Lambda function must never have cold starts during business hours, and releases are done by moving the live alias to new versions. Where should provisioned concurrency be configured?",
+    options: [
+      { t: "On the live alias, with Application Auto Scaling scheduled actions for business hours.",
+        why: "Correct. Provisioned concurrency is set on a version or alias. On the alias it follows each release, and scheduled scaling keeps costs down outside business hours." },
+      { t: "On $LATEST.",
+        why: "Provisioned concurrency can't be set on $LATEST." },
+      { t: "As reserved concurrency on the function.",
+        why: "Reserved concurrency caps and reserves capacity but doesn't keep instances warm." },
+      { t: "On each new version by hand after every deployment.",
+        why: "This is manual and error-prone. Setting it on the alias follows the alias automatically." }
+    ],
+    answer: [0],
+    tip: "Provisioned concurrency → alias or version (never $LATEST); scale it with Application Auto Scaling."
+  },
+  {
+    id: "lam-09", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A bad Lambda release is in production behind the prod alias, which now points to version 9. The previous good version is 8. What is the FASTEST way to roll back?",
+    options: [
+      { t: "Update the prod alias to point to version 8.",
+        why: "Correct. Callers use the alias, so repointing it rolls back in seconds without a build or redeployment." },
+      { t: "Redeploy the previous commit through the CI/CD pipeline.",
+        why: "This works but takes much longer than repointing the alias." },
+      { t: "Delete version 9.",
+        why: "A version that an alias points to can't be deleted, and deleting doesn't move traffic." },
+      { t: "Edit $LATEST back to the old code.",
+        why: "The prod alias doesn't use $LATEST, so this changes nothing for production." }
+    ],
+    answer: [0],
+    tip: "Fastest Lambda rollback → update-alias to the previous version."
+  },
+  {
+    id: "lam-10", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A team uses plain CloudFormation with an AWS::Lambda::Version resource and an alias. After updating the function code and the stack, the alias still points to the old version and no new version was published. What is the BEST fix?",
+    options: [
+      { t: "Use AWS SAM with AutoPublishAlias, which publishes a new version whenever the code changes.",
+        why: "Correct. CloudFormation only creates a new AWS::Lambda::Version when its logical ID changes. SAM's AutoPublishAlias handles this automatically." },
+      { t: "Delete the stack and create it again for each release.",
+        why: "This causes downtime and loses the alias history." },
+      { t: "Point the alias at $LATEST.",
+        why: "This removes the stable, tested version that production should use." },
+      { t: "Add a DependsOn from the version to the function.",
+        why: "DependsOn sets ordering only. It doesn't make CloudFormation publish a new version." }
+    ],
+    answer: [0],
+    tip: "AWS::Lambda::Version doesn't republish on code change → SAM AutoPublishAlias (or new logical ID)."
+  },
+  {
+    id: "lam-11", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A company manages Lambda functions with plain CloudFormation (not SAM) and wants alias updates to be done by CodeDeploy as a canary deployment with pre-traffic tests. What should they add to the AWS::Lambda::Alias resource?",
+    options: [
+      { t: "An UpdatePolicy with CodeDeployLambdaAliasUpdate, naming the CodeDeploy application, deployment group and the BeforeAllowTraffic hook.",
+        why: "Correct. This UpdatePolicy makes CloudFormation hand alias updates to CodeDeploy, which shifts traffic using the deployment group's configuration." },
+      { t: "An UpdatePolicy with AutoScalingRollingUpdate.",
+        why: "That update policy is for Auto Scaling groups." },
+      { t: "A RoutingConfig with a weight of 0.1.",
+        why: "This sets a fixed manual weight. CodeDeploy wouldn't manage the shift, alarms or hooks." },
+      { t: "A DeletionPolicy of Retain.",
+        why: "DeletionPolicy controls what happens on deletion, not how updates are deployed." }
+    ],
+    answer: [0],
+    tip: "CloudFormation without SAM → Alias UpdatePolicy: CodeDeployLambdaAliasUpdate."
+  },
+  {
+    id: "lam-12", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "During a canary deployment, CodeDeploy rolled back a new Lambda version even though it had no errors. The alarm used only the FunctionName dimension, and the old version was throwing occasional errors from a known issue. How should the alarm be improved?",
+    options: [
+      { t: "Scope the alarm to the new version using the ExecutedVersion (or Resource) dimension.",
+        why: "Correct. A function-wide alarm mixes errors from both versions. Scoping it shows only the new version's health." },
+      { t: "Remove the alarm from DeploymentPreference.",
+        why: "This removes automatic rollback completely." },
+      { t: "Raise the alarm threshold to a very high value.",
+        why: "This would also hide real errors from a bad new version." },
+      { t: "Switch to AllAtOnce.",
+        why: "This removes the gradual safety check rather than fixing the alarm." }
+    ],
+    answer: [0],
+    tip: "Deployment alarms → scope with ExecutedVersion so only the new version's errors count."
+  },
+  {
+    id: "lam-13", domain: "d1", topic: "Lambda Versions and Aliases", multi: true,
+    q: "A team wants to manually send 5% of traffic on the live alias to version 14 while version 13 keeps the rest. Which requirements must be met? (Choose TWO.)",
+    options: [
+      { t: "Versions 13 and 14 must use the same execution role.",
+        why: "Correct. Weighted routing requires both versions to have the same execution role." },
+      { t: "Versions 13 and 14 must have the same dead-letter queue configuration (or none).",
+        why: "Correct. Both versions must match on DLQ settings." },
+      { t: "Both versions must have provisioned concurrency.",
+        why: "Provisioned concurrency is optional." },
+      { t: "Version 14 must be $LATEST.",
+        why: "$LATEST can't be used in weighted routing." },
+      { t: "The function must be in a VPC.",
+        why: "VPC configuration isn't related to weighted routing." }
+    ],
+    answer: [0, 1],
+    tip: "Weighted alias rules: published versions, same execution role, same DLQ config, max two versions."
+  },
+  {
+    id: "lam-14", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "While a weighted alias sends 20% of traffic to a new version, users report that the same request sometimes returns the new response format and sometimes the old one, which breaks the mobile app. What explains this, and what is the better approach?",
+    options: [
+      { t: "Alias routing is random per invocation, not sticky per user. Make the versions backward-compatible, or use a feature flag or blue/green switch for incompatible changes.",
+        why: "Correct. Each invocation picks a version by weight, so a single user can hit both versions." },
+      { t: "The alias needs session affinity turned on.",
+        why: "Lambda aliases have no session affinity setting." },
+      { t: "The weights must add up to 120%.",
+        why: "Weights always add up to 100%." },
+      { t: "API Gateway caching is mixing the responses.",
+        why: "Caching could cause stale responses, but here the mix comes from per-request routing." }
+    ],
+    answer: [0],
+    tip: "Weighted alias = random per request (not sticky) → only for backward-compatible changes."
+  },
+  {
+    id: "lam-15", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A company's Lambda deployments suddenly fail with an error that the code storage limit has been exceeded. The pipeline publishes a new version on every commit and never removes old versions. What should the team do?",
+    options: [
+      { t: "Add a cleanup step that deletes old versions not referenced by any alias, keeping the last few.",
+        why: "Correct. Every published version counts toward the Regional code storage quota (75 GB by default)." },
+      { t: "Stop publishing versions and deploy straight to $LATEST.",
+        why: "This removes safe deployments and rollback." },
+      { t: "Increase the function's memory.",
+        why: "Memory doesn't affect code storage." },
+      { t: "Move the code to Lambda layers.",
+        why: "Layer versions also count toward the code storage quota." }
+    ],
+    answer: [0],
+    tip: "Code storage limit → delete old unused versions (all versions count toward 75 GB)."
+  },
+  {
+    id: "lam-16", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A team using SAM wants a new Lambda version to be tested by invoking it directly with sample events BEFORE any production traffic reaches it, and the deployment must stop if the test fails. What should they configure?",
+    options: [
+      { t: "A PreTraffic hook in DeploymentPreference that invokes the new version and reports Succeeded or Failed.",
+        why: "Correct. The PreTraffic hook (BeforeAllowTraffic) runs before any traffic shift. A Failed status stops and rolls back the deployment." },
+      { t: "A PostTraffic hook.",
+        why: "PostTraffic runs after all traffic has shifted, which is too late for this requirement." },
+      { t: "A CloudWatch alarm on Errors.",
+        why: "Alarms watch real traffic during the shift. They don't test before traffic arrives." },
+      { t: "A canary deployment type with 1% traffic.",
+        why: "Even 1% is real production traffic." }
+    ],
+    answer: [0],
+    tip: "Test before any traffic → PreTraffic hook (BeforeAllowTraffic); after full shift → PostTraffic."
+  },
+  {
+    id: "lam-17", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A team deploys Lambda functions with CodePipeline and CodeDeploy directly (no SAM). Which lifecycle hooks can be used in the Lambda appspec file?",
+    options: [
+      { t: "BeforeAllowTraffic and AfterAllowTraffic.",
+        why: "Correct. Lambda deployments have only these two hooks." },
+      { t: "BeforeInstall, AfterInstall and ValidateService.",
+        why: "These are EC2 and on-premises hooks." },
+      { t: "BeforeAllowTraffic, AfterAllowTraffic, BeforeInstall and AfterInstall.",
+        why: "BeforeInstall and AfterInstall are only for EC2/on-premises and ECS." },
+      { t: "PreBuild and PostBuild.",
+        why: "These are CodeBuild buildspec phases." }
+    ],
+    answer: [0],
+    tip: "Lambda appspec: Name, Alias, CurrentVersion, TargetVersion + hooks BeforeAllowTraffic / AfterAllowTraffic."
+  },
+  {
+    id: "lam-18", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A Lambda function must shift traffic to new versions slowly, in equal steps, so problems appear while most users are still on the old version. The full rollout should take about 30 minutes. Which DeploymentPreference Type fits?",
+    options: [
+      { t: "Linear10PercentEvery3Minutes.",
+        why: "Correct. Ten equal 10% steps, three minutes apart, take about 30 minutes." },
+      { t: "Canary10Percent30Minutes.",
+        why: "Canary is only two steps: 10% for 30 minutes, then 90% at once, not equal steps." },
+      { t: "Linear10PercentEvery10Minutes.",
+        why: "Equal steps, but the rollout takes about 100 minutes." },
+      { t: "AllAtOnce.",
+        why: "Shifts everything immediately." }
+    ],
+    answer: [0],
+    tip: "Linear = equal steps (10% × N min); Canary = two steps (10% then 100%)."
+  },
+  {
+    id: "lam-19", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A company keeps one Lambda function and uses dev, test and prod aliases. The API Gateway API has dev, test and prod stages. How can each stage call the matching alias without separate integrations?",
+    options: [
+      { t: "Use a stage variable in the integration URI (for example ${stageVariables.lambdaAlias}) and grant invoke permission for each alias.",
+        why: "Correct. Each stage sets lambdaAlias to its alias name, and each alias needs its own permission for API Gateway." },
+      { t: "Use the unqualified ARN in all stages.",
+        why: "Every stage would call $LATEST." },
+      { t: "Create one weighted alias that splits traffic between stages.",
+        why: "Weights split random traffic, not by stage." },
+      { t: "Use Lambda layers named after each stage.",
+        why: "Layers share code and libraries. They don't route requests." }
+    ],
+    answer: [0],
+    tip: "API Gateway stages → Lambda aliases via stage variables + per-alias permissions."
+  },
+  {
+    id: "lam-20", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A SAM DeploymentPreference with alarms rolled back a canary deployment. What happens to the CloudFormation stack update?",
+    options: [
+      { t: "The alias returns to the previous version and the stack update fails and rolls back.",
+        why: "Correct. CloudFormation waits for the CodeDeploy deployment. A rollback in CodeDeploy fails the stack update, which then rolls back." },
+      { t: "The stack update succeeds, with the alias left at the canary weights.",
+        why: "CodeDeploy restores the alias to 100% on the old version, and the stack update is marked failed." },
+      { t: "The new version is deleted and the stack is deleted.",
+        why: "The stack is rolled back, not deleted." },
+      { t: "CloudFormation ignores CodeDeploy results.",
+        why: "With CodeDeployLambdaAliasUpdate, CloudFormation waits for the deployment result." }
+    ],
+    answer: [0],
+    tip: "CodeDeploy rollback in SAM → alias back to old version + CloudFormation stack update fails/rolls back."
+  },
+  {
+    id: "lam-21", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A pipeline publishes a Lambda version with PublishVersion. The team worries that another engineer might change $LATEST between the build check and the publish, so an untested change could be published. How can they guard against this?",
+    options: [
+      { t: "Pass the expected CodeSha256 to PublishVersion so it only publishes if the code matches.",
+        why: "Correct. If $LATEST changed in between, the hash won't match and PublishVersion fails instead of publishing unexpected code." },
+      { t: "Call PublishVersion twice.",
+        why: "If nothing changed, the second call returns the same version. It doesn't check the code." },
+      { t: "Set reserved concurrency to zero during the publish.",
+        why: "This stops invocations, not code changes." },
+      { t: "Use a weighted alias.",
+        why: "Routing doesn't protect what gets published." }
+    ],
+    answer: [0],
+    tip: "PublishVersion with CodeSha256 → only publish the code you tested."
+  },
+  {
+    id: "lam-22", domain: "d1", topic: "Lambda Versions and Aliases",
+    q: "A Java Lambda function has long cold starts. The team enables SnapStart but sees no improvement when invoking the function through its unqualified ARN. Why?",
+    options: [
+      { t: "SnapStart only applies to published versions, so the function must be invoked through a version or an alias.",
+        why: "Correct. The snapshot is created when a version is published. $LATEST (the unqualified ARN) doesn't use it." },
+      { t: "SnapStart needs provisioned concurrency.",
+        why: "SnapStart and provisioned concurrency are separate options." },
+      { t: "SnapStart only works with Python.",
+        why: "SnapStart supports Java, and also Python and .NET." },
+      { t: "SnapStart only works with weighted aliases.",
+        why: "Any published version or alias works." }
+    ],
+    answer: [0],
+    tip: "SnapStart and provisioned concurrency work on published versions / aliases, not $LATEST."
   }
 ];
