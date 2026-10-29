@@ -16,5 +16,6 @@ window.MATERIALS = [
   { domain: "d1", topics: ["Deployment Patterns"], title: "Week 2 notes - Deployment patterns", file: "pdfs/Week2_Deployment_Patterns.pdf" },
   { domain: "d1", topics: ["Elastic Beanstalk"], title: "Week 2 notes - AWS Elastic Beanstalk", file: "pdfs/Week2_Elastic_Beanstalk.pdf" },
   { domain: "d1", topics: ["Lambda Versions and Aliases"], title: "Week 2 notes - Lambda versions, aliases and SAM deployments", file: "pdfs/Week2_Lambda_Versions_Aliases.pdf" },
-  { domain: "d1", topics: ["ECS and Fargate"], title: "Week 2 notes - Amazon ECS and Fargate", file: "pdfs/Week2_ECS_Fargate.pdf" }
+  { domain: "d1", topics: ["ECS and Fargate"], title: "Week 2 notes - Amazon ECS and Fargate", file: "pdfs/Week2_ECS_Fargate.pdf" },
+  { domain: "d1", topics: ["EKS for CI/CD"], title: "Week 2 notes - Amazon EKS for CI/CD (traps, lab, check yourself)", file: "pdfs/Week2_EKS_CICD.pdf" }
 ];

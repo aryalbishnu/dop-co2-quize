@@ -712,6 +712,69 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "EKS for CI/CD",
+  sections: [
+    { h: "Building blocks", items: [
+      "AWS runs the **control plane** (multi-AZ); you pick the data plane",
+      "**Managed node groups** (default) · self-managed nodes · **Fargate profiles** (namespace + labels; **no DaemonSets, no privileged, no EBS**) · **Auto Mode** · Karpenter for fast node scaling",
+      "Objects: Pod, **Deployment** (rolling + rollback), Service (LoadBalancer → NLB), **Ingress → ALB** (AWS Load Balancer Controller), ConfigMap/Secret, Namespace, ServiceAccount, HPA",
+      "Upgrades: **one minor version at a time**, control plane → add-ons → nodes · or **new cluster + Route 53** (blue/green)",
+      "Standard support ~14 months; extended support costs extra"
+    ]},
+    { h: "Pipeline to EKS", items: [
+      "CodeBuild builds image (privileged mode) → ECR (commit SHA tag) → **kubectl / Helm** → `kubectl rollout status --timeout`",
+      "Or **CodePipeline Amazon EKS deploy action** (Helm or manifests, private clusters via VPC)",
+      "Or **GitOps** (Argo CD / Flux): pull model, **no cluster creds in CI**, drift self-heals",
+      "**CodeDeploy does NOT support EKS** (only EC2/on-prem, Lambda, ECS)"
+    ]},
+    { h: "Pipeline authentication", items: [
+      "IAM: **`eks:DescribeCluster`** (for `update-kubeconfig`)",
+      "Kubernetes: map the role with an **access entry** + access policy (`AmazonEKSClusterAdminPolicy`, or `AmazonEKSEditPolicy` **scoped to a namespace**)",
+      "Legacy: `aws-auth` ConfigMap `mapRoles` (a bad edit can lock everyone out)",
+      "Only the **cluster creator** is admin by default → others get **Unauthorized**",
+      "**Private endpoint** → run CodeBuild **in the VPC**"
+    ]},
+    { h: "Pod permissions", items: [
+      "**EKS Pod Identity**: agent add-on + pod identity association; role trusts `pods.eks.amazonaws.com`",
+      "**IRSA**: IAM OIDC provider + role trust on the service account + `eks.amazonaws.com/role-arn` annotation",
+      "**Never the node role** for app permissions (every pod would get it)",
+      "Image pulls: EC2 nodes = **node role** (ECR read-only) · Fargate = **pod execution role**",
+      "Controllers (AWS Load Balancer Controller) also use IRSA / Pod Identity"
+    ]},
+    { h: "Deployments", items: [
+      "Rolling: **`maxSurge`** / **`maxUnavailable`** (like ECS max% / min%)",
+      "**readinessProbe** = traffic only when ready · **livenessProbe** = restart if stuck (too strict → restart loops)",
+      "`kubectl rollout status` / **`rollout undo`** / `rollout history` · `Recreate` = downtime",
+      "Helm: **`--atomic --wait`** = auto rollback · `helm rollback`",
+      "Blue/green: switch **Service selector** · Canary: pod ratio, **ALB Ingress weights**, **Argo Rollouts / Flagger** (metric analysis + auto rollback)"
+    ]},
+    { h: "Observability and security", items: [
+      "**Control plane logs** (api, **audit**, authenticator, controllerManager, scheduler) → CloudWatch Logs, **off by default**",
+      "CloudTrail = EKS API calls; **audit log** = Kubernetes API calls (who deleted what)",
+      "Container Insights via **CloudWatch Observability add-on**; Fluent Bit; Managed Prometheus / Grafana",
+      "Secrets: **KMS envelope encryption** or **Secrets Manager + CSI driver** (K8s Secrets are only base64)",
+      "GuardDuty EKS Protection · ECR scanning · Kyverno / OPA Gatekeeper · HPA (metrics-server) · Cluster Autoscaler / Karpenter"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["kubectl Unauthorized from CodeBuild", "Access entry (or aws-auth mapping)"],
+      ["update-kubeconfig AccessDenied", "eks:DescribeCluster"],
+      ["CodeBuild times out to cluster", "Private endpoint → CodeBuild in VPC"],
+      ["CodeDeploy canary for EKS", "Not supported → Argo Rollouts / Flagger"],
+      ["Pods need S3/DynamoDB access", "Pod Identity or IRSA"],
+      ["Errors during rolling update", "readinessProbe + maxUnavailable 0"],
+      ["Restart loops", "Liveness probe too strict / OOMKilled"],
+      ["Pipeline must fail on bad rollout", "rollout status --timeout / helm --atomic --wait"],
+      ["Fast rollback", "kubectl rollout undo / helm rollback"],
+      ["No creds in CI, drift self-heals", "GitOps (Argo CD / Flux)"],
+      ["Who deleted a Deployment", "Control plane audit logs"],
+      ["1.29 → 1.31 safely", "One minor at a time, or new cluster + Route 53"],
+      ["DaemonSet on Fargate", "Not supported"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

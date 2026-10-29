@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -4309,5 +4309,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Shell into Fargate containers → ECS Exec (SSM; task role permissions; logged sessions)."
+  },
+
+  // ───────────────────────────── EKS for CI/CD ─────────────────────────────
+  {
+    id: "eks-01", domain: "d1", topic: "EKS for CI/CD",
+    q: "A CodeBuild project deploys to an Amazon EKS cluster. aws eks update-kubeconfig succeeds, but kubectl apply fails with 'error: You must be logged in to the server (Unauthorized)'. What should the DevOps engineer do?",
+    options: [
+      { t: "Create an EKS access entry for the CodeBuild service role and associate an access policy (for example AmazonEKSEditPolicy scoped to the target namespace).",
+        why: "Correct. IAM lets the role describe the cluster, but Kubernetes still needs the role mapped to permissions inside the cluster. Access entries do that through the EKS API." },
+      { t: "Add eks:* to the CodeBuild service role.",
+        why: "IAM permissions alone don't grant Kubernetes RBAC permissions inside the cluster." },
+      { t: "Turn on privileged mode in the CodeBuild project.",
+        why: "Privileged mode is for running Docker builds, not cluster authentication." },
+      { t: "Use the node instance role in CodeBuild.",
+        why: "The node role isn't meant for deployments and still wouldn't be the right RBAC mapping." }
+    ],
+    answer: [0],
+    tip: "kubectl Unauthorized → map the IAM role into the cluster (access entry or aws-auth)."
+  },
+  {
+    id: "eks-02", domain: "d1", topic: "EKS for CI/CD",
+    q: "A company wants to use AWS CodeDeploy canary deployments for microservices running on Amazon EKS, with automatic rollback based on CloudWatch metrics. What should the DevOps engineer recommend?",
+    options: [
+      { t: "CodeDeploy doesn't support EKS. Use a progressive delivery controller such as Argo Rollouts or Flagger, which runs canary steps with metric analysis and automatic rollback.",
+        why: "Correct. CodeDeploy supports EC2/on-premises, Lambda and ECS only. Argo Rollouts and Flagger provide canary analysis on Kubernetes." },
+      { t: "Create a CodeDeploy deployment group with the EKS compute platform.",
+        why: "There is no EKS compute platform in CodeDeploy." },
+      { t: "Use the CodeDeploy agent on the worker nodes.",
+        why: "This would deploy files to EC2 instances, not Kubernetes workloads." },
+      { t: "Use ECS blue/green deployment configurations.",
+        why: "Those apply to ECS services, not EKS." }
+    ],
+    answer: [0],
+    tip: "CodeDeploy: EC2/on-prem, Lambda, ECS — NOT EKS. Canary on EKS → Argo Rollouts / Flagger."
+  },
+  {
+    id: "eks-03", domain: "d1", topic: "EKS for CI/CD",
+    q: "Pods in the 'billing' namespace need read and write access to one DynamoDB table. Other pods on the same nodes must not have this access. What is the MOST secure solution?",
+    options: [
+      { t: "Use EKS Pod Identity (or IRSA) to link an IAM role with the table permissions to the billing service account.",
+        why: "Correct. Only pods using that service account get the role's credentials, which is least privilege." },
+      { t: "Add the DynamoDB permissions to the node instance role.",
+        why: "Every pod on those nodes would get the permissions." },
+      { t: "Store an IAM user's access keys in a Kubernetes Secret.",
+        why: "Long-term keys are risky and Kubernetes Secrets are only base64 encoded." },
+      { t: "Put the billing pods on Fargate and use the pod execution role.",
+        why: "The pod execution role is for pulling images and logging, not application permissions." }
+    ],
+    answer: [0],
+    tip: "Per-pod AWS permissions → EKS Pod Identity or IRSA (service account), never the node role."
+  },
+  {
+    id: "eks-04", domain: "d1", topic: "EKS for CI/CD",
+    q: "Users see HTTP 502 errors for several seconds during every rolling update of a Kubernetes Deployment on EKS. The new pods take about 20 seconds to warm up. What should be added?",
+    options: [
+      { t: "A readinessProbe on the container, with maxUnavailable set to 0.",
+        why: "Correct. The readiness probe keeps traffic away from pods until they're ready, and maxUnavailable 0 keeps full capacity during the rollout." },
+      { t: "A livenessProbe with a short initial delay.",
+        why: "A liveness probe restarts containers. A short delay could even kill warming pods." },
+      { t: "The Recreate deployment strategy.",
+        why: "Recreate stops all pods first, which causes downtime." },
+      { t: "A HorizontalPodAutoscaler.",
+        why: "The HPA scales on load. It doesn't stop traffic going to unready pods." }
+    ],
+    answer: [0],
+    tip: "Errors during rolling updates → readinessProbe (+ maxUnavailable: 0)."
+  },
+  {
+    id: "eks-05", domain: "d1", topic: "EKS for CI/CD",
+    q: "A pipeline deploys with Helm. If the new release's pods don't become ready, the pipeline step must fail and the previous release must be restored automatically. Which command meets this?",
+    options: [
+      { t: "helm upgrade --install --atomic --wait --timeout 5m",
+        why: "Correct. --wait waits for resources to be ready and --atomic rolls back automatically if the upgrade fails, returning an error to the pipeline." },
+      { t: "helm upgrade --install",
+        why: "Returns as soon as the manifests are submitted, without waiting or rolling back." },
+      { t: "helm install --dry-run",
+        why: "A dry run doesn't deploy anything." },
+      { t: "kubectl apply -f chart/",
+        why: "Doesn't wait for readiness or roll back automatically." }
+    ],
+    answer: [0],
+    tip: "Helm auto rollback on failure → --atomic --wait (with --timeout)."
+  },
+  {
+    id: "eks-06", domain: "d1", topic: "EKS for CI/CD",
+    q: "A pipeline runs kubectl apply and reports success, but the new pods are crash-looping in production. The team wants the pipeline step to fail when the Deployment doesn't become healthy. What should be added to the buildspec?",
+    options: [
+      { t: "kubectl rollout status deployment/web --timeout=300s after the apply.",
+        why: "Correct. rollout status waits for the rollout and exits non-zero if it doesn't finish in time, failing the build." },
+      { t: "kubectl get pods.",
+        why: "Lists pods but always exits successfully." },
+      { t: "Set CodeBuild timeout to 8 hours.",
+        why: "A longer timeout doesn't check deployment health." },
+      { t: "kubectl rollout undo before every deployment.",
+        why: "This rolls back the previous change, which makes no sense before deploying." }
+    ],
+    answer: [0],
+    tip: "Make the pipeline fail on bad rollout → kubectl rollout status --timeout."
+  },
+  {
+    id: "eks-07", domain: "d1", topic: "EKS for CI/CD",
+    q: "A bad image was deployed to a Kubernetes Deployment on EKS. What is the FASTEST way to return to the previous version?",
+    options: [
+      { t: "kubectl rollout undo deployment/web",
+        why: "Correct. Kubernetes keeps the previous ReplicaSet, so undo scales it back up and the bad one down." },
+      { t: "Delete the Deployment and create it again.",
+        why: "Causes downtime and loses the rollout history." },
+      { t: "Rebuild the previous commit in the pipeline.",
+        why: "Works, but is much slower than rollout undo." },
+      { t: "Scale the node group to zero.",
+        why: "Stops everything." }
+    ],
+    answer: [0],
+    tip: "Kubernetes rollback → kubectl rollout undo (helm rollback for Helm releases)."
+  },
+  {
+    id: "eks-08", domain: "d1", topic: "EKS for CI/CD",
+    q: "An EKS cluster's API endpoint is private only. A CodeBuild deployment step times out when running kubectl. What is the correct fix?",
+    options: [
+      { t: "Configure the CodeBuild project to run in the cluster's VPC, with subnets and security groups that can reach the API endpoint.",
+        why: "Correct. A private endpoint is only reachable from inside the VPC (or connected networks)." },
+      { t: "Add eks:DescribeCluster to the role.",
+        why: "That's needed for update-kubeconfig, but the problem is network reachability." },
+      { t: "Add an access entry for the CodeBuild role.",
+        why: "Authorization doesn't help if CodeBuild can't reach the endpoint at all." },
+      { t: "Turn on control plane audit logging.",
+        why: "Logging doesn't affect connectivity." }
+    ],
+    answer: [0],
+    tip: "Private EKS endpoint → CodeBuild in the VPC."
+  },
+  {
+    id: "eks-09", domain: "d1", topic: "EKS for CI/CD",
+    q: "A company wants deployments to EKS where the CI pipeline never holds cluster credentials, every change is in Git, and manual changes made with kubectl are automatically reverted. Which approach fits?",
+    options: [
+      { t: "GitOps with Argo CD or Flux running in the cluster and watching the Git repository.",
+        why: "Correct. The in-cluster controller pulls changes from Git, so the pipeline only updates Git, and drift is corrected automatically." },
+      { t: "CodeBuild running kubectl apply with cluster admin access.",
+        why: "The pipeline holds cluster credentials and manual drift isn't reverted." },
+      { t: "CodeDeploy blue/green for EKS.",
+        why: "CodeDeploy doesn't support EKS." },
+      { t: "AWS Config rules for Kubernetes objects.",
+        why: "AWS Config doesn't track or revert Kubernetes objects inside the cluster." }
+    ],
+    answer: [0],
+    tip: "No cluster creds in CI + drift self-heals → GitOps (Argo CD / Flux)."
+  },
+  {
+    id: "eks-10", domain: "d1", topic: "EKS for CI/CD",
+    q: "The security team wants to know which user deleted a Kubernetes Deployment in an EKS cluster last week. Where can this be found?",
+    options: [
+      { t: "In the EKS control plane audit logs in CloudWatch Logs, if audit logging was turned on.",
+        why: "Correct. Kubernetes API actions such as deleting a Deployment are recorded in the audit log, which is off by default." },
+      { t: "In AWS CloudTrail.",
+        why: "CloudTrail records EKS API calls (like CreateCluster), not Kubernetes API calls inside the cluster." },
+      { t: "In VPC Flow Logs.",
+        why: "Flow logs show network traffic, not who did what." },
+      { t: "In Container Insights.",
+        why: "Container Insights shows metrics and container logs, not API audit events." }
+    ],
+    answer: [0],
+    tip: "Who did what inside Kubernetes → control plane audit logs (enable them!)."
+  },
+  {
+    id: "eks-11", domain: "d1", topic: "EKS for CI/CD",
+    q: "A team needs an EKS data plane with no nodes to manage for a set of stateless web pods. They also run a log-collector DaemonSet on every node. What should they know about Fargate profiles?",
+    options: [
+      { t: "Fargate runs pods without nodes to manage, but DaemonSets aren't supported, so logging must use a sidecar or Fargate's built-in Fluent Bit log router.",
+        why: "Correct. Each Fargate pod runs in its own micro-VM, so there are no nodes for DaemonSets. Privileged pods and EBS volumes also aren't supported." },
+      { t: "Fargate supports DaemonSets as long as they are privileged.",
+        why: "Privileged pods aren't allowed on Fargate either." },
+      { t: "Fargate profiles only select pods by instance type.",
+        why: "Fargate profiles select pods by namespace and labels." },
+      { t: "Fargate requires managed node groups to run the pods.",
+        why: "Fargate pods don't need any node group." }
+    ],
+    answer: [0],
+    tip: "EKS Fargate: no DaemonSets, no privileged pods, no EBS; profiles match namespace + labels."
+  },
+  {
+    id: "eks-12", domain: "d1", topic: "EKS for CI/CD",
+    q: "An EKS cluster runs Kubernetes 1.29 and must move to 1.31. The workloads are business-critical and the team wants the LOWEST risk with a fast way back. What should they do?",
+    options: [
+      { t: "Create a new cluster on 1.31, deploy the workloads, test, then shift traffic gradually with Route 53 weighted records.",
+        why: "Correct. Blue/green clusters avoid in-place risk and allow switching back by changing DNS weights." },
+      { t: "Upgrade the control plane from 1.29 directly to 1.31.",
+        why: "EKS control planes can only be upgraded one minor version at a time." },
+      { t: "Upgrade the worker nodes to 1.31 first, then the control plane.",
+        why: "Nodes can't be newer than the control plane. The control plane is upgraded first." },
+      { t: "Delete and recreate the existing cluster on 1.31.",
+        why: "Causes a full outage." }
+    ],
+    answer: [0],
+    tip: "EKS upgrades: one minor at a time (control plane → add-ons → nodes), or blue/green clusters + Route 53."
+  },
+  {
+    id: "eks-13", domain: "d1", topic: "EKS for CI/CD",
+    q: "A CodeBuild deploy step fails at 'aws eks update-kubeconfig' with an AccessDenied error. What IAM permission is missing from the CodeBuild service role?",
+    options: [
+      { t: "eks:DescribeCluster",
+        why: "Correct. update-kubeconfig calls DescribeCluster to get the cluster endpoint and certificate." },
+      { t: "eks:CreateCluster",
+        why: "Not needed to deploy to an existing cluster." },
+      { t: "ecr:GetAuthorizationToken",
+        why: "That's for logging in to ECR, not getting the kubeconfig." },
+      { t: "sts:AssumeRoleWithWebIdentity",
+        why: "That's used by IRSA in pods, not by update-kubeconfig." }
+    ],
+    answer: [0],
+    tip: "update-kubeconfig AccessDenied → eks:DescribeCluster on the IAM role."
+  },
+  {
+    id: "eks-14", domain: "d1", topic: "EKS for CI/CD",
+    q: "A company stores database passwords in Kubernetes Secrets on EKS. An auditor says this isn't secure enough. What should the DevOps engineer do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Turn on KMS envelope encryption for Kubernetes Secrets in the cluster.",
+        why: "Correct. Secrets are then encrypted in etcd with a KMS key you control." },
+      { t: "Store the passwords in AWS Secrets Manager and mount them with the Secrets Store CSI driver.",
+        why: "Correct. Secrets stay in Secrets Manager with rotation and auditing, and pods read them through the CSI driver using their IAM role." },
+      { t: "Base64 encode the passwords twice.",
+        why: "Encoding isn't encryption." },
+      { t: "Put the passwords in a ConfigMap instead.",
+        why: "ConfigMaps are even less protected." },
+      { t: "Store the passwords in the container image.",
+        why: "Anyone who can pull the image can read them." }
+    ],
+    answer: [0, 1],
+    tip: "K8s Secrets are base64 only → KMS envelope encryption and/or Secrets Manager + CSI driver."
+  },
+  {
+    id: "eks-15", domain: "d1", topic: "EKS for CI/CD",
+    q: "A team wants to send 10% of traffic to a new version of a service on EKS, with an ALB in front created by the AWS Load Balancer Controller, and increase it manually after checks. What is the simplest way?",
+    options: [
+      { t: "Run the new version as a separate Service and use ALB Ingress weighted target group annotations (for example 90/10).",
+        why: "Correct. The AWS Load Balancer Controller supports weighted forwarding between Services on one ALB listener rule." },
+      { t: "Use CodeDeploy ECSCanary10Percent5Minutes.",
+        why: "That configuration is for ECS, and CodeDeploy doesn't support EKS." },
+      { t: "Set maxSurge to 10%.",
+        why: "This controls rolling update pace, not a steady traffic split." },
+      { t: "Use a Lambda weighted alias.",
+        why: "Lambda aliases don't route traffic to Kubernetes pods." }
+    ],
+    answer: [0],
+    tip: "Weighted traffic on EKS behind ALB → Ingress weighted target groups (or Argo Rollouts)."
+  },
+  {
+    id: "eks-16", domain: "d1", topic: "EKS for CI/CD",
+    q: "A team adds a new IAM role for their deployment pipeline by editing the aws-auth ConfigMap. A YAML mistake locks every user and the pipeline out of the cluster. How can they avoid this risk going forward?",
+    options: [
+      { t: "Use EKS access entries and access policies, managed through the EKS API or infrastructure as code, instead of editing aws-auth.",
+        why: "Correct. Access entries are managed outside the cluster, so a bad edit can't lock out cluster access through a broken ConfigMap." },
+      { t: "Give every user the node instance role.",
+        why: "This removes individual identities and least privilege." },
+      { t: "Turn off RBAC.",
+        why: "RBAC can't be disabled on EKS and that would be insecure." },
+      { t: "Use IRSA for the pipeline role.",
+        why: "IRSA gives pods AWS permissions; it doesn't grant external roles access to the cluster." }
+    ],
+    answer: [0],
+    tip: "Cluster access management → access entries (recommended) instead of the aws-auth ConfigMap."
+  },
+  {
+    id: "eks-17", domain: "d1", topic: "EKS for CI/CD",
+    q: "A company wants Kubernetes canary releases on EKS where each step (10%, 25%, 50%) is promoted only if Prometheus error-rate queries stay healthy, and it rolls back automatically otherwise. What should they use?",
+    options: [
+      { t: "Argo Rollouts (or Flagger) with canary steps and an analysis template based on the Prometheus queries.",
+        why: "Correct. These controllers automate progressive delivery with metric analysis and automatic rollback on Kubernetes." },
+      { t: "A standard Deployment with maxSurge 10%.",
+        why: "A rolling update has no metric analysis or fixed traffic steps." },
+      { t: "CodeDeploy linear deployment configuration.",
+        why: "CodeDeploy doesn't support EKS." },
+      { t: "HorizontalPodAutoscaler with a custom metric.",
+        why: "HPA scales pods; it doesn't manage release steps." }
+    ],
+    answer: [0],
+    tip: "Metric-driven canary on Kubernetes → Argo Rollouts / Flagger."
+  },
+  {
+    id: "eks-18", domain: "d1", topic: "EKS for CI/CD",
+    q: "Pods on EC2 managed nodes fail with ImagePullBackOff for an image in the same account's private ECR repository. The image and tag exist. What is the MOST likely cause?",
+    options: [
+      { t: "The node IAM role is missing the AmazonEC2ContainerRegistryReadOnly permissions.",
+        why: "Correct. On EC2 nodes, the kubelet pulls images using the node role." },
+      { t: "The pod's service account has no IRSA role.",
+        why: "Image pulls on EC2 nodes don't use the pod's service account role." },
+      { t: "The CodeBuild role lacks ecr:PutImage.",
+        why: "The image was already pushed. This is about pulling on the nodes." },
+      { t: "The cluster needs a Fargate profile.",
+        why: "Not related to image pull permissions on EC2 nodes." }
+    ],
+    answer: [0],
+    tip: "ImagePullBackOff from private ECR on EC2 nodes → node role ECR read; on Fargate → pod execution role."
+  },
+  {
+    id: "eks-19", domain: "d1", topic: "EKS for CI/CD",
+    q: "A team wants the deployment pipeline's IAM role to deploy only into the 'shop' namespace of a shared EKS cluster. What is the least-privilege setup?",
+    options: [
+      { t: "An access entry for the role with AmazonEKSEditPolicy and an access scope of type namespace limited to 'shop'.",
+        why: "Correct. Access policies can be scoped to specific namespaces." },
+      { t: "An access entry with AmazonEKSClusterAdminPolicy at cluster scope.",
+        why: "Gives full control of the whole cluster." },
+      { t: "An IAM policy with eks:* limited to the cluster ARN.",
+        why: "IAM doesn't control Kubernetes RBAC inside the cluster." },
+      { t: "A separate cluster per pipeline.",
+        why: "Costly and unnecessary for namespace isolation." }
+    ],
+    answer: [0],
+    tip: "Pipeline access to one namespace → access entry + access policy with namespace scope."
+  },
+  {
+    id: "eks-20", domain: "d1", topic: "EKS for CI/CD",
+    q: "A team wants to deploy Helm charts to an EKS cluster from CodePipeline with as little custom build scripting as possible. What is the simplest current option?",
+    options: [
+      { t: "Use the CodePipeline Amazon EKS deploy action, which can deploy Helm charts or kubectl manifests to the cluster.",
+        why: "Correct. The EKS action handles deployment without writing kubectl or Helm commands in a buildspec (it still needs cluster access for the pipeline role)." },
+      { t: "Use the CodePipeline Amazon ECS deploy action.",
+        why: "That deploys ECS services, not EKS." },
+      { t: "Use a CodeDeploy deploy action with an EKS deployment group.",
+        why: "CodeDeploy doesn't support EKS." },
+      { t: "Use the CloudFormation deploy action with the Helm chart.",
+        why: "CloudFormation doesn't deploy Helm charts on its own." }
+    ],
+    answer: [0],
+    tip: "CodePipeline → EKS: the Amazon EKS deploy action (Helm or manifests) or CodeBuild with kubectl/helm."
+  },
+  {
+    id: "eks-21", domain: "d1", topic: "EKS for CI/CD",
+    q: "Pods on EKS keep restarting every few minutes. Events show the liveness probe failing during heavy load, although the app eventually responds. What is the likely fix?",
+    options: [
+      { t: "Make the livenessProbe less strict (longer timeoutSeconds, initialDelaySeconds or failureThreshold), and keep readiness checks separate.",
+        why: "Correct. Too-strict liveness probes kill containers that are slow but working, causing restart loops." },
+      { t: "Remove the readinessProbe.",
+        why: "Readiness controls traffic, not restarts. Removing it causes errors during deployments." },
+      { t: "Switch to the Recreate strategy.",
+        why: "This affects deployments, not restarts from probes." },
+      { t: "Turn on control plane audit logs.",
+        why: "Helps auditing, not probe failures." }
+    ],
+    answer: [0],
+    tip: "Restart loops → liveness probe too strict (or OOMKilled). Readiness = traffic; liveness = restart."
+  },
+  {
+    id: "eks-22", domain: "d1", topic: "EKS for CI/CD",
+    q: "The AWS Load Balancer Controller on EKS must create ALBs and target groups. How should it get AWS permissions?",
+    options: [
+      { t: "Through IRSA or EKS Pod Identity on the controller's service account, with the controller's IAM policy.",
+        why: "Correct. The controller runs as pods, so it gets scoped AWS credentials through its service account." },
+      { t: "Through the CodeBuild service role.",
+        why: "The controller runs continuously in the cluster, not in the pipeline." },
+      { t: "Through access entries.",
+        why: "Access entries grant access to the Kubernetes API, not AWS API permissions to pods." },
+      { t: "Through long-term access keys in a ConfigMap.",
+        why: "Insecure, and ConfigMaps aren't for credentials." }
+    ],
+    answer: [0],
+    tip: "In-cluster controllers needing AWS APIs → IRSA / Pod Identity. Access entries = into the cluster."
   }
 ];
