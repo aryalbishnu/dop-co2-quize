@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -4666,5 +4666,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "In-cluster controllers needing AWS APIs → IRSA / Pod Identity. Access entries = into the cluster."
+  },
+
+  // ───────────────────────────── Testing in Pipelines ─────────────────────────────
+  {
+    id: "tp-01", domain: "d1", topic: "Testing in Pipelines",
+    q: "A team publishes JaCoCo code coverage reports from CodeBuild. Management requires that builds FAIL when line coverage drops below 80%. Builds currently pass even with 60% coverage. What should the team do?",
+    options: [
+      { t: "Configure the test tool to enforce the threshold (for example a JaCoCo check rule) so it exits with a non-zero code below 80%.",
+        why: "Correct. CodeBuild coverage reports only display coverage. The build fails only if a command returns a non-zero exit code." },
+      { t: "Set a minimum coverage value on the CodeBuild report group.",
+        why: "Report groups don't fail builds based on coverage." },
+      { t: "Add a manual approval action after the build.",
+        why: "This adds human review but doesn't enforce the rule automatically." },
+      { t: "Change the report format to Cobertura.",
+        why: "The format doesn't change whether the build fails." }
+    ],
+    answer: [0],
+    tip: "Coverage gate → make the test tool exit non-zero (pytest --cov-fail-under, JaCoCo check); reports only display."
+  },
+  {
+    id: "tp-02", domain: "d1", topic: "Testing in Pipelines",
+    q: "Unit tests run in CodeBuild and some fail, yet the build succeeds and the pipeline deploys. The buildspec command is 'pytest tests/ || true'. What is the problem?",
+    options: [
+      { t: "'|| true' makes the command always return exit code 0, so CodeBuild never sees the failure. Remove it.",
+        why: "Correct. CodeBuild decides pass or fail from the exit code. Swallowing it hides failed tests." },
+      { t: "Test reports must be configured for CodeBuild to detect failures.",
+        why: "Reports display results; the exit code decides success." },
+      { t: "on-failure must be set to CONTINUE.",
+        why: "CONTINUE makes the build keep going after failures, the opposite of what's needed." },
+      { t: "pytest doesn't return exit codes.",
+        why: "pytest returns a non-zero code when tests fail." }
+    ],
+    answer: [0],
+    tip: "Tests failed but build passed → exit code swallowed (|| true, later command) or on-failure: CONTINUE."
+  },
+  {
+    id: "tp-03", domain: "d1", topic: "Testing in Pipelines",
+    q: "Auditors require 12 months of unit test results for every build. The team uses CodeBuild test reports. What should they do?",
+    options: [
+      { t: "Export the raw report files to an S3 bucket (with lifecycle rules) in addition to the report group.",
+        why: "Correct. CodeBuild report groups keep test results for 30 days, so long-term retention needs S3." },
+      { t: "Increase the report group retention to 12 months.",
+        why: "Report group data retention is fixed at 30 days." },
+      { t: "Store the results in CloudWatch metrics.",
+        why: "Metrics give counts, not the detailed results auditors need, and have their own retention." },
+      { t: "Keep the CodeBuild build logs only.",
+        why: "Build logs aren't a structured test report and may be deleted by log retention settings." }
+    ],
+    answer: [0],
+    tip: "CodeBuild report groups keep 30 days → export raw reports to S3 for long retention."
+  },
+  {
+    id: "tp-04", domain: "d1", topic: "Testing in Pipelines",
+    q: "A pipeline deploys a SAM application to a test environment with a CloudFormation action. The next action must run integration tests against the newly created API URL. What is the simplest way to give the test action the URL?",
+    options: [
+      { t: "Set a namespace on the CloudFormation action and pass #{Namespace.ApiUrl} (the stack output) as an environment variable to the CodeBuild test action.",
+        why: "Correct. CodePipeline output variables expose stack outputs to later actions without extra code." },
+      { t: "Hard-code the API URL in the buildspec.",
+        why: "The URL changes when the stack is recreated, so tests would break." },
+      { t: "Store the URL in the source repository after each deployment.",
+        why: "Committing during a pipeline run is complicated and creates loops." },
+      { t: "Use a manual approval where a tester types the URL.",
+        why: "Manual steps slow the pipeline and aren't needed." }
+    ],
+    answer: [0],
+    tip: "Pass deploy outputs to tests → CodePipeline output variables (namespace + #{Namespace.Output})."
+  },
+  {
+    id: "tp-05", domain: "d1", topic: "Testing in Pipelines",
+    q: "A test stage has three CodeBuild actions with the same runOrder: unit tests, SAST and IaC scanning. The IaC scan fails while the other two succeed. What happens?",
+    options: [
+      { t: "The stage fails and the pipeline doesn't continue to the next stage.",
+        why: "Correct. Parallel actions run together, but the stage fails if any action fails. With V2 you can configure retry or rollback on failure." },
+      { t: "The stage succeeds because two of three actions passed.",
+        why: "There is no majority vote. Every action must succeed." },
+      { t: "The other two actions are stopped immediately and their results lost.",
+        why: "Running actions finish; their results are kept." },
+      { t: "The pipeline skips the failed action automatically.",
+        why: "Failed actions aren't skipped." }
+    ],
+    answer: [0],
+    tip: "Parallel actions: any one fails → the stage fails."
+  },
+  {
+    id: "tp-06", domain: "d1", topic: "Testing in Pipelines",
+    q: "A CodePipeline Lambda invoke action calls a function that checks an API after deployment. The function finishes in seconds, but the action always fails after a long timeout. What is wrong?",
+    options: [
+      { t: "The function doesn't call PutJobSuccessResult or PutJobFailureResult to report the result to CodePipeline.",
+        why: "Correct. CodePipeline waits for the job result. Without it, the action times out and fails." },
+      { t: "Lambda functions can't be used in pipelines.",
+        why: "The Lambda invoke action is a standard pipeline action." },
+      { t: "The function needs more memory.",
+        why: "The function already finishes quickly." },
+      { t: "The action must be in the Build category.",
+        why: "Lambda invoke actions are in the Invoke category; the category isn't the problem." }
+    ],
+    answer: [0],
+    tip: "Lambda invoke action must call PutJobSuccessResult / PutJobFailureResult."
+  },
+  {
+    id: "tp-07", domain: "d1", topic: "Testing in Pipelines",
+    q: "A company wants each pull request to run integration tests against real AWS resources, without branches interfering with each other, and without paying for idle test environments. What should they do?",
+    options: [
+      { t: "Create an ephemeral stack per run (for example named with the build number), run the tests against it, then delete the stack.",
+        why: "Correct. Each run gets an isolated, clean environment that exists only while tests run." },
+      { t: "Share one long-lived test environment across all branches.",
+        why: "Branches would overwrite each other's deployments and data." },
+      { t: "Run the integration tests against production.",
+        why: "Unsafe. Tests could change or expose real data." },
+      { t: "Only run unit tests with mocks.",
+        why: "Mocks don't prove the components work with real AWS resources." }
+    ],
+    answer: [0],
+    tip: "Isolated integration tests per run → ephemeral stacks created and deleted by the pipeline."
+  },
+  {
+    id: "tp-08", domain: "d1", topic: "Testing in Pipelines",
+    q: "Where should a pipeline run load tests that simulate peak traffic for a new release, and how should the result gate the pipeline?",
+    options: [
+      { t: "In a production-like staging environment, using a tool such as k6 or JMeter (or Distributed Load Testing on AWS) with thresholds that make the step fail when latency or error limits are exceeded.",
+        why: "Correct. Staging matches production without affecting customers, and threshold failures return a non-zero result that fails the action." },
+      { t: "Against production on every commit.",
+        why: "Risky and expensive; real users would be affected." },
+      { t: "In the build stage on the CodeBuild container, against a mock.",
+        why: "A mock doesn't show real scaling, latency or quota limits." },
+      { t: "Only after release, by watching CloudWatch.",
+        why: "Problems would be found by customers first." }
+    ],
+    answer: [0],
+    tip: "Load tests → production-like staging, thresholds that fail the step, watch metrics and quotas."
+  },
+  {
+    id: "tp-09", domain: "d1", topic: "Testing in Pipelines",
+    q: "ECR basic scanning reports no vulnerabilities for an image, but a security review finds a known critical CVE in a Node.js package inside it. How should the team detect this automatically?",
+    options: [
+      { t: "Turn on ECR enhanced scanning (Amazon Inspector), which scans OS and programming language packages and re-scans continuously.",
+        why: "Correct. Basic scanning only checks OS packages. Enhanced scanning covers language packages such as npm and pip." },
+      { t: "Run basic scanning more often.",
+        why: "Basic scanning still won't look at language packages." },
+      { t: "Turn on tag immutability.",
+        why: "Tag immutability prevents tag overwrites, not vulnerabilities." },
+      { t: "Use GuardDuty.",
+        why: "GuardDuty detects threats at runtime, not package vulnerabilities in images." }
+    ],
+    answer: [0],
+    tip: "Language package CVEs in images → ECR enhanced scanning (Inspector); basic = OS only."
+  },
+  {
+    id: "tp-10", domain: "d1", topic: "Testing in Pipelines",
+    q: "A pipeline must stop before deployment if a newly built container image has any CRITICAL vulnerabilities. Which approach works?",
+    options: [
+      { t: "After pushing to ECR, have CodeBuild wait for the scan, read describe-image-scan-findings, and exit non-zero if the CRITICAL count is above zero.",
+        why: "Correct. The failing command fails the action, which stops the pipeline before the deploy stage. Inspector CI/CD scanning before push also works." },
+      { t: "Enable scanning and review the findings weekly.",
+        why: "Images would be deployed before anyone looks." },
+      { t: "Add a CloudFormation Guard Hook.",
+        why: "Guard Hooks check CloudFormation resource configuration, not image vulnerabilities." },
+      { t: "Turn on ECR replication.",
+        why: "Replication copies images; it doesn't gate releases." }
+    ],
+    answer: [0],
+    tip: "Gate on image CVEs → read scan findings in the pipeline and fail on CRITICAL."
+  },
+  {
+    id: "tp-11", domain: "d1", topic: "Testing in Pipelines",
+    q: "The security team wants every S3 bucket defined in CloudFormation templates to have encryption and block public access, checked automatically in the pipeline before deployment. Which tool should be used?",
+    options: [
+      { t: "AWS CloudFormation Guard (cfn-guard) with policy-as-code rules, run in CodeBuild.",
+        why: "Correct. cfn-guard checks templates against your own rules and fails the build on violations. Guard Hooks can also enforce rules at deploy time." },
+      { t: "cfn-lint.",
+        why: "cfn-lint checks syntax and AWS best practices, not your organisation's custom policies." },
+      { t: "Amazon Inspector.",
+        why: "Inspector scans for software vulnerabilities, not template settings." },
+      { t: "CloudFormation drift detection.",
+        why: "Drift detection compares deployed resources to the template after deployment." }
+    ],
+    answer: [0],
+    tip: "Custom template policies in the pipeline → cfn-guard (or Guard Hooks); cfn-lint = syntax/best practice."
+  },
+  {
+    id: "tp-12", domain: "d1", topic: "Testing in Pipelines",
+    q: "Developers accidentally committed AWS access keys several times. The company wants to stop secrets from ever reaching the repository, and also catch any that slip through. What should they do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Install git-secrets (or a similar tool) as a pre-commit hook on developer machines.",
+        why: "Correct. A pre-commit hook blocks the commit before the secret leaves the developer's machine." },
+      { t: "Add a secrets-scanning step (for example trufflehog) in the build stage that fails the pipeline when secrets are found.",
+        why: "Correct. A pipeline check catches anything that bypassed local hooks." },
+      { t: "Run load tests in staging.",
+        why: "Load tests don't look for secrets." },
+      { t: "Turn on ECR enhanced scanning.",
+        why: "This scans container images for CVEs, not source code for secrets." },
+      { t: "Encrypt the repository with KMS.",
+        why: "Encryption at rest doesn't stop keys being committed and read by anyone with repository access." }
+    ],
+    answer: [0, 1],
+    tip: "Secrets in code → pre-commit hooks (git-secrets) + pipeline secrets scan."
+  },
+  {
+    id: "tp-13", domain: "d1", topic: "Testing in Pipelines",
+    q: "Before production traffic moves to a new ECS version, the team wants automated integration tests to run against it on a separate port. What should they use?",
+    options: [
+      { t: "CodeDeploy ECS blue/green with a test listener and an AfterAllowTestTraffic Lambda hook that runs the tests.",
+        why: "Correct. The test listener routes to the new task set, and the hook can fail the deployment before production traffic shifts." },
+      { t: "A rolling update with the circuit breaker.",
+        why: "The circuit breaker detects failing tasks; it doesn't provide a test port or test hook." },
+      { t: "A CloudWatch Synthetics canary on the production URL.",
+        why: "Production traffic would already reach the new version." },
+      { t: "AWS FIS.",
+        why: "FIS injects failures; it doesn't run pre-release tests." }
+    ],
+    answer: [0],
+    tip: "Test new ECS version before production traffic → test listener + AfterAllowTestTraffic."
+  },
+  {
+    id: "tp-14", domain: "d1", topic: "Testing in Pipelines",
+    q: "A team runs chaos experiments with AWS FIS in staging. If the application's 5XX error rate goes above 5% during an experiment, the experiment must stop immediately. How?",
+    options: [
+      { t: "Configure a stop condition on the FIS experiment template using a CloudWatch alarm on the 5XX rate.",
+        why: "Correct. FIS stops the experiment automatically when a stop-condition alarm goes into ALARM." },
+      { t: "Set a short experiment duration.",
+        why: "The experiment would still run until the duration ends, even if errors spike." },
+      { t: "Use an SNS subscription to email the team.",
+        why: "Notification alone doesn't stop the experiment." },
+      { t: "Run the experiment from a manual approval action.",
+        why: "Approval only controls when it starts." }
+    ],
+    answer: [0],
+    tip: "FIS safety → stop conditions = CloudWatch alarms."
+  },
+  {
+    id: "tp-15", domain: "d1", topic: "Testing in Pipelines",
+    q: "A CodePipeline V2 pipeline must not promote a release to the production stage while a CloudWatch alarm on the staging environment is in ALARM. What should be configured?",
+    options: [
+      { t: "A beforeEntry condition on the production stage with a CloudWatch alarm rule.",
+        why: "Correct. V2 stage conditions can check alarms and block the stage from starting." },
+      { t: "A manual approval action.",
+        why: "Depends on a human noticing the alarm." },
+      { t: "An S3 Object Lock on the artifact bucket.",
+        why: "Object Lock protects artifacts from deletion; it doesn't check alarms." },
+      { t: "A CodeBuild report group.",
+        why: "Report groups show test results; they don't gate stages on alarms." }
+    ],
+    answer: [0],
+    tip: "Gate stage entry on alarms → CodePipeline V2 beforeEntry condition with CloudWatch alarm rule."
+  },
+  {
+    id: "tp-16", domain: "d1", topic: "Testing in Pipelines",
+    q: "After every production deployment, a team wants a scripted check of the login and checkout flows every 5 minutes, and an alarm that can trigger an automatic rollback if the checks fail. What should they use?",
+    options: [
+      { t: "CloudWatch Synthetics canaries with an alarm on success percentage, linked to the deployment's rollback alarms.",
+        why: "Correct. Canaries run scripted browser or API checks on a schedule and their alarms can drive CodeDeploy, ECS or pipeline rollback." },
+      { t: "AWS Device Farm.",
+        why: "Device Farm runs tests on real devices and browsers in the pipeline, not continuous production monitoring." },
+      { t: "Unit tests in CodeBuild.",
+        why: "Unit tests don't check the live production site." },
+      { t: "VPC Flow Logs.",
+        why: "Flow logs show network traffic, not whether user flows work." }
+    ],
+    answer: [0],
+    tip: "Continuous scripted checks in production → CloudWatch Synthetics canaries + alarms."
+  },
+  {
+    id: "tp-17", domain: "d1", topic: "Testing in Pipelines",
+    q: "A test suite takes 50 minutes in one CodeBuild build, slowing every merge. The tests are independent of each other. How can the team speed this up with the LEAST change to the tests?",
+    options: [
+      { t: "Use CodeBuild batch builds with parallel test execution to split the tests across several builds.",
+        why: "Correct. Splitting independent tests across parallel builds reduces wall-clock time without rewriting tests." },
+      { t: "Increase the build timeout.",
+        why: "This lets builds run longer but doesn't make them faster." },
+      { t: "Move all tests to the production stage.",
+        why: "Tests would run too late, after risky changes ship." },
+      { t: "Delete the slowest tests.",
+        why: "Removes test coverage." }
+    ],
+    answer: [0],
+    tip: "Slow independent tests → CodeBuild batch builds / parallel test splitting (+ caching)."
+  },
+  {
+    id: "tp-18", domain: "d1", topic: "Testing in Pipelines",
+    q: "Integration tests in CodeBuild need a database password. The current buildspec stores it as a plain environment variable. What is the BEST way to provide it?",
+    options: [
+      { t: "Store the password in Secrets Manager and reference it in the buildspec env section with secrets-manager.",
+        why: "Correct. CodeBuild fetches the secret at runtime using its role, and the value is masked in logs." },
+      { t: "Encrypt the buildspec file with KMS.",
+        why: "The buildspec is still in source control and the value is still in it." },
+      { t: "Hard-code the password in the test code.",
+        why: "Puts the secret in the repository." },
+      { t: "Pass the password through a pipeline variable typed at run time.",
+        why: "Manual and visible in execution history." }
+    ],
+    answer: [0],
+    tip: "Test secrets → buildspec env secrets-manager / parameter-store."
+  },
+  {
+    id: "tp-19", domain: "d1", topic: "Testing in Pipelines",
+    q: "A company wants to check a running web application in staging for vulnerabilities such as XSS and SQL injection as part of the pipeline. Which type of testing is this, and how?",
+    options: [
+      { t: "DAST: run a scanner such as OWASP ZAP in CodeBuild against the staging URL and fail on high-risk findings.",
+        why: "Correct. Dynamic testing attacks the running application to find runtime vulnerabilities." },
+      { t: "SAST in the build stage.",
+        why: "SAST inspects source code, not the running application." },
+      { t: "SCA with dependency scanning.",
+        why: "SCA finds vulnerable libraries, not application-level injection flaws in the running app." },
+      { t: "Unit tests with mocks.",
+        why: "Mocks don't exercise the real running app." }
+    ],
+    answer: [0],
+    tip: "SAST = code; SCA = dependencies; DAST = running app in staging (OWASP ZAP)."
+  },
+  {
+    id: "tp-20", domain: "d1", topic: "Testing in Pipelines",
+    q: "A team wants to order pipeline checks so problems are found as early and cheaply as possible. Which order is BEST?",
+    options: [
+      { t: "Build stage: unit tests, lint, SAST, SCA and IaC scans in parallel; then integration tests in a test environment; then load and DAST in staging; then a gradual production release with alarms.",
+        why: "Correct. Fast, cheap checks run first (fail fast), slower tests later in production-like environments." },
+      { t: "Load tests first, then unit tests.",
+        why: "Load tests are slow and expensive; running them before cheap tests wastes time on broken builds." },
+      { t: "Deploy to production first, then run all tests.",
+        why: "Customers would find the bugs." },
+      { t: "Run everything in one sequential action.",
+        why: "Slow and hard to see which check failed." }
+    ],
+    answer: [0],
+    tip: "Shift left, fail fast: cheap checks early and in parallel; expensive tests later."
+  },
+  {
+    id: "tp-21", domain: "d1", topic: "Testing in Pipelines",
+    q: "A mobile app team wants automated UI tests on many real Android and iOS devices as a stage in CodePipeline. Which service fits?",
+    options: [
+      { t: "AWS Device Farm, using its CodePipeline test action.",
+        why: "Correct. Device Farm runs tests on real devices and desktop browsers and integrates as a pipeline test action." },
+      { t: "CloudWatch Synthetics.",
+        why: "Synthetics checks web endpoints and pages, not native mobile apps on devices." },
+      { t: "AWS FIS.",
+        why: "FIS injects infrastructure faults." },
+      { t: "Amazon Inspector.",
+        why: "Inspector scans for vulnerabilities." }
+    ],
+    answer: [0],
+    tip: "Real devices / browsers in a pipeline → AWS Device Farm test action."
+  },
+  {
+    id: "tp-22", domain: "d1", topic: "Testing in Pipelines",
+    q: "Integration tests in the test account need realistic data, but company policy forbids customer personal data outside production. What should the team do?",
+    options: [
+      { t: "Use masked or synthetic data, for example a restored snapshot that has been anonymised, in a separate test account.",
+        why: "Correct. Separate accounts plus masked or synthetic data give realistic tests without exposing real personal data." },
+      { t: "Point the tests at the production database read replica.",
+        why: "Still uses real customer data and risks production." },
+      { t: "Copy the production database unchanged to test.",
+        why: "Breaks the policy." },
+      { t: "Skip integration tests.",
+        why: "Loses important test coverage." }
+    ],
+    answer: [0],
+    tip: "Test data → separate accounts + masked / synthetic data, never real PII."
   }
 ];

@@ -775,6 +775,73 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "Testing in Pipelines",
+  sections: [
+    { h: "Where each test runs", table: [
+      ["Stage", "Tests"],
+      ["Pre-commit / PR", "Lint, unit, **secrets scan** (git-secrets)"],
+      ["Build", "**Unit**, lint, **SAST**, **SCA**, secrets, **IaC** (cfn-lint, **cfn-guard**), **image scan** — in parallel"],
+      ["Test env", "**Integration**, API / contract, E2E (Device Farm, Playwright)"],
+      ["Staging", "**Load** (Distributed Load Testing, k6, JMeter), **DAST** (OWASP ZAP), **chaos (FIS)**, UAT + **manual approval**"],
+      ["Production", "Canary / linear with **alarms**, **Synthetics canaries**, feature flags"]
+    ]},
+    { h: "CodeBuild", items: [
+      "**Non-zero exit code = failed build** → failed action → stage stops",
+      "`|| true` or a later succeeding command **swallows failures**; `on-failure: CONTINUE` keeps going; `finally` always runs",
+      "**Test reports:** JUnit XML, NUnit, TestNG, Cucumber JSON, TRX · **Coverage:** JaCoCo, Cobertura, Clover, SimpleCov, lcov",
+      "Report groups keep **30 days** → export raw files to **S3**",
+      "Coverage reports **don't fail builds** → `--cov-fail-under` / JaCoCo check",
+      "Faster: **batch builds**, **parallel test splitting**, caching · secrets via `env: secrets-manager:`"
+    ]},
+    { h: "CodePipeline gates", items: [
+      "Test actions (CodeBuild), **Commands** action, third-party (Device Farm, BlazeMeter)",
+      "**Parallel actions** (same runOrder): any one fails → **stage fails**",
+      "**Lambda invoke** must call **PutJobSuccessResult / PutJobFailureResult**",
+      "**Manual approval**: 7-day timeout, SNS notification",
+      "**V2 conditions**: beforeEntry / onSuccess / onFailure with **CloudWatch alarm rule**, Lambda rule, VariableCheck, deployment window; onFailure **rollback or retry**",
+      "Pass deploy outputs to tests with **output variables** `#{Namespace.Output}`"
+    ]},
+    { h: "Integration and load", items: [
+      "**Ephemeral stacks** per run: create → test → delete",
+      "**Separate accounts**; masked / synthetic data; never real PII",
+      "Deploy hooks: EC2 **ValidateService** · ECS **AfterAllowTestTraffic** (test listener) · Lambda **PreTraffic / BeforeAllowTraffic**",
+      "Load: **production-like staging**, thresholds make tool **exit non-zero**, watch metrics and **service quotas**",
+      "**Distributed Load Testing on AWS** (Fargate, JMeter / k6 / Locust) · CodeGuru Profiler, X-Ray"
+    ]},
+    { h: "Security testing", table: [
+      ["Check", "Tool"],
+      ["Secrets", "git-secrets (pre-commit), trufflehog"],
+      ["SAST (code)", "Amazon Q Developer code review, Inspector code scanning, SonarQube"],
+      ["SCA (dependencies)", "Inspector SBOM / Scan API, OWASP Dependency-Check"],
+      ["IaC", "cfn-lint (syntax) · **cfn-guard / Guard Hooks** (your rules)"],
+      ["Images", "**ECR enhanced (Inspector)** = OS + language, continuous · basic = OS only · fail on CRITICAL"],
+      ["DAST (running app)", "OWASP ZAP against staging"],
+      ["Signing", "AWS Signer + Notation"]
+    ]},
+    { h: "Production safety", items: [
+      "**CloudWatch Synthetics** canaries: scripted checks every few minutes, alarms → rollback",
+      "**AWS FIS**: stop instances, add latency, kill tasks, AZ failure · **stop conditions = CloudWatch alarms**",
+      "AppConfig feature flags limit blast radius"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Fail build below 80% coverage", "Test tool threshold (exit non-zero)"],
+      ["Tests failed, build passed", "Exit code swallowed / on-failure CONTINUE"],
+      ["Keep test results 1 year", "Export reports to S3"],
+      ["Lambda action times out", "PutJobSuccessResult / PutJobFailureResult"],
+      ["Tests need stack's API URL", "Output variables"],
+      ["npm CVE missed by ECR", "ECR enhanced scanning"],
+      ["Our template rules", "cfn-guard / Guard Hooks"],
+      ["Test ECS version before traffic", "Test listener + AfterAllowTestTraffic"],
+      ["Stop chaos on errors", "FIS stop conditions"],
+      ["Block stage while alarm fires", "V2 beforeEntry alarm rule"],
+      ["Mobile device tests", "AWS Device Farm"],
+      ["Slow test suite", "Batch builds / test splitting"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
