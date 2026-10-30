@@ -8,7 +8,7 @@
 
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
-    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines"] },
+    topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
@@ -5023,5 +5023,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Test data → separate accounts + masked / synthetic data, never real PII."
+  },
+
+  // ───────────────────────────── EC2 Image Builder ─────────────────────────────
+  {
+    id: "ib-01", domain: "d1", topic: "EC2 Image Builder",
+    q: "A company wants every EC2 fleet to launch from a hardened, fully patched AMI that is rebuilt and tested automatically, with the LEAST operational overhead. What should the DevOps engineer use?",
+    options: [
+      { t: "An EC2 Image Builder pipeline with the update-linux component, hardening components, image tests and a schedule.",
+        why: "Correct. Image Builder is a managed service that builds, tests, scans and distributes AMIs on a schedule, with no build servers to maintain." },
+      { t: "Packer running on a self-managed Jenkins server.",
+        why: "Works, but you maintain Jenkins, Packer templates and scripts yourself." },
+      { t: "Launch an instance monthly, patch it manually and create an image.",
+        why: "Manual, slow and not repeatable." },
+      { t: "Install patches with user data on every instance at boot.",
+        why: "Slows every launch and leads to inconsistent instances." }
+    ],
+    answer: [0],
+    tip: "Golden AMI, least overhead → EC2 Image Builder pipeline."
+  },
+  {
+    id: "ib-02", domain: "d1", topic: "EC2 Image Builder",
+    q: "An Image Builder pipeline fails shortly after the build instance launches. No component logs appear. The instance runs in a private subnet without a NAT gateway, and its instance profile has only S3 read permissions. What should be fixed? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Add AmazonSSMManagedInstanceCore and EC2InstanceProfileForImageBuilder to the instance profile role.",
+        why: "Correct. Image Builder runs components through Systems Manager, so the instance must be able to register with SSM." },
+      { t: "Give the subnet a route to SSM and S3, using a NAT gateway or VPC endpoints (ssm, ssmmessages, ec2messages, S3 gateway).",
+        why: "Correct. Without network access to the SSM endpoints and S3, the instance can't receive commands or download components." },
+      { t: "Open inbound port 22 in the security group.",
+        why: "Image Builder doesn't use SSH." },
+      { t: "Add a key pair to the infrastructure configuration.",
+        why: "A key pair isn't needed because Systems Manager is used." },
+      { t: "Increase the instance type.",
+        why: "Size doesn't fix missing permissions or network routes." }
+    ],
+    answer: [0, 1],
+    tip: "Build fails early, no logs → instance profile (SSM core + EC2InstanceProfileForImageBuilder) and route to SSM/S3."
+  },
+  {
+    id: "ib-03", domain: "d1", topic: "EC2 Image Builder",
+    q: "Image builds keep failing in a custom component, and by the time engineers look, the build instance has been terminated. How can they investigate the failed instance directly?",
+    options: [
+      { t: "Set terminateInstanceOnFailure to false in the infrastructure configuration, then connect with Session Manager after a failure.",
+        why: "Correct. The failed build instance stays running for troubleshooting. Remember to terminate it afterwards." },
+      { t: "Turn on termination protection on the parent AMI.",
+        why: "AMIs don't have termination protection, and it wouldn't affect build instances." },
+      { t: "Increase the pipeline timeout.",
+        why: "The instance would still be terminated after the failure." },
+      { t: "Enable enhanced metadata collection.",
+        why: "This collects package inventory, not keeping failed instances." }
+    ],
+    answer: [0],
+    tip: "Keep failed build instance → terminateInstanceOnFailure: false (+ CloudWatch/S3 logs)."
+  },
+  {
+    id: "ib-04", domain: "d1", topic: "EC2 Image Builder",
+    q: "A component must verify that the nginx service starts correctly when an instance boots from the new AMI. In which phase should this check be written?",
+    options: [
+      { t: "The test phase, which runs on a new instance launched from the new AMI.",
+        why: "Correct. Only the test phase proves the image works from a fresh boot." },
+      { t: "The validate phase.",
+        why: "validate runs on the build instance before the AMI is created, so it doesn't prove boot behaviour." },
+      { t: "The build phase.",
+        why: "build installs and configures software; it isn't a fresh boot from the image." },
+      { t: "The distribution configuration.",
+        why: "Distribution copies and shares the image; it doesn't run tests." }
+    ],
+    answer: [0],
+    tip: "validate = build instance (before AMI); test = new instance from new AMI."
+  },
+  {
+    id: "ib-05", domain: "d1", topic: "EC2 Image Builder",
+    q: "An Image Builder pipeline runs every Sunday and creates a new AMI even when nothing has changed, wasting money and creating many identical images. The team wants a new image only when the parent image or a component has a newer version. What should they configure?",
+    options: [
+      { t: "Set the schedule start condition to EXPRESSION_MATCH_AND_DEPENDENCY_UPDATES_AVAILABLE.",
+        why: "Correct. The pipeline then builds on schedule only when dependencies (parent image or components) have updates." },
+      { t: "Set the start condition to EXPRESSION_MATCH_ONLY.",
+        why: "This builds on every scheduled run, which is the current behaviour." },
+      { t: "Delete the schedule and run manually.",
+        why: "Removes automation and someone must remember to check for updates." },
+      { t: "Use an image lifecycle policy.",
+        why: "Lifecycle policies clean up old images; they don't decide when to build." }
+    ],
+    answer: [0],
+    tip: "Build only when something changed → EXPRESSION_MATCH_AND_DEPENDENCY_UPDATES_AVAILABLE."
+  },
+  {
+    id: "ib-06", domain: "d1", topic: "EC2 Image Builder",
+    q: "A recipe uses a hard-coded Amazon Linux 2023 AMI ID as its parent, so images are built on an outdated base. How should the recipe always use the newest Amazon Linux 2023 image?",
+    options: [
+      { t: "Use the AWS-managed Amazon Linux 2023 parent image with a version filter of x.x.x (or the public SSM parameter for the latest AMI).",
+        why: "Correct. The pipeline resolves the newest parent image at each build." },
+      { t: "Edit the recipe's parent AMI ID by hand every month.",
+        why: "Manual and error-prone. Recipes are immutable, so each edit means a new recipe version anyway." },
+      { t: "Run yum update in user data.",
+        why: "Patches instances at boot instead of baking a current base." },
+      { t: "Copy the latest AMI into the account weekly with a Lambda function.",
+        why: "Unnecessary custom work." }
+    ],
+    answer: [0],
+    tip: "Latest base image → AWS-managed parent with x.x.x, or /aws/service/ami-amazon-linux-latest SSM parameter."
+  },
+  {
+    id: "ib-07", domain: "d1", topic: "EC2 Image Builder",
+    q: "Many CloudFormation stacks hard-code AMI IDs, and teams forget to update them after new golden AMIs are built. What is the BEST way for stacks to always use the latest approved AMI?",
+    options: [
+      { t: "Have Image Builder distribution write the new AMI ID to an SSM parameter, and use a parameter of type AWS::SSM::Parameter::Value<AWS::EC2::Image::Id> in the templates.",
+        why: "Correct. Templates resolve the current AMI ID from Parameter Store at deploy time, with no template edits." },
+      { t: "Email the new AMI ID to all teams.",
+        why: "Manual and easy to miss." },
+      { t: "Store the AMI ID in the AMI name.",
+        why: "Templates still need the ID." },
+      { t: "Use the Mappings section with the AMI IDs.",
+        why: "Mappings are static and must be edited for every new AMI." }
+    ],
+    answer: [0],
+    tip: "Latest AMI in CloudFormation → SSM parameter (written by distribution) + AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>."
+  },
+  {
+    id: "ib-08", domain: "d1", topic: "EC2 Image Builder",
+    q: "When a new golden AMI is ready, the instances in a production Auto Scaling group must be replaced automatically, a few at a time, with rollback if CloudWatch alarms fire. Which solution meets this?",
+    options: [
+      { t: "An EventBridge rule on the Image Builder image state change (AVAILABLE) invokes a Lambda function that updates the launch template and starts an Auto Scaling instance refresh with a minimum healthy percentage and alarm-based rollback.",
+        why: "Correct. Event-driven automation plus instance refresh gives a gradual, safe replacement." },
+      { t: "Terminate all instances so the ASG launches new ones.",
+        why: "Causes an outage." },
+      { t: "Use Patch Manager to patch the running instances.",
+        why: "That patches in place instead of using the new image." },
+      { t: "Reboot the instances.",
+        why: "Rebooting doesn't change the AMI." }
+    ],
+    answer: [0],
+    tip: "New AMI rollout → EventBridge AVAILABLE → update launch template → ASG instance refresh."
+  },
+  {
+    id: "ib-09", domain: "d1", topic: "EC2 Image Builder",
+    q: "A golden AMI encrypted with a KMS key is shared from the shared-services account to a workload account. Launches in the workload account's Auto Scaling group fail. What is the MOST likely fix?",
+    options: [
+      { t: "Encrypt the AMI with a customer managed KMS key whose key policy allows the workload account and its Auto Scaling service-linked role to use the key.",
+        why: "Correct. Encrypted shared AMIs need key access in the target account. AWS-managed default keys can't be shared." },
+      { t: "Make the AMI public.",
+        why: "Insecure, and encrypted AMIs can't be public anyway." },
+      { t: "Add launch permission for the workload account only.",
+        why: "Launch permission is needed but not enough without access to the KMS key." },
+      { t: "Disable encryption on the AMI.",
+        why: "Breaks security requirements." }
+    ],
+    answer: [0],
+    tip: "Cross-account encrypted AMI → customer managed KMS key + key policy for target account and ASG service-linked role."
+  },
+  {
+    id: "ib-10", domain: "d1", topic: "EC2 Image Builder",
+    q: "An organization needs each new golden AMI copied to three Regions and made available to all accounts in its Production OU. What is the simplest approach?",
+    options: [
+      { t: "Configure the Image Builder distribution configuration with the three Regions and launch permissions for the Production OU.",
+        why: "Correct. Distribution handles multi-Region copies and sharing with accounts, organizations or OUs." },
+      { t: "Run a Lambda function that copies and shares each AMI after every build.",
+        why: "Custom code for something distribution already does." },
+      { t: "Build a separate pipeline in every Region and account.",
+        why: "Duplicates work and risks different images." },
+      { t: "Use S3 Cross-Region Replication.",
+        why: "AMIs aren't copied with S3 replication." }
+    ],
+    answer: [0],
+    tip: "Multi-Region + multi-account AMIs → distribution configuration (Regions, accounts/OUs)."
+  },
+  {
+    id: "ib-11", domain: "d1", topic: "EC2 Image Builder",
+    q: "After a year of weekly builds, the account has hundreds of old AMIs and EBS snapshots. The team wants to keep the last 5 images, deprecate older ones, and delete them after 60 days, except images tagged release=prod. What should they use?",
+    options: [
+      { t: "An EC2 Image Builder image lifecycle policy with count and age rules and an exclusion rule for the tag.",
+        why: "Correct. Lifecycle policies deprecate, disable and delete AMIs and their snapshots automatically." },
+      { t: "Amazon Data Lifecycle Manager for EBS volumes.",
+        why: "DLM automates snapshots and AMIs that its own policies create from instances. For images built by Image Builder, lifecycle policies are the built-in way to apply these rules." },
+      { t: "An S3 lifecycle rule.",
+        why: "AMIs aren't S3 objects you manage." },
+      { t: "Delete images manually each quarter.",
+        why: "Manual and error-prone." }
+    ],
+    answer: [0],
+    tip: "Old images/snapshots piling up → Image Builder lifecycle policies (count/age/tags, exclusions)."
+  },
+  {
+    id: "ib-12", domain: "d1", topic: "EC2 Image Builder",
+    q: "A security team must review each new image's Inspector findings and approve it before it is distributed to other accounts. How can this be done inside Image Builder?",
+    options: [
+      { t: "Use an Image Builder workflow with a WaitForAction step that pauses the build until an approval signal resumes it.",
+        why: "Correct. WaitForAction pauses the workflow until a Lambda function or person sends the resume signal." },
+      { t: "Set terminateInstanceOnFailure to false.",
+        why: "This only keeps failed build instances." },
+      { t: "Add a validate phase that sleeps for a day.",
+        why: "Sleeping isn't approval and wastes instance time." },
+      { t: "Turn on enhanced metadata collection.",
+        why: "Collects inventory; doesn't pause for approval." }
+    ],
+    answer: [0],
+    tip: "Approval gate inside Image Builder → workflow WaitForAction (or CodePipeline manual approval outside)."
+  },
+  {
+    id: "ib-13", domain: "d1", topic: "EC2 Image Builder",
+    q: "A bug is found in version 1.2.0 of a custom Image Builder component. An engineer wants to edit 1.2.0 in place. What is the correct approach?",
+    options: [
+      { t: "Create component version 1.2.1 with the fix, create a new recipe version that uses it, and update the pipeline.",
+        why: "Correct. Components and recipes are immutable; changes require new versions." },
+      { t: "Edit the component document in the console and save.",
+        why: "Existing component versions can't be edited." },
+      { t: "Delete 1.2.0 and create 1.2.0 again.",
+        why: "Version reuse is confusing for traceability and recipes still reference the old one." },
+      { t: "Override the component with user data.",
+        why: "Doesn't fix the component and makes builds inconsistent." }
+    ],
+    answer: [0],
+    tip: "Components and recipes are immutable → new semantic version + new recipe version."
+  },
+  {
+    id: "ib-14", domain: "d1", topic: "EC2 Image Builder",
+    q: "A company wants to automatically know which golden AMIs contain critical vulnerabilities, both at build time and when new CVEs are published later. What should they enable?",
+    options: [
+      { t: "Image scanning with Amazon Inspector in the Image Builder pipeline, plus Inspector continuous scanning of running EC2 instances.",
+        why: "Correct. Image Builder shows Inspector findings per image, and Inspector keeps scanning instances as new CVEs appear, so you know when to rebuild." },
+      { t: "AWS Config approved-amis-by-id only.",
+        why: "This checks which AMIs instances use, not vulnerabilities." },
+      { t: "GuardDuty.",
+        why: "GuardDuty detects threats, not package vulnerabilities." },
+      { t: "CloudTrail.",
+        why: "CloudTrail records API activity." }
+    ],
+    answer: [0],
+    tip: "Image vulnerabilities → Inspector scanning in Image Builder + continuous instance scanning."
+  },
+  {
+    id: "ib-15", domain: "d1", topic: "EC2 Image Builder",
+    q: "A company must make sure all EC2 instances in its accounts run only approved golden AMIs, and wants non-compliant instances reported. What should they use?",
+    options: [
+      { t: "AWS Config rules such as approved-amis-by-tag (or approved-amis-by-id).",
+        why: "Correct. Config evaluates instances against approved AMIs and reports non-compliance; remediation can be automated." },
+      { t: "An Image Builder lifecycle policy.",
+        why: "Lifecycle policies manage images, not instance compliance." },
+      { t: "Systems Manager Patch Manager.",
+        why: "Patches instances; doesn't check their AMI source." },
+      { t: "EC2 Image Builder distribution.",
+        why: "Distributes images; doesn't audit instances." }
+    ],
+    answer: [0],
+    tip: "Enforce/report approved AMIs → AWS Config approved-amis-by-tag / by-id."
+  },
+  {
+    id: "ib-16", domain: "d1", topic: "EC2 Image Builder",
+    q: "A team wants Image Builder to set the new AMI as the default version of an existing launch template used by an Auto Scaling group in another account, without writing code. What should they configure?",
+    options: [
+      { t: "A launch template configuration in the Image Builder distribution configuration, targeting the launch template in that account and setting the new version as default.",
+        why: "Correct. Distribution can update launch templates in the same or other accounts." },
+      { t: "Edit the launch template manually after each build.",
+        why: "Manual work the distribution configuration can do." },
+      { t: "Use an Image Builder component that calls the EC2 API.",
+        why: "Components run on the build instance and aren't meant for distribution." },
+      { t: "Use AWS Config remediation.",
+        why: "Config isn't designed to update launch templates on new images." }
+    ],
+    answer: [0],
+    tip: "Distribution can update launch templates (default version) and SSM parameters automatically."
+  },
+  {
+    id: "ib-17", domain: "d1", topic: "EC2 Image Builder",
+    q: "An application release requires a new AMI. The team's CodePipeline should start an Image Builder build after the build stage and continue only when the image is available. What is a suitable design?",
+    options: [
+      { t: "A pipeline action (CodeBuild or Lambda) calls StartImagePipelineExecution, and the next steps react to the EventBridge image state change (AVAILABLE) or poll GetImage before deploying.",
+        why: "Correct. Image Builder is started through its API, and its state change events (or status checks) signal when the image is ready." },
+      { t: "Use the CodeDeploy agent to build the AMI.",
+        why: "CodeDeploy deploys applications; it doesn't build AMIs." },
+      { t: "Use a CloudFormation drift check.",
+        why: "Drift detection isn't related to image builds." },
+      { t: "Image Builder can only run on a schedule.",
+        why: "It can also run manually or through the API." }
+    ],
+    answer: [0],
+    tip: "Trigger builds via StartImagePipelineExecution; react to EventBridge Image State Change."
+  },
+  {
+    id: "ib-18", domain: "d1", topic: "EC2 Image Builder",
+    q: "A company runs some long-lived EC2 instances that can't be replaced easily, and Auto Scaling fleets that follow immutable infrastructure. How should patching be handled for each?",
+    options: [
+      { t: "Use Systems Manager Patch Manager for the long-lived instances, and Image Builder golden AMIs with instance refresh for the Auto Scaling fleets.",
+        why: "Correct. Patch Manager patches in place; immutable fleets get new patched images and replace instances." },
+      { t: "Use Patch Manager for everything.",
+        why: "Patching ASG instances in place leads to drift; new instances would still launch from the old AMI." },
+      { t: "Use Image Builder for everything, including instances that can't be replaced.",
+        why: "A new image doesn't help an instance that can't be replaced." },
+      { t: "Disable patching for long-lived instances.",
+        why: "Insecure." }
+    ],
+    answer: [0],
+    tip: "Patch Manager = in place; Image Builder + replacement = immutable."
+  },
+  {
+    id: "ib-19", domain: "d1", topic: "EC2 Image Builder",
+    q: "A team stores a database password in a file during the Image Builder build so the application can start faster. A security review flags this. What is the correct practice?",
+    options: [
+      { t: "Don't bake secrets into AMIs; have the application fetch the password at runtime from Secrets Manager or Parameter Store using the instance role.",
+        why: "Correct. Anyone who can launch or copy the AMI could read baked-in secrets, and rotation would need new images." },
+      { t: "Encrypt the AMI with KMS and keep the password in it.",
+        why: "Anyone allowed to launch the AMI can still read the file." },
+      { t: "Delete the file in the validate phase.",
+        why: "If the file is created in build, deleting it later is error-prone and the secret may remain in logs or snapshots." },
+      { t: "Store the password in the recipe description.",
+        why: "Exposes it in the console and API." }
+    ],
+    answer: [0],
+    tip: "Never bake secrets → fetch at runtime (Secrets Manager / Parameter Store)."
+  },
+  {
+    id: "ib-20", domain: "d1", topic: "EC2 Image Builder",
+    q: "A team wants to use the same Image Builder components to produce a hardened Docker base image and push it to Amazon ECR in two Regions. Is this possible, and how?",
+    options: [
+      { t: "Yes. Create a container recipe with the parent Docker image, components and a Dockerfile template, and a distribution configuration targeting ECR repositories in both Regions.",
+        why: "Correct. Image Builder builds container images as well as AMIs." },
+      { t: "No. Image Builder only builds AMIs.",
+        why: "It supports container recipes too." },
+      { t: "Yes, but only by exporting an AMI to S3 and importing it into ECR.",
+        why: "Not how container images are built." },
+      { t: "Only with Packer.",
+        why: "Image Builder handles it natively." }
+    ],
+    answer: [0],
+    tip: "Image Builder container recipe → hardened Docker images to ECR (multi-Region)."
+  },
+  {
+    id: "ib-21", domain: "d1", topic: "EC2 Image Builder",
+    q: "A security policy forbids Image Builder build instances from reaching the internet. The build installs OS updates and application packages. How can builds still work?",
+    options: [
+      { t: "Run builds in private subnets with VPC endpoints for SSM, ssmmessages, ec2messages and S3, and use internal package mirrors or CodeArtifact for packages.",
+        why: "Correct. Image Builder needs SSM and S3 access, and packages can come from private repositories without internet access." },
+      { t: "Give the build instances public IPs.",
+        why: "Breaks the policy." },
+      { t: "Open inbound SSH from the corporate network.",
+        why: "Inbound access isn't the issue; outbound access to services is." },
+      { t: "Image Builder needs internet access in all cases.",
+        why: "Endpoints and private repositories remove that need." }
+    ],
+    answer: [0],
+    tip: "No internet for builds → VPC endpoints (SSM ×3, S3) + internal repos (CodeArtifact / mirrors)."
+  },
+  {
+    id: "ib-22", domain: "d1", topic: "EC2 Image Builder",
+    q: "A team wants the AMI built and its ID available to other resources during the same CloudFormation stack creation. Which resource should they use?",
+    options: [
+      { t: "AWS::ImageBuilder::Image, then reference Fn::GetAtt Image.ImageId in the launch template.",
+        why: "Correct. The Image resource builds an image during stack operations and exposes the AMI ID as an attribute." },
+      { t: "AWS::ImageBuilder::ImagePipeline only.",
+        why: "A pipeline resource defines the pipeline but doesn't produce an image during stack creation by itself." },
+      { t: "AWS::EC2::Image.",
+        why: "There is no such CloudFormation resource for building AMIs." },
+      { t: "AWS::SSM::Document.",
+        why: "Defines SSM documents, not images." }
+    ],
+    answer: [0],
+    tip: "Build an AMI inside a CloudFormation stack → AWS::ImageBuilder::Image (GetAtt ImageId)."
   }
 ];

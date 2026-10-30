@@ -18,5 +18,6 @@ window.MATERIALS = [
   { domain: "d1", topics: ["Lambda Versions and Aliases"], title: "Week 2 notes - Lambda versions, aliases and SAM deployments", file: "pdfs/Week2_Lambda_Versions_Aliases.pdf" },
   { domain: "d1", topics: ["ECS and Fargate"], title: "Week 2 notes - Amazon ECS and Fargate", file: "pdfs/Week2_ECS_Fargate.pdf" },
   { domain: "d1", topics: ["EKS for CI/CD"], title: "Week 2 notes - Amazon EKS for CI/CD (traps, lab, check yourself)", file: "pdfs/Week2_EKS_CICD.pdf" },
-  { domain: "d1", topics: ["Testing in Pipelines"], title: "Week 2 notes - Testing in pipelines (traps, lab, check yourself)", file: "pdfs/Week2_Testing_in_Pipelines.pdf" }
+  { domain: "d1", topics: ["Testing in Pipelines"], title: "Week 2 notes - Testing in pipelines (traps, lab, check yourself)", file: "pdfs/Week2_Testing_in_Pipelines.pdf" },
+  { domain: "d1", topics: ["EC2 Image Builder"], title: "Week 2 notes - AMI pipelines with EC2 Image Builder (traps, lab, check yourself)", file: "pdfs/Week2_EC2_Image_Builder.pdf" }
 ];

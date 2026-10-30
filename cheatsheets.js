@@ -842,6 +842,60 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d1", topic: "EC2 Image Builder",
+  sections: [
+    { h: "Golden AMIs", items: [
+      "**Bake** patches, runtimes, agents, hardening · **bootstrap** env config at launch · **never bake secrets**",
+      "Immutable infrastructure: replace instances with a new AMI instead of patching in place",
+      "**Image Builder** = least operational overhead · Packer in CodeBuild = DIY · Patch Manager = in-place patching"
+    ]},
+    { h: "Building blocks", table: [
+      ["Resource", "Key points"],
+      ["**Component**", "AWSTOE YAML · phases **build**, **validate** (build instance), **test** (new instance from new AMI) · ExecuteBash, UpdateOS, Reboot, S3Download · **immutable semantic versions** · AWS-managed: update-linux, cloudwatch agent, STIG"],
+      ["**Image recipe**", "Parent image (AWS-managed with **x.x.x**, AMI ID, SSM parameter, Marketplace/CIS) + ordered components + block devices · immutable versions · **container recipe** → ECR"],
+      ["**Infrastructure config**", "Instance profile **AmazonSSMManagedInstanceCore + EC2InstanceProfileForImageBuilder** · subnet with route to **SSM + S3** · no inbound / no key pair · **terminateInstanceOnFailure** · SNS · S3/CloudWatch logs · IMDSv2"],
+      ["**Distribution config**", "Regions · accounts / org / **OUs** · **KMS key per Region** · **launch template** default version · **SSM parameter** with AMI ID · S3 export · ECR for containers"],
+      ["**Image pipeline**", "Manual / **StartImagePipelineExecution** / cron · **EXPRESSION_MATCH_AND_DEPENDENCY_UPDATES_AVAILABLE** · image tests · **Inspector scanning** · workflows (**WaitForAction**)"],
+      ["**Lifecycle policy**", "Deprecate / disable / delete AMIs **and snapshots** by count, age, tags, exclusions"]
+    ]},
+    { h: "Pipeline run", items: [
+      "SSM Automation → build instance → build + validate → stop → **AMI** → **test instance** from new AMI → Inspector → distribute → terminate",
+      "States: BUILDING → TESTING → DISTRIBUTING → **AVAILABLE** / FAILED",
+      "Events: **EventBridge Image State Change**, SNS, CloudWatch Logs `/aws/imagebuilder/`"
+    ]},
+    { h: "Rollout", items: [
+      "AMI ID to **SSM Parameter Store** → CloudFormation `AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>` or `{{resolve:ssm:...}}`",
+      "Or distribution updates the **launch template** default version",
+      "**EventBridge AVAILABLE** → Lambda / Step Functions / CodePipeline → **ASG instance refresh** (min healthy %, checkpoints, alarm rollback)",
+      "CloudFormation ASG UpdatePolicy, Beanstalk custom `ImageId`",
+      "`AWS::ImageBuilder::Image` builds an AMI during stack creation (GetAtt ImageId)",
+      "Governance: **Config approved-amis-by-tag / by-id**, Inspector on running instances → rebuild"
+    ]},
+    { h: "Security", items: [
+      "IMDSv2 · KMS-encrypted AMIs · cross-account → **customer managed key** policy for target account + its **ASG service-linked role**",
+      "STIG components / CIS parents · Inspector scanning · approval via **WaitForAction** or CodePipeline manual approval",
+      "No internet: **VPC endpoints** (ssm, ssmmessages, ec2messages, S3) + CodeArtifact / mirrors"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Build fails early, no component logs", "Instance profile SSM permissions / route to SSM + S3"],
+      ["Need to debug failed build instance", "terminateInstanceOnFailure: false"],
+      ["Check service starts on boot", "test phase"],
+      ["Build only when something changed", "DEPENDENCY_UPDATES_AVAILABLE condition"],
+      ["Always newest base OS", "AWS-managed parent x.x.x / public SSM parameter"],
+      ["Stacks use latest AMI", "SSM parameter + parameter type"],
+      ["Roll new AMI into ASG", "EventBridge → instance refresh"],
+      ["Shared encrypted AMI fails", "Customer managed KMS key policy"],
+      ["Old AMIs and snapshots", "Lifecycle policy"],
+      ["Approval before distribution", "Workflow WaitForAction"],
+      ["Fix a component", "New version + new recipe version"],
+      ["Only approved AMIs in use", "Config approved-amis-by-tag"],
+      ["Hardened Docker base image", "Container recipe → ECR"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
