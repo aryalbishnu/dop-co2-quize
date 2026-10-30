@@ -896,6 +896,135 @@ window.CHEATSHEETS.push({
   ]
 });
 
+// Domain 1 master sheet goes first so it is the default cheat sheet.
+window.CHEATSHEETS.unshift({
+  domain: "d1", topic: "Domain 1 Master Sheet",
+  sections: [
+    { h: "How to pick the answer", items: [
+      "Domain 1 = **22%** · tasks: **1.1 CI/CD pipelines**, **1.2 automated testing**, **1.3 artifacts**, **1.4 deployment strategies**",
+      "Find the requirement words: **least operational overhead**, **minimal downtime**, **fastest rollback**, **no extra cost**, **most secure**",
+      "Prefer **managed / built-in** features over custom Lambda scripts or self-managed servers",
+      "Prefer **automatic rollback** (alarms, circuit breaker, hooks) and **no long-term keys** (roles, OIDC, connections, Secrets Manager)",
+      "Eliminate answers with a wrong fact (CodeDeploy for EKS, weights on $LATEST, IAM alone for kubectl)"
+    ]},
+    { h: "Services in one line", table: [
+      ["Service", "Remember"],
+      ["CodeCommit", "IAM deny with `codecommit:References` · approval rule templates · notification rules / triggers / EventBridge"],
+      ["CodeConnections", "GitHub/GitLab/Bitbucket · PENDING → handshake · `codeconnections:UseConnection`"],
+      ["CodeBuild", "Non-zero exit fails · `env: secrets-manager:` · VPC builds · privileged for Docker · S3/local cache · reports 30 days · batch builds · 36 h max"],
+      ["CodeArtifact", "Domain → repos → upstreams → external connection · token 12 h · package origin controls · VPC endpoints + S3"],
+      ["ECR", "Lifecycle policies · tag immutability · basic (OS) vs **enhanced Inspector (OS + language)** · replication · pull through cache"],
+      ["CodePipeline", "V2 triggers/filters, variables, stage conditions, QUEUED/PARALLEL/SUPERSEDED · approval 7 days · cross-Region bucket per Region · cross-account CMK + role"],
+      ["CodeDeploy", "EC2/on-prem, Lambda, ECS (**not EKS**) · ValidateService · alarms + auto rollback · hook 1 h"],
+      ["CodeGuru", "Reviewer = code review + secrets detection · Profiler = runtime hotspots (moving to Q Developer / Inspector)"],
+      ["Elastic Beanstalk", "Policies · swap URLs · traffic splitting · `.ebextensions` `leader_only` · worker SQS + cron.yaml · RDS outside"],
+      ["Lambda", "Versions immutable · alias pointer · weighted alias 2 published versions · SAM AutoPublishAlias + DeploymentPreference · `CodeDeployHook_*`"],
+      ["ECS", "Execution vs task role · 100/200 · circuit breaker + alarms · CodeDeploy blue/green test listener · imagedefinitions vs imageDetail"],
+      ["EKS", "eks:DescribeCluster + access entry · Pod Identity/IRSA · readinessProbe · Argo Rollouts · GitOps · audit logs"],
+      ["Image Builder", "Component → recipe → infra (SSM role) → distribution (SSM parameter, launch template) · dependency-updates schedule · lifecycle policies"]
+    ]},
+    { h: "Deployment strategies by service", table: [
+      ["Service", "Rolling", "Blue/green", "Canary / linear", "Auto rollback"],
+      ["Beanstalk", "Rolling (+ batch)", "Swap URLs", "Traffic splitting", "Immutable / traffic splitting"],
+      ["EC2 / ASG", "Instance refresh", "CodeDeploy B/G, ReplacingUpdate", "ALB weights", "Alarms"],
+      ["Lambda", "—", "Alias switch", "SAM / CodeDeploy", "Alarms + hooks"],
+      ["ECS", "min% / max%", "CodeDeploy", "ECSCanary / ECSLinear", "Circuit breaker + alarms"],
+      ["EKS", "maxSurge / maxUnavailable", "Service selector", "Argo Rollouts / Flagger", "Analysis, helm --atomic"],
+      ["API Gateway", "—", "Stage switch", "Stage canary", "Manual"],
+      ["CloudFront", "—", "—", "Continuous deployment", "Promote / discard"]
+    ]},
+    { h: "Keywords: source, build, artifacts", table: [
+      ["Question says", "Answer"],
+      ["Block direct push to main", "IAM deny + `codecommit:References`"],
+      ["GitHub source for CodePipeline", "CodeConnections"],
+      ["GitHub Actions without keys", "IAM OIDC provider + role"],
+      ["On-prem servers need AWS creds", "IAM Roles Anywhere"],
+      ["Build needs a password", "`env: secrets-manager:`"],
+      ["Build reaches private RDS", "CodeBuild in VPC"],
+      ["Docker build permission error", "Privileged mode"],
+      ["Test several runtimes at once", "Batch build matrix"],
+      ["Private npm/PyPI with public upstream", "CodeArtifact upstream + external connection"],
+      ["Dependency confusion", "Package origin controls"],
+      ["Old images cost money", "ECR lifecycle policy"],
+      ["Wrong image under same tag", "Tag immutability + unique tags"],
+      ["npm/pip CVEs in images", "ECR enhanced scanning"],
+      ["Docker Hub rate limits", "ECR pull through cache"]
+    ]},
+    { h: "Keywords: pipelines", table: [
+      ["Question says", "Answer"],
+      ["Run only for a folder / branch", "V2 trigger filters"],
+      ["New commits mustn't cancel a release", "Execution mode QUEUED"],
+      ["Pass value between actions", "Output variables `#{Namespace.Var}`"],
+      ["Block stage while alarm fires", "V2 beforeEntry alarm rule"],
+      ["Auto rollback on stage failure", "V2 onFailure rollback"],
+      ["Human sign-off", "Manual approval (7 days)"],
+      ["Lambda action hangs", "PutJobSuccessResult / FailureResult"],
+      ["Deploy to another Region", "Artifact bucket + KMS key there"],
+      ["Deploy to another account", "Customer managed KMS key + bucket policy + cross-account role"],
+      ["Start on S3 upload / ECR push", "EventBridge rule"]
+    ]},
+    { h: "Keywords: deployments", table: [
+      ["Question says", "Answer"],
+      ["Fastest rollback, no mixed versions", "Blue/green"],
+      ["Small % of users, auto rollback", "Canary + alarms"],
+      ["Beanstalk full capacity, lowest cost", "Rolling with additional batch"],
+      ["Beanstalk failure mustn't touch instances", "Immutable"],
+      ["Beanstalk LB type / platform branch change", "New env + swap URLs"],
+      ["Migration once (Beanstalk)", "container_commands leader_only"],
+      ["Long jobs time out", "Beanstalk worker (SQS)"],
+      ["Lambda gradual + rollback, least code", "SAM DeploymentPreference"],
+      ["Test Lambda before traffic", "PreTraffic hook"],
+      ["API GW 500 after alias", "add-permission --qualifier"],
+      ["ECS rolling auto rollback", "Circuit breaker (+ alarms)"],
+      ["ECS test port first", "CodeDeploy test listener + AfterAllowTestTraffic"],
+      ["ECS app AccessDenied / can't pull", "Task role / execution role"],
+      ["ECS stuck 100/100", "Raise maximumPercent"],
+      ["CodeDeploy EC2 smoke test", "ValidateService"],
+      ["kubectl Unauthorized", "EKS access entry"],
+      ["Canary on EKS", "Argo Rollouts / Flagger"],
+      ["New AMI to ASG", "Instance refresh"],
+      ["Feature on/off without deploy", "AppConfig feature flags"]
+    ]},
+    { h: "Keywords: testing and AMIs", table: [
+      ["Question says", "Answer"],
+      ["Fail below coverage %", "Test tool exits non-zero"],
+      ["Keep test results a year", "Export reports to S3"],
+      ["Tests need new stack URL", "Output variables"],
+      ["Template must follow company rules", "cfn-guard / Guard Hooks"],
+      ["Secrets committed", "git-secrets + pipeline scan / CodeGuru secrets detector"],
+      ["CPU hotspots in production", "CodeGuru Profiler"],
+      ["Stop chaos test on errors", "FIS stop conditions"],
+      ["Scripted checks in production", "CloudWatch Synthetics"],
+      ["Golden AMI, least effort", "EC2 Image Builder"],
+      ["Build image only when base changed", "DEPENDENCY_UPDATES_AVAILABLE"],
+      ["Stacks always newest AMI", "SSM parameter + parameter type"]
+    ]},
+    { h: "Numbers to remember", table: [
+      ["Item", "Value"],
+      ["Manual approval timeout", "7 days"],
+      ["CodeBuild reports / max build", "30 days / 36 hours"],
+      ["CodeArtifact token", "12 hours"],
+      ["CodeDeploy / SAM hook", "1 hour"],
+      ["ECS rolling defaults", "min 100% / max 200%"],
+      ["ECS circuit breaker", "½ desired, min 3, max 200"],
+      ["ECS B/G termination wait", "up to 2 days"],
+      ["Lambda weighted alias / code storage", "2 versions / 75 GB"],
+      ["Beanstalk versions / timeout / bundle", "1,000 / 600 s / 500 MB"],
+      ["Fargate Spot warning / stopTimeout", "2 min / 120 s"],
+      ["Lambda canary / linear", "10% for 5,10,15,30 min / 10% every 1,2,3,10 min"]
+    ]},
+    { h: "Classic wrong answers", items: [
+      "**CodeDeploy for EKS** · **weighted alias / provisioned concurrency on $LATEST** · **IAM alone for kubectl**",
+      "**Execution role for app permissions** (use task role) · **node role for pods** (use Pod Identity / IRSA)",
+      "**Polling** instead of EventBridge · **AWS-managed KMS key cross-account** (use customer managed)",
+      "**Custom Lambda to shift traffic** when SAM / CodeDeploy / circuit breaker does it",
+      "**Long-term access keys** in CI · **secrets** in buildspec, `.ebextensions`, task env or AMIs",
+      "**Load testing production** every commit · **cfn-lint for custom rules** · **ECR basic for npm CVEs**",
+      "**Editing** published Lambda versions, component versions or task definition revisions (immutable)"
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

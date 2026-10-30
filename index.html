@@ -125,9 +125,9 @@
 </div></header>
 <main id="app"></main>
 
-<script src="questions.js?v=2026-10-30"></script>
-<script src="cheatsheets.js?v=2026-10-30"></script>
-<script src="materials.js?v=2026-10-30"></script>
+<script src="questions.js?v=2026-10-30b"></script>
+<script src="cheatsheets.js?v=2026-10-30b"></script>
+<script src="materials.js?v=2026-10-30b"></script>
 <script>
 (() => {
   const app = document.getElementById("app");
@@ -463,7 +463,11 @@
       }
       study(k);
     });
-    if (focusKey) { const el = document.getElementById("tb-" + focusKey); if (el) el.scrollIntoView({ block: "center" }); }
+    if (focusKey) {
+      // Fall back to the domain box when the topic has no box of its own (for example a domain-wide cheat sheet).
+      const el = document.getElementById("tb-" + focusKey) || document.getElementById("tb-" + focusKey.split("::")[0] + "::_domain");
+      if (el) el.scrollIntoView({ block: "center" });
+    }
   }
 
   // ───────── Cheat sheets ─────────
