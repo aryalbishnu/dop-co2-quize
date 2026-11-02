@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -5738,5 +5738,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Validate real resource IDs → AWS-specific parameter types (AWS::EC2::VPC::Id, Subnet::Id...)."
+  },
+
+  // ───────────────────────────── Domain 2: CloudFormation Change Control ─────────────────────────────
+  {
+    id: "cfc-01", domain: "d2", topic: "CloudFormation Change Control",
+    q: "Before applying a template update to a production stack, a DevOps engineer must know whether the RDS instance will be replaced. What should they do?",
+    options: [
+      { t: "Create a change set and check the RDS resource's Replacement field (True, False or Conditional).",
+        why: "Correct. Change sets preview each resource's action and whether it will be replaced, without changing anything." },
+      { t: "Run drift detection on the stack.",
+        why: "Drift detection compares real resources with the current template; it doesn't preview a new template." },
+      { t: "Run validate-template on the new template.",
+        why: "validate-template checks syntax only." },
+      { t: "Apply the update with termination protection enabled.",
+        why: "Termination protection only blocks stack deletion." }
+    ],
+    answer: [0],
+    tip: "Preview an update / will it replace? → change set (Replacement: True)."
+  },
+  {
+    id: "cfc-02", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A company wants developers to propose CloudFormation changes, while only the platform lead can apply them to production, with a review in the delivery pipeline. Which CodePipeline design meets this?",
+    options: [
+      { t: "A CloudFormation action with CHANGE_SET_REPLACE, then a manual approval action, then a CloudFormation action with CHANGE_SET_EXECUTE.",
+        why: "Correct. The change set is created for review, approved by a person, then executed." },
+      { t: "A single CloudFormation action with CREATE_UPDATE.",
+        why: "Applies changes directly with no review step." },
+      { t: "A CloudFormation action with REPLACE_ON_FAILURE.",
+        why: "This recreates failed stacks; it isn't a review process." },
+      { t: "Give developers ExecuteChangeSet permissions and ask them to wait.",
+        why: "Doesn't enforce the control." }
+    ],
+    answer: [0],
+    tip: "Reviewed CloudFormation deploys → CHANGE_SET_REPLACE → manual approval → CHANGE_SET_EXECUTE."
+  },
+  {
+    id: "cfc-03", domain: "d2", topic: "CloudFormation Change Control",
+    q: "Developers should be able to create and view change sets for production stacks, but not apply them. Only the release team may apply changes. How should IAM be configured?",
+    options: [
+      { t: "Allow developers cloudformation:CreateChangeSet and DescribeChangeSet; allow only the release team cloudformation:ExecuteChangeSet.",
+        why: "Correct. Separating create and execute permissions gives separation of duties." },
+      { t: "Allow developers UpdateStack but deny DeleteStack.",
+        why: "UpdateStack lets them apply changes directly." },
+      { t: "Use a stack policy with Principal set to the developers' role.",
+        why: "Stack policy Principal must be '*'; it can't target users." },
+      { t: "Enable termination protection.",
+        why: "Only blocks stack deletion." }
+    ],
+    answer: [0],
+    tip: "Propose vs apply → IAM CreateChangeSet vs ExecuteChangeSet."
+  },
+  {
+    id: "cfc-04", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A change set showed no problems, but executing it failed because an IAM permission was missing. A manager asks how this is possible. What is the correct explanation?",
+    options: [
+      { t: "Change sets show the intended changes only; permissions, quotas, name conflicts and invalid values are only checked during execution.",
+        why: "Correct. A change set isn't a guarantee of success." },
+      { t: "The change set expired after one hour.",
+        why: "Change sets don't expire like that; this wasn't the cause." },
+      { t: "Change sets always run with administrator permissions.",
+        why: "They don't execute anything until you run them." },
+      { t: "Drift detection was disabled.",
+        why: "Drift detection isn't required for change sets." }
+    ],
+    answer: [0],
+    tip: "Change set = intent only, not a success guarantee."
+  },
+  {
+    id: "cfc-05", domain: "d2", topic: "CloudFormation Change Control",
+    q: "An engineer opened port 22 to 0.0.0.0/0 on a security group managed by CloudFormation, using the EC2 console. How can the team find this, and what does CloudFormation do about it?",
+    options: [
+      { t: "Run drift detection; the security group shows MODIFIED with expected and actual values. The team must revert the change or update the template, because drift detection doesn't fix it.",
+        why: "Correct. Drift detection finds out-of-band changes but only reports them." },
+      { t: "CloudFormation reverts the change automatically within minutes.",
+        why: "CloudFormation doesn't automatically revert out-of-band changes." },
+      { t: "The stack policy blocks console changes.",
+        why: "Stack policies only apply to CloudFormation stack updates." },
+      { t: "Termination protection reports the change.",
+        why: "Termination protection only blocks stack deletion." }
+    ],
+    answer: [0],
+    tip: "Out-of-band change → drift detection (MODIFIED); it reports, you fix."
+  },
+  {
+    id: "cfc-06", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A company wants every CloudFormation stack checked regularly for drift, with drifted stacks reported as non-compliant and the security team notified, with minimal custom code. What should they use?",
+    options: [
+      { t: "The AWS Config managed rule cloudformation-stack-drift-detection-check with SNS notifications or remediation.",
+        why: "Correct. Config runs the drift check and marks drifted stacks NON_COMPLIANT." },
+      { t: "Manually run drift detection every Monday.",
+        why: "Manual and easy to forget." },
+      { t: "A stack policy on every stack.",
+        why: "Stack policies don't detect drift." },
+      { t: "CloudTrail Insights.",
+        why: "Insights detects unusual API call volumes, not template drift." }
+    ],
+    answer: [0],
+    tip: "Continuous drift monitoring → Config rule cloudformation-stack-drift-detection-check."
+  },
+  {
+    id: "cfc-07", domain: "d2", topic: "CloudFormation Change Control",
+    q: "After running drift detection, several resources show NOT_CHECKED. What is the most likely reason?",
+    options: [
+      { t: "Those resource types don't support drift detection.",
+        why: "Correct. Not every resource type supports drift detection." },
+      { t: "The resources were deleted outside CloudFormation.",
+        why: "Deleted resources show DELETED." },
+      { t: "The resources are in sync.",
+        why: "In-sync resources show IN_SYNC." },
+      { t: "The stack has termination protection.",
+        why: "Termination protection doesn't affect drift detection." }
+    ],
+    answer: [0],
+    tip: "Drift statuses: IN_SYNC, MODIFIED, DELETED, NOT_CHECKED (unsupported type)."
+  },
+  {
+    id: "cfc-08", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A team adds a stack policy containing a single statement that denies Update:Replace on the production database. After that, every stack update fails, even for unrelated resources. Why?",
+    options: [
+      { t: "Once a stack policy exists, all resources are denied by default; the policy also needs an Allow Update:* statement on '*'.",
+        why: "Correct. Stack policies are default deny, so everything must be explicitly allowed first." },
+      { t: "Stack policies can only contain Allow statements.",
+        why: "Deny statements are allowed and take precedence." },
+      { t: "The database must also have termination protection.",
+        why: "Resources don't have termination protection; stacks do." },
+      { t: "Stack policies block all updates for 24 hours after being applied.",
+        why: "There's no such delay." }
+    ],
+    answer: [0],
+    tip: "Stack policy = default deny once set → start with Allow Update:* on *."
+  },
+  {
+    id: "cfc-09", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A stack policy denies Update:Replace on a cache cluster. During a planned maintenance window, the team must apply one update that replaces it, without permanently changing the protection. What should they do?",
+    options: [
+      { t: "Run the update with --stack-policy-during-update-body containing a temporary policy that allows the replacement.",
+        why: "Correct. The temporary policy applies only to that update; the original policy remains afterwards." },
+      { t: "Delete the stack policy, update, then add it again.",
+        why: "Stack policies can't be deleted, only replaced, and this risks forgetting to restore it." },
+      { t: "Disable termination protection.",
+        why: "Unrelated to stack policies." },
+      { t: "Use DeletionPolicy: Retain.",
+        why: "Doesn't override the stack policy." }
+    ],
+    answer: [0],
+    tip: "One-time override → --stack-policy-during-update-body."
+  },
+  {
+    id: "cfc-10", domain: "d2", topic: "CloudFormation Change Control",
+    q: "Which statement about CloudFormation stack policies is TRUE?",
+    options: [
+      { t: "They control which update actions (Modify, Replace, Delete) CloudFormation may perform on resources during stack updates; Principal must be '*'.",
+        why: "Correct. Stack policies apply only to stack updates and can't target specific users." },
+      { t: "They prevent anyone from deleting the stack.",
+        why: "That's termination protection." },
+      { t: "They block changes made directly in service consoles.",
+        why: "Only CloudFormation updates are covered; use IAM for console changes." },
+      { t: "They can be removed with delete-stack-policy.",
+        why: "There's no delete; you replace the policy." }
+    ],
+    answer: [0],
+    tip: "Stack policy: updates only, Principal '*', replace not delete, IAM controls who."
+  },
+  {
+    id: "cfc-11", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A junior engineer accidentally deleted a production CloudFormation stack. The company wants to prevent this from happening again, including stopping people from simply turning the protection off. What should they do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable termination protection on production stacks.",
+        why: "Correct. DeleteStack fails while termination protection is enabled." },
+      { t: "Deny cloudformation:DeleteStack and cloudformation:UpdateTerminationProtection for most users with IAM or an SCP.",
+        why: "Correct. This stops people deleting stacks or disabling the protection." },
+      { t: "Add a stack policy denying Update:Delete on all resources.",
+        why: "Stack policies don't apply to stack deletion." },
+      { t: "Run drift detection daily.",
+        why: "Drift detection doesn't prevent deletions." },
+      { t: "Set UpdateReplacePolicy: Retain on all resources.",
+        why: "Applies to replacements during updates, not stack deletion." }
+    ],
+    answer: [0, 1],
+    tip: "Prevent stack deletion → termination protection + IAM/SCP deny DeleteStack & UpdateTerminationProtection."
+  },
+  {
+    id: "cfc-12", domain: "d2", topic: "CloudFormation Change Control",
+    q: "An application stack uses nested stacks. The team tries to enable termination protection directly on one nested stack and gets an error. What should they do?",
+    options: [
+      { t: "Enable termination protection on the root stack; nested stacks inherit it.",
+        why: "Correct. Termination protection for nested stacks is controlled by the root stack." },
+      { t: "Convert the nested stack into an export.",
+        why: "Unrelated." },
+      { t: "Add a stack policy to the nested stack instead.",
+        why: "Stack policies don't block deletion." },
+      { t: "Set DeletionPolicy on the AWS::CloudFormation::Stack resource only.",
+        why: "Retains the child stack on removal, but isn't termination protection." }
+    ],
+    answer: [0],
+    tip: "Nested stacks → termination protection set on the root stack."
+  },
+  {
+    id: "cfc-13", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A template update changes a property on an RDS DB instance that requires replacement. The instance has DeletionPolicy: Snapshot but nothing else. After the update, the old database is gone without a snapshot. Why?",
+    options: [
+      { t: "Replacement during an update is governed by UpdateReplacePolicy, not DeletionPolicy; it should also be set to Snapshot (or Retain).",
+        why: "Correct. DeletionPolicy applies when a resource is removed or the stack deleted; UpdateReplacePolicy handles the old resource on replacement." },
+      { t: "Snapshot isn't supported for RDS.",
+        why: "RDS supports Snapshot." },
+      { t: "The stack needed termination protection.",
+        why: "Termination protection doesn't affect replacement." },
+      { t: "Drift detection deleted the snapshot.",
+        why: "Drift detection never deletes anything." }
+    ],
+    answer: [0],
+    tip: "Removed → DeletionPolicy; replaced → UpdateReplacePolicy. Use both on stateful resources."
+  },
+  {
+    id: "cfc-14", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A team wants a final backup taken automatically when a stack containing an EBS volume, an RDS cluster and a DynamoDB table is deleted. Which configuration is valid?",
+    options: [
+      { t: "DeletionPolicy: Snapshot on the EBS volume and RDS cluster; DeletionPolicy: Retain (plus backups or PITR) on the DynamoDB table.",
+        why: "Correct. Snapshot is supported for EBS and RDS, but not for DynamoDB tables." },
+      { t: "DeletionPolicy: Snapshot on all three.",
+        why: "DynamoDB tables don't support the Snapshot policy." },
+      { t: "Termination protection on the stack only.",
+        why: "Prevents deletion entirely rather than taking backups." },
+      { t: "UpdateReplacePolicy: Snapshot on all three.",
+        why: "That applies to replacement, not stack deletion, and still not to DynamoDB." }
+    ],
+    answer: [0],
+    tip: "Snapshot policy: EBS, RDS/Aurora, Redshift, ElastiCache, Neptune, DocDB — not S3/DynamoDB."
+  },
+  {
+    id: "cfc-15", domain: "d2", topic: "CloudFormation Change Control",
+    q: "Deleting a stack fails with DELETE_FAILED on an S3 bucket resource. What is the most likely cause?",
+    options: [
+      { t: "The bucket still contains objects; CloudFormation can't delete non-empty buckets.",
+        why: "Correct. Empty the bucket, retain it, or use a custom resource that empties it on delete." },
+      { t: "The bucket has DeletionPolicy: Retain.",
+        why: "Retain would keep the bucket and the stack deletion would succeed." },
+      { t: "Termination protection is enabled.",
+        why: "Then the whole delete would be blocked at the start, not fail on the bucket." },
+      { t: "Drift detection is running.",
+        why: "Drift detection doesn't block deletion." }
+    ],
+    answer: [0],
+    tip: "Stack DELETE_FAILED on S3 → bucket not empty."
+  },
+  {
+    id: "cfc-16", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A team sets DeletionPolicy: Retain on all resources. When stack creation fails and rolls back, the partly created resources remain as orphans and cost money. Which setting keeps resources on normal deletion but cleans up after failed creations?",
+    options: [
+      { t: "DeletionPolicy: RetainExceptOnCreate",
+        why: "Correct. Resources are retained on deletion, except those created by a stack creation that rolled back." },
+      { t: "UpdateReplacePolicy: Delete",
+        why: "Applies to replacement, not failed creation." },
+      { t: "DeletionPolicy: Snapshot",
+        why: "Takes snapshots instead of retaining, and still leaves snapshots behind." },
+      { t: "Termination protection",
+        why: "Blocks stack deletion; doesn't clean up resources." }
+    ],
+    answer: [0],
+    tip: "Retain, but not after failed create → RetainExceptOnCreate."
+  },
+  {
+    id: "cfc-17", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A manually created S3 bucket with important data must be brought under CloudFormation management without recreating it. What is the correct process?",
+    options: [
+      { t: "Add the bucket to a template with a DeletionPolicy, then create and execute a change set of type IMPORT using the bucket name as the identifier.",
+        why: "Correct. Resource import adopts existing resources, and imported resources must have a DeletionPolicy." },
+      { t: "Add the bucket to the template and run a normal update.",
+        why: "CloudFormation would try to create a new bucket and fail on the existing name." },
+      { t: "Run drift detection to adopt the bucket.",
+        why: "Drift detection only compares managed resources." },
+      { t: "Export the bucket name from another stack.",
+        why: "Exports share values; they don't adopt resources." }
+    ],
+    answer: [0],
+    tip: "Adopt existing resources → IMPORT change set (DeletionPolicy required)."
+  },
+  {
+    id: "cfc-18", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A database resource must be moved from an old stack to a new stack without deleting it. Which approach works?",
+    options: [
+      { t: "Set DeletionPolicy: Retain in the old stack, remove the resource from that template (it's kept), then import it into the new stack (or use stack refactoring).",
+        why: "Correct. Retain keeps the resource when it leaves the old stack, and import adopts it in the new one." },
+      { t: "Copy the resource definition to the new stack and delete it from the old stack.",
+        why: "The old stack would delete the database, and the new one would create another." },
+      { t: "Use ImportValue in the new stack.",
+        why: "ImportValue shares values, not resource ownership." },
+      { t: "Set UpdateReplacePolicy: Retain and update both stacks.",
+        why: "That applies to replacement, not moving between stacks." }
+    ],
+    answer: [0],
+    tip: "Move a resource between stacks → Retain + remove + import (or stack refactoring)."
+  },
+  {
+    id: "cfc-19", domain: "d2", topic: "CloudFormation Change Control",
+    q: "Developers deploy CloudFormation stacks, but the security team doesn't want them to have broad permissions to create IAM roles, VPCs and databases directly. What is the recommended approach?",
+    options: [
+      { t: "Use a CloudFormation service role with the needed permissions; give developers CloudFormation permissions plus iam:PassRole for that role only.",
+        why: "Correct. CloudFormation uses the service role for resource operations, so developers don't need direct permissions." },
+      { t: "Give developers AdministratorAccess but enable termination protection.",
+        why: "Too broad; termination protection is unrelated." },
+      { t: "Use a stack policy with the developers as Principal.",
+        why: "Stack policy Principal must be '*'." },
+      { t: "Let developers run drift detection only.",
+        why: "Doesn't allow deployments." }
+    ],
+    answer: [0],
+    tip: "Least privilege deploys → CloudFormation service role + iam:PassRole (+ condition key cloudformation:RoleArn)."
+  },
+  {
+    id: "cfc-20", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A stack contains a VPC, several nested stacks and an RDS database. The team wants to preview not only that nested stacks will change, but which resources inside them will change. What should they use?",
+    options: [
+      { t: "Create the change set with --include-nested-stacks.",
+        why: "Correct. Nested change sets show the resource-level changes inside child stacks." },
+      { t: "Run drift detection on the nested stacks.",
+        why: "Drift compares current resources with the current template, not a proposed update." },
+      { t: "Use validate-template on each nested template.",
+        why: "Syntax only." },
+      { t: "Enable termination protection on the root stack.",
+        why: "Unrelated to previews." }
+    ],
+    answer: [0],
+    tip: "Preview inside nested stacks → change set with --include-nested-stacks."
+  },
+  {
+    id: "cfc-21", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A team wants multiple protection layers for a production Aurora cluster managed by CloudFormation: stop accidental updates that replace it, keep data if the stack is deleted, and stop deletion through the RDS API. Which combination fits?",
+    options: [
+      { t: "A stack policy denying Update:Replace and Update:Delete on the cluster, DeletionPolicy and UpdateReplacePolicy set to Snapshot, and the cluster's DeletionProtection property set to true.",
+        why: "Correct. Each layer covers a different risk: updates, stack removal/replacement, and direct API deletion." },
+      { t: "Termination protection only.",
+        why: "Only blocks stack deletion." },
+      { t: "Drift detection only.",
+        why: "Detects changes but prevents nothing." },
+      { t: "DeletionPolicy: Retain only.",
+        why: "Doesn't cover replacement during updates or direct deletion." }
+    ],
+    answer: [0],
+    tip: "Layers: stack policy (updates) + Deletion/UpdateReplacePolicy (data) + service DeletionProtection (API)."
+  },
+  {
+    id: "cfc-22", domain: "d2", topic: "CloudFormation Change Control",
+    q: "A pipeline uses 'aws cloudformation deploy'. The team wants the pipeline to create the change set but not apply it, so it can be reviewed first. What should they add?",
+    options: [
+      { t: "The --no-execute-changeset flag.",
+        why: "Correct. deploy then creates the change set and stops, leaving it for review and later execution." },
+      { t: "The --disable-rollback flag.",
+        why: "That changes failure behaviour, not whether the change set is executed." },
+      { t: "The --capabilities CAPABILITY_IAM flag.",
+        why: "Acknowledges IAM resources; doesn't stop execution." },
+      { t: "Termination protection.",
+        why: "Unrelated to change sets." }
+    ],
+    answer: [0],
+    tip: "deploy creates a change set; --no-execute-changeset = preview only."
   }
 ];

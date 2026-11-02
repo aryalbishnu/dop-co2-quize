@@ -1102,6 +1102,76 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "CloudFormation Change Control",
+  sections: [
+    { h: "Which feature for which risk", table: [
+      ["Risk", "Feature"],
+      ["What will this update change / replace?", "**Change set** (Replacement: True)"],
+      ["Changed outside CloudFormation", "**Drift detection** (+ Config rule)"],
+      ["Update might replace / delete prod resources", "**Stack policy**"],
+      ["Someone deletes the whole stack", "**Termination protection** + IAM"],
+      ["Resource removed / stack deleted → data loss", "**DeletionPolicy**"],
+      ["Update replaces resource → old one deleted", "**UpdateReplacePolicy**"],
+      ["Direct API deletion", "Service setting: RDS **DeletionProtection**, DynamoDB deletion protection, S3 versioning"]
+    ]},
+    { h: "Change sets", items: [
+      "create-change-set → describe → **execute** or delete · nothing changes until executed",
+      "Action: Add / Modify / Remove / Import / **Dynamic** · **Replacement: True / False / Conditional** · Scope · RequiresRecreation",
+      "**Intent only** — can still fail at execution · executing makes other change sets obsolete",
+      "Types: UPDATE · **CREATE** (REVIEW_IN_PROGRESS) · **IMPORT** · `--include-nested-stacks`",
+      "`deploy` uses change sets · **`--no-execute-changeset`** = preview only",
+      "IAM: developers **CreateChangeSet**, approvers **ExecuteChangeSet**",
+      "CodePipeline: **CHANGE_SET_REPLACE → manual approval → CHANGE_SET_EXECUTE** (other modes: CREATE_UPDATE, DELETE_ONLY, REPLACE_ON_FAILURE)"
+    ]},
+    { h: "Drift detection", items: [
+      "On demand · stack DRIFTED / IN_SYNC · resource **MODIFIED** (expected vs actual), **DELETED**, **NOT_CHECKED** (unsupported type)",
+      "Checks properties set in the template · doesn't see secret values behind dynamic references",
+      "**Reports only** — revert the change or update the template",
+      "Continuous: **Config rule `cloudformation-stack-drift-detection-check`** (or scheduled Lambda `DetectStackDrift`)",
+      "Prevent drift: IAM / SCP, changes only through pipelines"
+    ]},
+    { h: "Stack policy and termination protection", items: [
+      "Stack policy actions **Update:Modify / Update:Replace / Update:Delete / Update:*** · Resource `LogicalResourceId/x` · Condition ResourceType",
+      "**Default deny once set** → start with `Allow Update:*` on `*` · explicit Deny wins",
+      "**Principal must be `*`** (IAM `SetStackPolicy` controls who) · **can't delete, only replace**",
+      "**`--stack-policy-during-update-body`** = one-time override",
+      "Covers **stack updates only** — not deletion, not console changes",
+      "Termination protection: blocks **DeleteStack only** · off by default · nested stacks → **root** · deny `UpdateTerminationProtection` with IAM / SCP"
+    ]},
+    { h: "DeletionPolicy vs UpdateReplacePolicy", table: [
+      ["", "DeletionPolicy", "UpdateReplacePolicy"],
+      ["When", "Resource **removed** from template or **stack deleted**", "Update **replaces** the resource (old one)"],
+      ["Values", "Delete (default) · **Retain** · **Snapshot** · **RetainExceptOnCreate**", "Delete (default) · Retain · Snapshot"],
+      ["Snapshot types", "EBS volume, RDS instance/cluster, Redshift, ElastiCache, Neptune, DocDB", "Same"],
+      ["Notes", "RDS defaults to Snapshot · non-empty **S3 bucket → DELETE_FAILED**", "Set **both** on stateful resources (cfn-lint warns)"]
+    ]},
+    { h: "Import, roles, IAM", items: [
+      "**IMPORT change set** adopts existing resources — **DeletionPolicy required**",
+      "Move between stacks: **Retain → remove → import** (or stack refactoring)",
+      "Retained resources are **orphaned** (unmanaged, still billed)",
+      "**Service role** (`--role-arn`) + `iam:PassRole` = deploy without broad permissions",
+      "Condition keys: `cloudformation:RoleArn`, `ResourceTypes`, `TemplateUrl`, `ChangeSetName`, `StackPolicyUrl`"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Will the DB be replaced?", "Change set"],
+      ["Propose vs apply", "CreateChangeSet vs ExecuteChangeSet / pipeline approval"],
+      ["Console change to managed resource", "Drift detection"],
+      ["Continuous drift alerts", "Config drift rule"],
+      ["All updates blocked after stack policy", "Add Allow Update:*"],
+      ["Allow one protected replacement", "stack-policy-during-update-body"],
+      ["Prevent stack deletion", "Termination protection + IAM"],
+      ["DB lost on replacement", "UpdateReplacePolicy"],
+      ["Backup on stack delete", "DeletionPolicy Snapshot"],
+      ["Orphans after failed create", "RetainExceptOnCreate"],
+      ["Bucket DELETE_FAILED", "Bucket not empty"],
+      ["Adopt existing resource", "IMPORT change set"],
+      ["Deploy without admin", "Service role + PassRole"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
