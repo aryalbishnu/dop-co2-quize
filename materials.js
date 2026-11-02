@@ -24,5 +24,6 @@ window.MATERIALS = [
   { domain: "d1", topics: [], title: "Deployment types by service (canary, linear, blue/green, rolling)", file: "pdfs/Domain1_Deployment_Types_by_Service.pdf" },
   { domain: "d2", topics: ["CloudFormation Core"], title: "Week 3 notes - CloudFormation core (traps, lab, check yourself)", file: "pdfs/Week3_CloudFormation_Core.pdf" },
   { domain: "d2", topics: ["CloudFormation Change Control"], title: "Week 3 notes - CloudFormation change control (traps, lab, check yourself)", file: "pdfs/Week3_CloudFormation_Change_Control.pdf" },
-  { domain: "d2", topics: ["Nested and Cross-Stack"], title: "Week 3 notes - Nested stacks vs cross-stack references (traps, lab, check yourself)", file: "pdfs/Week3_Nested_vs_CrossStack.pdf" }
+  { domain: "d2", topics: ["Nested and Cross-Stack"], title: "Week 3 notes - Nested stacks vs cross-stack references (traps, lab, check yourself)", file: "pdfs/Week3_Nested_vs_CrossStack.pdf" },
+  { domain: "d2", topics: ["Helper Scripts and Policies"], title: "Week 3 notes - cfn-init, cfn-signal, cfn-hup, CreationPolicy, UpdatePolicy (traps, lab, check yourself)", file: "pdfs/Week3_Helper_Scripts_and_Policies.pdf" }
 ];

@@ -1229,6 +1229,80 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Helper Scripts and Policies",
+  sections: [
+    { h: "Which tool does what", table: [
+      ["Tool", "Purpose"],
+      ["**AWS::CloudFormation::Init**", "Declarative config in metadata (configSets)"],
+      ["**cfn-init**", "Applies the metadata at boot (from UserData)"],
+      ["**cfn-signal**", "Sends SUCCESS / FAILURE (`-e $?`) to CreationPolicy or WaitCondition handle"],
+      ["**CreationPolicy**", "Resource waits for Count signals within Timeout (max **12 h**)"],
+      ["**WaitCondition + handle**", "Presigned S3 URL for **external** signals + **GetAtt .Data**"],
+      ["**cfn-hup**", "Daemon: metadata change → hook reruns cfn-init (in place)"],
+      ["**UpdatePolicy**", "How ASGs are replaced on update (rolling / replacing / scheduled)"]
+    ]},
+    { h: "cfn-init", items: [
+      "Order: **packages → groups → users → sources → files → commands → services** (commands alphabetical)",
+      "`services: sysvinit: httpd: files: [conf]` = **restart on file change**",
+      "Private S3: **`AWS::CloudFormation::Authentication`** (S3, roleName = instance profile)",
+      "`cfn-init -v --stack ${AWS::StackName} --resource <MetadataResource> --configsets default --region ${AWS::Region}`",
+      "Logs: `/var/log/cfn-init.log`, `cfn-init-cmd.log`, `cloud-init-output.log`",
+      "Preinstalled on Amazon Linux only — **install aws-cfn-bootstrap** elsewhere",
+      "Needs route to **CloudFormation endpoint** (NAT or **VPC endpoint**) + S3",
+      "**UserData runs at first boot only** — UserData change = stop/start, no rerun"
+    ]},
+    { h: "Signals and waiting", items: [
+      "Signal **after a health check**: `curl -f ... ; cfn-signal -e $? --resource <ASG or instance>`",
+      "ASG: cfn-init `--resource LaunchTemplate`, **cfn-signal `--resource ASG`**",
+      "CreationPolicy: `ResourceSignal {Count, Timeout PT15M}` · `AutoScalingCreationPolicy MinSuccessfulInstancesPercent`",
+      "On EC2 instance, ASG, WaitCondition · failure / timeout → rollback",
+      "WaitCondition: Count, Timeout seconds (max 43200), `DependsOn`, HTTP PUT JSON, `-d` data → **`GetAtt .Data`**",
+      "WaitCondition **doesn't re-wait on update** → new handle logical ID · AWS recommends CreationPolicy for EC2/ASG",
+      "Debug: **disable rollback** / preserve resources, read logs"
+    ]},
+    { h: "cfn-hup", items: [
+      "`/etc/cfn/cfn-hup.conf`: stack, region, **interval (default 15 min)**",
+      "`/etc/cfn/hooks.d/*.conf`: **triggers=post.update**, path=Resources.X.Metadata.AWS::CloudFormation::Init, action=cfn-init",
+      "Create via cfn-init `files`, keep running via `services`",
+      "Without cfn-hup, metadata-only updates **don't change running instances**",
+      "Alternatives: SSM State Manager / Run Command, golden AMIs + replacement"
+    ]},
+    { h: "ASG UpdatePolicy", table: [
+      ["", "AutoScalingRollingUpdate", "AutoScalingReplacingUpdate"],
+      ["How", "Batches in the **same ASG**", "**New ASG**, old deleted on success"],
+      ["Key settings", "MaxBatchSize, MinInstancesInService, MinSuccessfulInstancesPercent, PauseTime, **WaitOnResourceSignals**, **SuspendProcesses**", "**WillReplace: true** + **CreationPolicy**"],
+      ["Rollback", "Another rolling update (slow)", "**Delete new ASG** (fast, old untouched)"],
+      ["Keyword", "Keep N in service, batches", "Immutable, fastest rollback"]
+    ]},
+    { h: "More UpdatePolicy facts", items: [
+      "**No UpdatePolicy** = launch template change affects **new instances only**",
+      "Both set → **WillReplace wins**",
+      "**AutoScalingScheduledAction `IgnoreUnmodifiedGroupSizeProperties: true`** = don't reset scheduled sizes · avoid hard-coded DesiredCapacity",
+      "SuspendProcesses: HealthCheck, ReplaceUnhealthy, AZRebalance, AlarmNotification, ScheduledActions",
+      "Others: CodeDeployLambdaAliasUpdate, UseOnlineResharding (ElastiCache), EnableVersionUpgrade (OpenSearch)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["CREATE_COMPLETE but app broken", "CreationPolicy + cfn-signal"],
+      ["Metadata changed, instance not", "cfn-hup"],
+      ["UserData changed, nothing happened", "First boot only"],
+      ["Restart service on config change", "services → files"],
+      ["Private S3 download", "CloudFormation::Authentication"],
+      ["ASG signals time out", "Signal the ASG, not launch template"],
+      ["Private subnet timeouts", "CloudFormation VPC endpoint + S3 / NAT"],
+      ["cfn-init not found", "Install aws-cfn-bootstrap"],
+      ["On-prem must confirm", "WaitCondition + handle"],
+      ["Instance value to outputs", "cfn-signal -d + GetAtt .Data"],
+      ["Old AMI after update", "Add UpdatePolicy"],
+      ["Batches, keep 4 in service", "RollingUpdate"],
+      ["Fastest rollback, immutable", "ReplacingUpdate + CreationPolicy"],
+      ["ASG interferes during update", "SuspendProcesses"],
+      ["Scheduled capacity reset", "IgnoreUnmodifiedGroupSizeProperties"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

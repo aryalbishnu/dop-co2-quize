@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -6452,5 +6452,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Nested = template reuse, one unit. Cross-stack = shared values, separate lifecycles, same Region."
+  },
+
+  // ───────────────────────────── Domain 2: Helper Scripts and Policies ─────────────────────────────
+  {
+    id: "hsp-01", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A CloudFormation stack creates an EC2 instance that installs an application with a UserData script. The stack shows CREATE_COMPLETE even when the installation fails, and the release pipeline continues with a broken server. What should be done?",
+    options: [
+      { t: "Add a CreationPolicy with a ResourceSignal to the instance and call cfn-signal -e $? after cfn-init and a health check in UserData.",
+        why: "Correct. The resource stays in progress until a success signal arrives; a failure signal or timeout fails the stack." },
+      { t: "Add DependsOn to the instance.",
+        why: "DependsOn controls creation order, not whether software works." },
+      { t: "Increase the instance size.",
+        why: "Doesn't report installation status to CloudFormation." },
+      { t: "Enable termination protection.",
+        why: "Only blocks stack deletion." }
+    ],
+    answer: [0],
+    tip: "Stack complete before app works → CreationPolicy + cfn-signal."
+  },
+  {
+    id: "hsp-02", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "An engineer changed only the AWS::CloudFormation::Init metadata (a new config file content) and updated the stack. The update succeeded, but the running instances still have the old file. What is missing?",
+    options: [
+      { t: "cfn-hup running on the instances with a post.update hook that reruns cfn-init when the metadata changes.",
+        why: "Correct. cfn-init runs at boot; cfn-hup detects metadata changes and reapplies them in place." },
+      { t: "A new UserData script.",
+        why: "UserData runs only at first boot." },
+      { t: "A WaitCondition.",
+        why: "Wait conditions pause stack creation; they don't apply metadata changes." },
+      { t: "An UpdatePolicy on the instance.",
+        why: "UpdatePolicy applies to ASGs and some other resources, and doesn't rerun cfn-init." }
+    ],
+    answer: [0],
+    tip: "Metadata change not applied → cfn-hup (hooks.d post.update → cfn-init)."
+  },
+  {
+    id: "hsp-03", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A team edits the UserData script of an EC2 instance in a template and updates the stack, expecting the new script to configure the running instance. What actually happens?",
+    options: [
+      { t: "The instance is stopped and started to apply the new UserData, but UserData scripts normally run only at first boot, so the new script doesn't run.",
+        why: "Correct. Use cfn-init metadata with cfn-hup, or replace the instance, to apply new configuration." },
+      { t: "The new script runs immediately without interruption.",
+        why: "UserData isn't re-executed on running instances." },
+      { t: "CloudFormation replaces the instance every time UserData changes.",
+        why: "UserData changes cause some interruption (stop/start), not replacement." },
+      { t: "The update fails.",
+        why: "The update succeeds; the script just doesn't rerun." }
+    ],
+    answer: [0],
+    tip: "UserData = first boot only. In-place config changes → cfn-init + cfn-hup."
+  },
+  {
+    id: "hsp-04", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "An AWS::CloudFormation::Init config lists commands first and packages last in the template. In what order does cfn-init actually process them?",
+    options: [
+      { t: "packages, groups, users, sources, files, commands, services — regardless of the order written.",
+        why: "Correct. cfn-init uses a fixed key order; commands run alphabetically by name." },
+      { t: "In the order written in the template.",
+        why: "The written order of keys is ignored." },
+      { t: "Alphabetically by key name.",
+        why: "Only commands are sorted alphabetically (by command name)." },
+      { t: "services first, then everything else.",
+        why: "services is processed last." }
+    ],
+    answer: [0],
+    tip: "cfn-init order: packages → groups → users → sources → files → commands → services."
+  },
+  {
+    id: "hsp-05", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "With cfn-init, how can Apache be restarted automatically whenever its configuration file /etc/httpd/conf.d/app.conf is changed by cfn-init?",
+    options: [
+      { t: "In services → sysvinit → httpd, set enabled and ensureRunning and list the file under files.",
+        why: "Correct. cfn-init restarts a service when listed files, sources, packages or commands change." },
+      { t: "Add a command that restarts httpd every 5 minutes.",
+        why: "Wasteful and unreliable." },
+      { t: "Use a WaitCondition on the file.",
+        why: "Wait conditions don't watch files." },
+      { t: "Put the restart in UserData.",
+        why: "UserData runs only at first boot." }
+    ],
+    answer: [0],
+    tip: "Restart on config change → services: sysvinit: httpd: files: [config]."
+  },
+  {
+    id: "hsp-06", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "cfn-init must download an application archive from a private S3 bucket during bootstrap. What is the recommended configuration?",
+    options: [
+      { t: "Use AWS::CloudFormation::Authentication metadata of type S3 with the instance profile role (roleName), and reference the object in sources or files.",
+        why: "Correct. cfn-init uses the instance role's credentials to fetch private S3 objects." },
+      { t: "Make the bucket public.",
+        why: "Insecure." },
+      { t: "Embed access keys in the UserData.",
+        why: "Long-term keys in UserData are insecure." },
+      { t: "Use a WaitConditionHandle URL.",
+        why: "That's for signals, not downloads." }
+    ],
+    answer: [0],
+    tip: "Private S3 for cfn-init → AWS::CloudFormation::Authentication (S3, roleName)."
+  },
+  {
+    id: "hsp-07", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "An Auto Scaling group has a CreationPolicy requiring 3 signals. Its launch template holds the cfn-init metadata. Stack creation always times out even though the application starts correctly. UserData runs 'cfn-signal -e $? --resource WebLaunchTemplate ...'. What is wrong?",
+    options: [
+      { t: "cfn-signal must target the resource with the CreationPolicy — the ASG (for example --resource WebServerGroup).",
+        why: "Correct. cfn-init reads metadata from the launch template, but signals go to the ASG." },
+      { t: "cfn-init must target the ASG instead of the launch template.",
+        why: "The metadata lives on the launch template, so cfn-init targets it." },
+      { t: "The CreationPolicy timeout must be 24 hours.",
+        why: "The maximum is 12 hours, and the problem isn't the timeout." },
+      { t: "Launch templates can't hold metadata.",
+        why: "They can and commonly do." }
+    ],
+    answer: [0],
+    tip: "ASG: cfn-init --resource LaunchTemplate; cfn-signal --resource ASG."
+  },
+  {
+    id: "hsp-08", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "Instances in private subnets without a NAT gateway always cause the stack to time out waiting for cfn-signal. The bootstrap logic works when tested in a public subnet. What should be added? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "An interface VPC endpoint for AWS CloudFormation in the VPC.",
+        why: "Correct. Helper scripts must reach the CloudFormation endpoint to read metadata and send signals." },
+      { t: "An S3 gateway endpoint (for downloads and wait condition presigned URLs).",
+        why: "Correct. cfn-init sources/files and wait condition signals use S3." },
+      { t: "An Elastic IP on each instance.",
+        why: "Private subnets have no internet gateway route, so an EIP doesn't help." },
+      { t: "A longer CreationPolicy timeout.",
+        why: "The signal can never arrive without a network path." },
+      { t: "Termination protection.",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "Private subnets + helper scripts → CloudFormation VPC endpoint (+ S3 endpoint) or NAT."
+  },
+  {
+    id: "hsp-09", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A stack creating Ubuntu instances fails waiting for signals. The cloud-init log shows 'cfn-init: command not found'. What is the fix?",
+    options: [
+      { t: "Install the aws-cfn-bootstrap helper scripts in UserData before calling cfn-init and cfn-signal.",
+        why: "Correct. The helper scripts are preinstalled only on Amazon Linux." },
+      { t: "Switch to a WaitCondition.",
+        why: "cfn-signal is still needed and still missing." },
+      { t: "Add CAPABILITY_IAM.",
+        why: "Unrelated to missing scripts." },
+      { t: "Use a larger instance.",
+        why: "Size doesn't install packages." }
+    ],
+    answer: [0],
+    tip: "Non-Amazon Linux → install aws-cfn-bootstrap first."
+  },
+  {
+    id: "hsp-10", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A stack must pause until an on-premises system confirms that a firewall rule has been opened, and then continue creating the remaining resources. What should be used?",
+    options: [
+      { t: "An AWS::CloudFormation::WaitCondition with a WaitConditionHandle; the on-premises system sends an HTTP PUT to the handle's presigned URL.",
+        why: "Correct. Wait condition handles let external systems signal the stack." },
+      { t: "A CreationPolicy on an EC2 instance.",
+        why: "Meant for signals from the resource itself; the external system isn't a stack resource." },
+      { t: "A stack policy.",
+        why: "Stack policies restrict updates." },
+      { t: "An UpdatePolicy.",
+        why: "Controls updates of ASGs, not external confirmation." }
+    ],
+    answer: [0],
+    tip: "External / on-prem confirmation → WaitCondition + handle (presigned URL)."
+  },
+  {
+    id: "hsp-11", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "An instance generates a build ID during bootstrap, and the stack must expose it as an output. How can this be done?",
+    options: [
+      { t: "Send it with cfn-signal -d to a WaitCondition handle and output !GetAtt WaitCondition.Data.",
+        why: "Correct. WaitCondition Data returns the data sent with signals." },
+      { t: "Use !GetAtt Instance.UserData.",
+        why: "UserData isn't returned with runtime values." },
+      { t: "Use Fn::ImportValue.",
+        why: "Imports exports from other stacks." },
+      { t: "Use CreationPolicy Data.",
+        why: "CreationPolicy signals don't return data to outputs." }
+    ],
+    answer: [0],
+    tip: "Instance → stack data → WaitCondition + cfn-signal -d + GetAtt .Data."
+  },
+  {
+    id: "hsp-12", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "What is the maximum timeout you can set for a CreationPolicy ResourceSignal?",
+    options: [
+      { t: "12 hours (PT12H).",
+        why: "Correct. Timeouts use ISO 8601 durations up to 12 hours (WaitCondition up to 43200 seconds)." },
+      { t: "1 hour.",
+        why: "Longer timeouts are allowed." },
+      { t: "24 hours.",
+        why: "The maximum is 12 hours." },
+      { t: "7 days.",
+        why: "Far above the limit." }
+    ],
+    answer: [0],
+    tip: "CreationPolicy / WaitCondition timeout max 12 hours."
+  },
+  {
+    id: "hsp-13", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A team changes the AMI in the launch template used by an Auto Scaling group and updates the stack. The update succeeds, but all existing instances still run the old AMI. Why?",
+    options: [
+      { t: "The ASG has no UpdatePolicy, so changing the launch template only affects instances launched later.",
+        why: "Correct. Add AutoScalingRollingUpdate or AutoScalingReplacingUpdate (or run an instance refresh)." },
+      { t: "Launch templates can't change the AMI.",
+        why: "They can, through new versions." },
+      { t: "The stack needs termination protection.",
+        why: "Unrelated." },
+      { t: "cfn-hup must be installed.",
+        why: "cfn-hup applies metadata, not AMI changes." }
+    ],
+    answer: [0],
+    tip: "Launch template change, old instances remain → add an ASG UpdatePolicy."
+  },
+  {
+    id: "hsp-14", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A production ASG has 6 instances. Updates must replace 2 instances at a time, keep at least 4 in service, and move to the next batch only after the new instances report healthy via cfn-signal. Which configuration fits?",
+    options: [
+      { t: "AutoScalingRollingUpdate with MaxBatchSize 2, MinInstancesInService 4, WaitOnResourceSignals true and a PauseTime long enough for signals.",
+        why: "Correct. These properties control batch size, capacity floor and signal waiting." },
+      { t: "AutoScalingReplacingUpdate with WillReplace true.",
+        why: "Creates a whole new ASG instead of batches." },
+      { t: "AutoScalingScheduledAction.",
+        why: "Only affects group size properties during updates." },
+      { t: "A CreationPolicy only.",
+        why: "Applies at creation (or replacement), not rolling batches." }
+    ],
+    answer: [0],
+    tip: "Batches + capacity floor + signals → AutoScalingRollingUpdate (MaxBatchSize, MinInstancesInService, WaitOnResourceSignals)."
+  },
+  {
+    id: "hsp-15", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A company wants ASG updates where existing instances are never touched until the new instances are proven healthy, and a failed update rolls back as fast as possible. Which configuration should be used?",
+    options: [
+      { t: "AutoScalingReplacingUpdate with WillReplace: true, plus a CreationPolicy with resource signals.",
+        why: "Correct. A new ASG is created and judged by signals; on failure it's deleted and the old ASG keeps serving." },
+      { t: "AutoScalingRollingUpdate with MaxBatchSize 1.",
+        why: "Still replaces existing instances, and rollback is another rolling update." },
+      { t: "No UpdatePolicy.",
+        why: "Existing instances wouldn't be updated at all." },
+      { t: "A stack policy denying Update:Replace.",
+        why: "Blocks the update rather than making it safe." }
+    ],
+    answer: [0],
+    tip: "Immutable ASG updates, fastest rollback → AutoScalingReplacingUpdate (WillReplace) + CreationPolicy."
+  },
+  {
+    id: "hsp-16", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "During a rolling update of an ASG, Auto Scaling health checks replaced instances and a scale-in event terminated new instances, causing the update to fail. What should be configured?",
+    options: [
+      { t: "SuspendProcesses in AutoScalingRollingUpdate (for example HealthCheck, ReplaceUnhealthy, AZRebalance, AlarmNotification, ScheduledActions).",
+        why: "Correct. Suspending these processes stops the ASG from interfering during the update." },
+      { t: "A longer PauseTime only.",
+        why: "Doesn't stop the ASG processes from acting." },
+      { t: "DeletionPolicy: Retain on the ASG.",
+        why: "Unrelated to rolling updates." },
+      { t: "MinSuccessfulInstancesPercent 0.",
+        why: "Hides failures rather than preventing interference." }
+    ],
+    answer: [0],
+    tip: "ASG processes interfere with rolling update → SuspendProcesses."
+  },
+  {
+    id: "hsp-17", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "Scheduled actions raise an ASG's desired capacity to 12 during business hours. Each stack update during the day resets it to the template's DesiredCapacity of 3. How can this be prevented?",
+    options: [
+      { t: "Add UpdatePolicy AutoScalingScheduledAction with IgnoreUnmodifiedGroupSizeProperties: true (and avoid hard-coding DesiredCapacity).",
+        why: "Correct. Unchanged size properties are no longer reset during updates." },
+      { t: "Add a stack policy denying Update:Modify on the ASG.",
+        why: "Would block all ASG updates." },
+      { t: "Use AutoScalingReplacingUpdate.",
+        why: "Doesn't address size property resets." },
+      { t: "Use cfn-hup.",
+        why: "cfn-hup applies instance metadata, not ASG size." }
+    ],
+    answer: [0],
+    tip: "Updates reset scheduled capacity → IgnoreUnmodifiedGroupSizeProperties: true."
+  },
+  {
+    id: "hsp-18", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "An ASG resource defines both AutoScalingReplacingUpdate (WillReplace: true) and AutoScalingRollingUpdate. What happens during an update that changes the launch template?",
+    options: [
+      { t: "The replacing update applies: a new ASG is created; WillReplace takes precedence.",
+        why: "Correct. When both are set and WillReplace is true, the replacing policy wins." },
+      { t: "The rolling update applies because it is listed first.",
+        why: "Order in the template doesn't matter." },
+      { t: "The update fails because both are defined.",
+        why: "Both can be defined." },
+      { t: "Both run one after the other.",
+        why: "Only one policy applies." }
+    ],
+    answer: [0],
+    tip: "Both policies set → WillReplace wins."
+  },
+  {
+    id: "hsp-19", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A stack keeps failing because an instance doesn't signal, and the rollback deletes the instance before the team can inspect it. How can they troubleshoot?",
+    options: [
+      { t: "Create the stack with rollback disabled (--disable-rollback or --on-failure DO_NOTHING / preserve successfully provisioned resources), then inspect /var/log/cfn-init.log and cloud-init logs on the instance.",
+        why: "Correct. Keeping the failed resources lets you read the logs, then clean up afterwards." },
+      { t: "Increase the timeout to 12 hours and wait.",
+        why: "Doesn't reveal the cause if no signal is ever sent." },
+      { t: "Run drift detection.",
+        why: "Drift doesn't explain bootstrap failures." },
+      { t: "Enable termination protection.",
+        why: "Doesn't stop resource rollback during creation." }
+    ],
+    answer: [0],
+    tip: "Debug failed bootstrap → disable rollback, read cfn-init / cloud-init logs."
+  },
+  {
+    id: "hsp-20", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "Which signal should an instance send to make sure CloudFormation only marks it successful when the application really works?",
+    options: [
+      { t: "Run cfn-init, then a health check such as curl -f http://localhost/health, and call cfn-signal -e $? with the health check's exit code.",
+        why: "Correct. The signal then reflects the application's real state, not just that packages installed." },
+      { t: "Call cfn-signal --success true at the start of UserData.",
+        why: "Reports success before anything is installed." },
+      { t: "Call cfn-signal only if the instance boots.",
+        why: "Booting doesn't mean the app works." },
+      { t: "Don't signal; rely on the timeout.",
+        why: "The timeout causes failure, not success." }
+    ],
+    answer: [0],
+    tip: "Signal after a real health check (cfn-signal -e $?)."
+  },
+  {
+    id: "hsp-21", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A template uses a WaitCondition to wait for an instance during creation. After a later stack update that changes the instance, the team expects the stack to wait for a new signal, but it doesn't. Why, and how can they make it wait again?",
+    options: [
+      { t: "Wait conditions don't wait again on updates; create a new WaitConditionHandle (and condition) by changing its logical ID, or use a CreationPolicy-based design.",
+        why: "Correct. A new handle produces a new URL and a new wait." },
+      { t: "Wait conditions only work with ASGs.",
+        why: "They work with any resources." },
+      { t: "The timeout expired.",
+        why: "The wait condition was already complete; it isn't re-evaluated." },
+      { t: "cfn-hup must send the signal.",
+        why: "cfn-hup doesn't make the wait condition wait again." }
+    ],
+    answer: [0],
+    tip: "WaitCondition doesn't re-wait on update → new handle (new logical ID)."
+  },
+  {
+    id: "hsp-22", domain: "d2", topic: "Helper Scripts and Policies",
+    q: "A team wants instance configuration to be defined declaratively in the template (packages, files, services), applied at boot, and kept in sync later, with the stack knowing whether boot succeeded. Which combination fits?",
+    options: [
+      { t: "AWS::CloudFormation::Init metadata applied by cfn-init, cfn-signal with a CreationPolicy, and cfn-hup for later metadata changes.",
+        why: "Correct. That's the standard helper-script pattern for declarative EC2 configuration." },
+      { t: "A long UserData bash script only.",
+        why: "Imperative, runs once, and doesn't report success." },
+      { t: "Mappings with package names.",
+        why: "Mappings don't configure instances." },
+      { t: "Nested stacks for each package.",
+        why: "Nested stacks create resources, not instance configuration." }
+    ],
+    answer: [0],
+    tip: "Declarative EC2 config: Init metadata + cfn-init + cfn-signal/CreationPolicy + cfn-hup."
   }
 ];
