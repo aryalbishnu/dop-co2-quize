@@ -9,7 +9,8 @@
 window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
-  { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17, topics: [] },
+  { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
+    topics: ["CloudFormation Core"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -5380,5 +5381,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Build an AMI inside a CloudFormation stack → AWS::ImageBuilder::Image (GetAtt ImageId)."
+  },
+
+  // ───────────────────────────── Domain 2: CloudFormation Core ─────────────────────────────
+  {
+    id: "cfn-01", domain: "d2", topic: "CloudFormation Core",
+    q: "A CloudFormation template launches EC2 instances in many Regions using a Mappings section of AMI IDs per Region. The AMIs quickly become outdated. The team wants every stack create and update to use the newest Amazon Linux 2023 AMI without editing the template. What should they do?",
+    options: [
+      { t: "Use a parameter of type AWS::SSM::Parameter::Value<AWS::EC2::Image::Id> with the public parameter /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 as the default.",
+        why: "Correct. CloudFormation reads the SSM parameter at every create and update, so the newest AMI is used in every Region with no template change." },
+      { t: "Add a Lambda-backed custom resource that searches for the newest AMI.",
+        why: "Works, but it's custom code. The SSM parameter type is built in." },
+      { t: "Update the Mappings section every month.",
+        why: "Manual and error-prone." },
+      { t: "Use Fn::GetAZs to choose the AMI.",
+        why: "GetAZs returns Availability Zones, not AMIs." }
+    ],
+    answer: [0],
+    tip: "Latest AMI without editing templates → SSM parameter type AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>."
+  },
+  {
+    id: "cfn-02", domain: "d2", topic: "CloudFormation Core",
+    q: "A template has an optional KeyName parameter that defaults to an empty string. When it's empty, the EC2 instance must be created with no key pair at all. How should the KeyName property be written?",
+    options: [
+      { t: "Create a condition HasKey (KeyName not equal to \"\") and set KeyName: !If [HasKey, !Ref KeyName, !Ref \"AWS::NoValue\"].",
+        why: "Correct. AWS::NoValue removes the property completely when the condition is false." },
+      { t: "Set KeyName: !Ref KeyName and leave it empty.",
+        why: "An empty string is an invalid key name, so the stack fails." },
+      { t: "Put the condition inside the Mappings section.",
+        why: "Mappings hold literal values only and can't contain conditions." },
+      { t: "Use DependsOn to skip the property.",
+        why: "DependsOn controls order, not properties." }
+    ],
+    answer: [0],
+    tip: "Optional property → Fn::If with AWS::NoValue."
+  },
+  {
+    id: "cfn-03", domain: "d2", topic: "CloudFormation Core",
+    q: "A network stack in us-east-1 exports its VPC ID. A new application stack in eu-west-1 uses Fn::ImportValue to read it, but the stack fails. What is the reason and a valid alternative?",
+    options: [
+      { t: "Exports can only be imported in the same account and Region. Store the value in SSM Parameter Store in eu-west-1 (or pass it as a parameter, or use a custom resource) instead.",
+        why: "Correct. Cross-stack references are Region-scoped, so another mechanism is needed across Regions." },
+      { t: "The export name must include the Region.",
+        why: "The name isn't the problem; imports never work across Regions." },
+      { t: "The importing stack needs CAPABILITY_AUTO_EXPAND.",
+        why: "Capabilities don't enable cross-Region imports." },
+      { t: "Use Fn::GetAtt on the network stack.",
+        why: "GetAtt works on resources in the same template (or nested stack outputs), not other stacks in other Regions." }
+    ],
+    answer: [0],
+    tip: "ImportValue = same account + same Region only."
+  },
+  {
+    id: "cfn-04", domain: "d2", topic: "CloudFormation Core",
+    q: "A team tries to update a network stack to rename one of its exports. The update fails with 'Export ... cannot be updated as it is in use by app-stack'. What must they do?",
+    options: [
+      { t: "Update the importing stacks to stop using the export first, then change the export.",
+        why: "Correct. An export can't be changed or deleted while another stack imports it." },
+      { t: "Add a DeletionPolicy of Retain to the export.",
+        why: "DeletionPolicy applies to resources, not exports." },
+      { t: "Use the --force flag on update-stack.",
+        why: "There is no force option to bypass this rule." },
+      { t: "Delete the network stack and recreate it.",
+        why: "The stack can't be deleted either while its exports are imported." }
+    ],
+    answer: [0],
+    tip: "Exports in use are locked → remove imports first."
+  },
+  {
+    id: "cfn-05", domain: "d2", topic: "CloudFormation Core",
+    q: "A template takes a database password as a String parameter with NoEcho: true. A security review finds the password in plain text in the console. The template outputs a connection string built with the password. What is the BEST fix?",
+    options: [
+      { t: "Store the password in Secrets Manager, reference it with {{resolve:secretsmanager:...}} in the DB properties, and remove it from Outputs.",
+        why: "Correct. NoEcho only masks describe calls; Outputs show the value. Dynamic references keep the secret out of the template, parameters and outputs." },
+      { t: "Add NoEcho to the output.",
+        why: "Outputs don't support NoEcho." },
+      { t: "Encrypt the template file with KMS.",
+        why: "The value is still shown by the stack." },
+      { t: "Move the password into Mappings.",
+        why: "Mappings are plain text in the template." }
+    ],
+    answer: [0],
+    tip: "NoEcho masks describe calls only → use Secrets Manager dynamic references; never output secrets."
+  },
+  {
+    id: "cfn-06", domain: "d2", topic: "CloudFormation Core",
+    q: "A developer writes Mappings with a value of !Ref InstanceTypeParam so the mapping follows a parameter. The template fails validation. Why?",
+    options: [
+      { t: "Mapping values must be literal values; intrinsic functions and parameter references aren't allowed inside Mappings.",
+        why: "Correct. Only the lookup keys passed to FindInMap can come from Ref." },
+      { t: "Mappings must have three levels.",
+        why: "Mappings have exactly two levels of keys." },
+      { t: "Ref must be written as Fn::Ref.",
+        why: "The long form is Ref; either way it isn't allowed in Mappings." },
+      { t: "Mappings need the AWS::LanguageExtensions transform for Ref.",
+        why: "The transform adds DefaultValue to FindInMap, not Ref inside mapping values." }
+    ],
+    answer: [0],
+    tip: "Mappings = literals only; FindInMap keys can use Ref."
+  },
+  {
+    id: "cfn-07", domain: "d2", topic: "CloudFormation Core",
+    q: "A template must create a CloudWatch alarm only when a resource named PrimaryDb has been created successfully. The engineer writes a condition using !GetAtt PrimaryDb.Endpoint.Address. The template fails. Why, and what is the right approach?",
+    options: [
+      { t: "Conditions can't reference resources. Base the condition on a parameter (for example CreateDb) used by both the database and the alarm.",
+        why: "Correct. Conditions are evaluated before resources exist and can use only parameters, mappings, pseudo parameters and other conditions." },
+      { t: "Use Fn::Sub instead of GetAtt in the condition.",
+        why: "Any reference to a resource is invalid in conditions." },
+      { t: "Add DependsOn to the condition.",
+        why: "Conditions don't support DependsOn." },
+      { t: "Move the condition into Outputs.",
+        why: "Outputs can use conditions but still can't define them from resources." }
+    ],
+    answer: [0],
+    tip: "Conditions: parameters, mappings, pseudo parameters, other conditions — never resources."
+  },
+  {
+    id: "cfn-08", domain: "d2", topic: "CloudFormation Core",
+    q: "A template's UserData uses !Sub and includes the bash line 'echo $HOME'. After deployment, the script didn't write the expected value because CloudFormation treated it as a variable. How should the line be written?",
+    options: [
+      { t: "echo ${!HOME}",
+        why: "Correct. ${!Name} tells Fn::Sub to write a literal ${Name} instead of substituting it." },
+      { t: "echo \\$HOME",
+        why: "Backslash escaping isn't how Fn::Sub escapes variables." },
+      { t: "Use Fn::Join instead of Base64.",
+        why: "Base64 is still needed for UserData; the issue is Sub escaping." },
+      { t: "Put HOME in Mappings.",
+        why: "HOME is a shell variable on the instance, not a template value." }
+    ],
+    answer: [0],
+    tip: "Literal ${VAR} inside Fn::Sub → ${!VAR}."
+  },
+  {
+    id: "cfn-09", domain: "d2", topic: "CloudFormation Core",
+    q: "A company deploys the same template in commercial, China and GovCloud Regions. Resources fail in China because IAM policies contain 'arn:aws:s3:::'. How should ARNs be written?",
+    options: [
+      { t: "Use !Sub \"arn:${AWS::Partition}:s3:::${Bucket}/*\".",
+        why: "Correct. AWS::Partition returns aws, aws-cn or aws-us-gov, making ARNs portable." },
+      { t: "Use a separate template per partition.",
+        why: "Duplicates work; pseudo parameters solve it." },
+      { t: "Use AWS::Region in the ARN prefix.",
+        why: "The Region isn't the partition." },
+      { t: "Use AWS::URLSuffix in the ARN.",
+        why: "URLSuffix is for service URLs (amazonaws.com), not ARN partitions." }
+    ],
+    answer: [0],
+    tip: "Portable ARNs → ${AWS::Partition} (plus AccountId, Region)."
+  },
+  {
+    id: "cfn-10", domain: "d2", topic: "CloudFormation Core",
+    q: "A template must reject a stack creation when Environment is prod and InstanceType is not m5.large or larger, BEFORE any resource is created. What should be used?",
+    options: [
+      { t: "A Rules section with a RuleCondition for prod and an Assertion on InstanceType.",
+        why: "Correct. Rules validate parameter combinations before CloudFormation creates or changes anything." },
+      { t: "AllowedValues on InstanceType.",
+        why: "AllowedValues can't depend on another parameter's value." },
+      { t: "A Condition that skips the instance in prod.",
+        why: "This silently skips the resource instead of rejecting the request." },
+      { t: "A Lambda function in the stack that fails.",
+        why: "It would run after other resources start creating." }
+    ],
+    answer: [0],
+    tip: "Validate parameter combinations up front → Rules section with assertions."
+  },
+  {
+    id: "cfn-11", domain: "d2", topic: "CloudFormation Core",
+    q: "An engineer needs the ARN of an S3 bucket created in the same template for an IAM policy. They write !Ref LogBucket and the policy is invalid. Why?",
+    options: [
+      { t: "Ref on an S3 bucket returns the bucket name; use !GetAtt LogBucket.Arn (or build it with !Sub).",
+        why: "Correct. Ref returns the physical ID for most resources; GetAtt returns attributes such as the ARN." },
+      { t: "Ref only works on parameters.",
+        why: "Ref works on both parameters and resources." },
+      { t: "The bucket needs an explicit DependsOn.",
+        why: "Ref already creates an implicit dependency; the issue is the returned value." },
+      { t: "Use Fn::ImportValue LogBucket.",
+        why: "ImportValue reads exports from other stacks." }
+    ],
+    answer: [0],
+    tip: "Ref = physical ID (bucket name); GetAtt = attributes (Arn, DNSName...)."
+  },
+  {
+    id: "cfn-12", domain: "d2", topic: "CloudFormation Core",
+    q: "A pipeline runs aws cloudformation validate-template successfully, but deployment fails with 'Encountered unsupported property InstanceTyp'. How can the team catch such errors before deployment?",
+    options: [
+      { t: "Run cfn-lint in the pipeline, which checks resource properties and values against the CloudFormation specification.",
+        why: "Correct. validate-template only checks syntax; cfn-lint catches invalid property names and values." },
+      { t: "Run validate-template twice.",
+        why: "It still only checks syntax." },
+      { t: "Use cfn-guard only.",
+        why: "cfn-guard checks your policy rules, not every property name." },
+      { t: "Enable termination protection.",
+        why: "Unrelated to validation." }
+    ],
+    answer: [0],
+    tip: "validate-template = syntax only → cfn-lint for properties; cfn-guard for policies."
+  },
+  {
+    id: "cfn-13", domain: "d2", topic: "CloudFormation Core",
+    q: "A template is 90 KB. Running create-stack with --template-body fails with a size error. What is the correct approach?",
+    options: [
+      { t: "Upload the template to S3 and use --template-url (up to 1 MB), or use aws cloudformation package and deploy with an S3 bucket.",
+        why: "Correct. Templates passed directly are limited to 51,200 bytes; from S3 the limit is 1 MB." },
+      { t: "Compress the template with gzip.",
+        why: "CloudFormation doesn't accept compressed template bodies." },
+      { t: "Split it into Mappings.",
+        why: "Mappings are part of the same template size." },
+      { t: "Request a service quota increase.",
+        why: "Using S3 is the intended method." }
+    ],
+    answer: [0],
+    tip: "Template size: 51,200 bytes direct, 1 MB via S3."
+  },
+  {
+    id: "cfn-14", domain: "d2", topic: "CloudFormation Core",
+    q: "A stack defines an S3 bucket with BucketName: company-app-logs. A later change to a property requiring replacement fails, and the team also can't deploy the same template to a second environment in the same Region. What is the cause and best practice?",
+    options: [
+      { t: "The fixed custom name prevents CloudFormation from creating the replacement or a second copy. Let CloudFormation generate names, or include ${AWS::StackName} / ${AWS::Region} in names.",
+        why: "Correct. Resource names must be unique, so a fixed name blocks replacement updates and reuse of the template." },
+      { t: "S3 buckets can't be updated by CloudFormation.",
+        why: "They can; the custom name is the problem." },
+      { t: "The stack needs CAPABILITY_NAMED_IAM.",
+        why: "That capability is for IAM resources with custom names." },
+      { t: "Add a DependsOn to the bucket.",
+        why: "Ordering doesn't fix name conflicts." }
+    ],
+    answer: [0],
+    tip: "Custom names block replacement and duplicates → generated names or include stack name/Region."
+  },
+  {
+    id: "cfn-15", domain: "d2", topic: "CloudFormation Core",
+    q: "Creating a stack fails with 'Requires capabilities: [CAPABILITY_NAMED_IAM]'. The template creates an IAM role with a RoleName property. What should be done?",
+    options: [
+      { t: "Acknowledge the capability by passing --capabilities CAPABILITY_NAMED_IAM (or remove the custom RoleName and use CAPABILITY_IAM).",
+        why: "Correct. IAM resources need explicit acknowledgment; custom names need the NAMED variant." },
+      { t: "Pass CAPABILITY_AUTO_EXPAND.",
+        why: "That's for macros and nested transforms." },
+      { t: "Give the stack a service role with AdministratorAccess.",
+        why: "Permissions don't replace the capability acknowledgment." },
+      { t: "Remove the IAM role from the template.",
+        why: "Unnecessary; acknowledging the capability fixes it." }
+    ],
+    answer: [0],
+    tip: "IAM → CAPABILITY_IAM; named IAM → CAPABILITY_NAMED_IAM; macros → CAPABILITY_AUTO_EXPAND."
+  },
+  {
+    id: "cfn-16", domain: "d2", topic: "CloudFormation Core",
+    q: "A template must create a read replica only in production stacks in us-east-1. Which approach is correct?",
+    options: [
+      { t: "Define a condition with !And [!Equals [!Ref Environment, prod], !Equals [!Ref \"AWS::Region\", us-east-1]] and set Condition on the replica resource (and any outputs that reference it).",
+        why: "Correct. Conditions combine parameters and pseudo parameters, and resources or outputs with a false condition aren't created." },
+      { t: "Use Fn::If in the Type property of the resource.",
+        why: "Fn::If can't choose whether a resource exists; use the Condition attribute." },
+      { t: "Use a Mappings lookup that returns true or false for the Type.",
+        why: "Mappings can't decide whether resources are created." },
+      { t: "Delete the replica manually in other Regions.",
+        why: "Manual and causes drift." }
+    ],
+    answer: [0],
+    tip: "Create a resource only sometimes → Condition attribute (And/Or/Equals with params + pseudo params)."
+  },
+  {
+    id: "cfn-17", domain: "d2", topic: "CloudFormation Core",
+    q: "An RDS master password must come from Secrets Manager and must never appear in the template, parameters or stack events. Which property value meets this?",
+    options: [
+      { t: "MasterUserPassword: '{{resolve:secretsmanager:prod/db:SecretString:password}}'",
+        why: "Correct. The dynamic reference is resolved at deploy time and the value isn't shown." },
+      { t: "MasterUserPassword: !Ref DbPassword with NoEcho.",
+        why: "Someone must type the password, and it can leak through outputs or metadata." },
+      { t: "MasterUserPassword: !FindInMap [Secrets, prod, password]",
+        why: "Mappings store the password in plain text." },
+      { t: "MasterUserPassword: '{{resolve:ssm:/prod/db/password}}' with a String parameter.",
+        why: "A plain String parameter isn't encrypted." }
+    ],
+    answer: [0],
+    tip: "Secrets in templates → {{resolve:secretsmanager:...}} (or RDS ManageMasterUserPassword)."
+  },
+  {
+    id: "cfn-18", domain: "d2", topic: "CloudFormation Core",
+    q: "A template is deployed in several Regions. Subnets are created with AvailabilityZone: us-east-1a and fail in other Regions. What is the portable approach?",
+    options: [
+      { t: "AvailabilityZone: !Select [0, !GetAZs \"\"]",
+        why: "Correct. GetAZs returns the AZs of the current Region and Select picks one." },
+      { t: "AvailabilityZone: !Ref AWS::Region",
+        why: "A Region isn't an Availability Zone." },
+      { t: "Hard-code a map of AZ names for every Region.",
+        why: "Works but is more effort and can go stale." },
+      { t: "Leave AvailabilityZone empty for all subnets.",
+        why: "Subnets may end up in the same AZ, hurting availability." }
+    ],
+    answer: [0],
+    tip: "Portable AZs → !Select [i, !GetAZs \"\"]."
+  },
+  {
+    id: "cfn-19", domain: "d2", topic: "CloudFormation Core",
+    q: "A team stores a database endpoint in SSM Parameter Store and wants templates to read it at deploy time. Which TWO approaches work? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "A parameter of type AWS::SSM::Parameter::Value<String> whose default is the parameter name.",
+        why: "Correct. CloudFormation resolves the parameter value at create and update time." },
+      { t: "A dynamic reference {{resolve:ssm:/app/db/endpoint}} inline in the property.",
+        why: "Correct. Dynamic references read Parameter Store values inline." },
+      { t: "Fn::ImportValue /app/db/endpoint",
+        why: "ImportValue reads CloudFormation exports, not SSM parameters." },
+      { t: "Fn::FindInMap [SSM, app, endpoint]",
+        why: "Mappings are static literals in the template." },
+      { t: "Fn::GetAtt SSM.Endpoint",
+        why: "GetAtt reads attributes of resources in the template." }
+    ],
+    answer: [0, 1],
+    tip: "Read Parameter Store → SSM parameter types or {{resolve:ssm:...}}."
+  },
+  {
+    id: "cfn-20", domain: "d2", topic: "CloudFormation Core",
+    q: "A template sets UserData with the YAML '!Base64 !Sub \"...\"' on one line and fails to parse. What is the fix?",
+    options: [
+      { t: "Use the long form outside, for example 'Fn::Base64: !Sub |' followed by the script.",
+        why: "Correct. Some short forms can't be nested directly; mixing long and short forms solves it." },
+      { t: "Remove Base64 because UserData doesn't need encoding.",
+        why: "EC2 UserData in CloudFormation must be Base64 encoded." },
+      { t: "Replace Sub with Join.",
+        why: "The nesting problem remains if written the same way." },
+      { t: "Store UserData in Mappings.",
+        why: "Mappings can't hold functions, and UserData still needs encoding." }
+    ],
+    answer: [0],
+    tip: "!Base64 !Sub on one line fails → Fn::Base64: !Sub |."
+  },
+  {
+    id: "cfn-21", domain: "d2", topic: "CloudFormation Core",
+    q: "A stack update changes Environment from prod to dev. A condition IsProd guards an RDS read replica resource. What happens to the replica, and how could data be protected?",
+    options: [
+      { t: "The condition becomes false so CloudFormation deletes the replica; set a DeletionPolicy (Retain or Snapshot) on database resources to protect data.",
+        why: "Correct. Resources whose condition becomes false are deleted on update." },
+      { t: "Nothing happens; conditions only apply at stack creation.",
+        why: "Conditions are evaluated on every create and update." },
+      { t: "The update fails automatically.",
+        why: "It succeeds and removes the resource." },
+      { t: "The replica is stopped but kept.",
+        why: "It's deleted, not stopped." }
+    ],
+    answer: [0],
+    tip: "Condition turns false on update → resource deleted; protect data with DeletionPolicy."
+  },
+  {
+    id: "cfn-22", domain: "d2", topic: "CloudFormation Core",
+    q: "A team wants a parameter for the VPC where resources are created, and CloudFormation should reject IDs that don't exist in the account before creating anything. Which parameter type should they use?",
+    options: [
+      { t: "AWS::EC2::VPC::Id",
+        why: "Correct. AWS-specific parameter types are validated against existing resources and show a dropdown in the console." },
+      { t: "String with AllowedPattern ^vpc-",
+        why: "Checks the format only, not whether the VPC exists." },
+      { t: "CommaDelimitedList",
+        why: "A list type without existence validation." },
+      { t: "AWS::SSM::Parameter::Value<String>",
+        why: "Reads a Parameter Store value; doesn't validate VPC existence." }
+    ],
+    answer: [0],
+    tip: "Validate real resource IDs → AWS-specific parameter types (AWS::EC2::VPC::Id, Subnet::Id...)."
   }
 ];

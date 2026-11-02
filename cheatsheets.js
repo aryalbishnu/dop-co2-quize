@@ -1025,6 +1025,83 @@ window.CHEATSHEETS.unshift({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "CloudFormation Core",
+  sections: [
+    { h: "Template sections", table: [
+      ["Section", "Key points"],
+      ["**Resources**", "**Only required section** · logical ID vs physical ID"],
+      ["Parameters", "Literal inputs · types · constraints · NoEcho · UsePreviousValue"],
+      ["Rules", "Validate parameter combinations **before** anything runs (Assertions)"],
+      ["Mappings", "**Two levels, literals only** · `!FindInMap [Map, Key1, Key2]`"],
+      ["Conditions", "Params, mappings, pseudo params, other conditions — **never resources**"],
+      ["Transform", "SAM, **LanguageExtensions** (ForEach, Length, FindInMap DefaultValue), Include, macros"],
+      ["Outputs", "Show / export values · 200 max · never secrets"],
+      ["Limits", "**51,200 bytes** direct / **1 MB** from S3 · 500 resources · 200 params / mappings / outputs"]
+    ]},
+    { h: "Parameters", items: [
+      "Types: String, Number, List<Number>, CommaDelimitedList",
+      "**AWS-specific types** (`AWS::EC2::VPC::Id`, `List<AWS::EC2::Subnet::Id>`, KeyPair, Image, SG) = **validated to exist** + console dropdown",
+      "**SSM parameter types** `AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>` = read every create/update · **latest AMI** · **no SecureString**",
+      "Constraints: AllowedValues, AllowedPattern, Min/MaxLength, Min/MaxValue, ConstraintDescription",
+      "**NoEcho** masks describe calls only — leaks via Outputs / Metadata",
+      "Metadata `AWS::CloudFormation::Interface` = console groups and labels"
+    ]},
+    { h: "Conditions and outputs", items: [
+      "Equals · And / Or (2–10) · Not · Condition · **If** in properties / outputs",
+      "**`!If [Cond, value, !Ref \"AWS::NoValue\"]`** removes a property",
+      "`Condition:` attribute on resources and outputs · dependants need the same condition",
+      "Condition turns **false on update → resource deleted** (protect with DeletionPolicy)",
+      "**Export names unique per account + Region** · **ImportValue same Region only** · export **locked while imported**",
+      "Cross-Region / cross-account values → SSM Parameter Store, StackSets, custom resource"
+    ]},
+    { h: "Intrinsic functions", table: [
+      ["Function", "Use"],
+      ["**Ref**", "Parameter value / resource **physical ID** (bucket name, instance ID)"],
+      ["**GetAtt**", "Attributes: **Arn**, DNSName, Endpoint.Address · literal Resource.Attribute only"],
+      ["**Sub**", "`${Param}`, `${Res}`, `${Res.Attr}`, `${AWS::Region}` · **`${!VAR}`** = literal · map form"],
+      ["Join / Split / Select", "Lists and strings · `!Select [0, !GetAZs \"\"]`"],
+      ["GetAZs", "AZs of the Region (`\"\"` = current)"],
+      ["FindInMap", "Mappings lookup (DefaultValue needs LanguageExtensions)"],
+      ["Base64", "EC2 **UserData** · write `Fn::Base64: !Sub |`"],
+      ["Cidr", "Subnet CIDR lists"],
+      ["ImportValue", "Read exports (same Region)"],
+      ["ForEach / Length / ToJsonString", "Need **AWS::LanguageExtensions**"]
+    ]},
+    { h: "Dynamic references and pseudo parameters", items: [
+      "`{{resolve:ssm:/name}}` String · `{{resolve:ssm-secure:/name:1}}` SecureString (**limited properties**) · **`{{resolve:secretsmanager:id:SecretString:key}}`** (preferred)",
+      "Resolved at create / update only — later secret changes need a stack update",
+      "Or `GenerateSecretString` / RDS `ManageMasterUserPassword`",
+      "Pseudo: AccountId, Region, StackName, StackId, **Partition** (portable ARNs), URLSuffix, NotificationARNs, **NoValue**"
+    ]},
+    { h: "Updates, names, tooling", items: [
+      "Update behaviours: no interruption · some interruption · **replacement** (old deleted) → preview with **change sets**",
+      "**Custom names block replacement** and duplicate stacks → generated names or `${AWS::StackName}`",
+      "Capabilities: **CAPABILITY_IAM**, **CAPABILITY_NAMED_IAM** (custom IAM names), **CAPABILITY_AUTO_EXPAND** (macros)",
+      "Ref / GetAtt = implicit dependency · **DependsOn** only when no reference",
+      "`validate-template` = **syntax only** · **cfn-lint** = properties · **cfn-guard** = policies · `package` → S3, `deploy` uses change sets"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Latest AMI, no template edits", "SSM parameter type"],
+      ["Optional property", "If + AWS::NoValue"],
+      ["Value from a parameter inside Mappings", "Not allowed (literals only)"],
+      ["Condition on a resource", "Not allowed — use a parameter"],
+      ["Import across Regions", "Not possible — SSM / custom resource"],
+      ["Change an export in use", "Remove imports first"],
+      ["Password safely", "resolve:secretsmanager"],
+      ["Bash $VAR inside Sub", "${!VAR}"],
+      ["ARN for China / GovCloud", "${AWS::Partition}"],
+      ["Bucket ARN", "GetAtt Bucket.Arn (Ref = name)"],
+      ["Reject bad parameter combos", "Rules section"],
+      ["validate passed, deploy failed", "cfn-lint"],
+      ["Template too big", "Upload to S3 (1 MB)"],
+      ["Named IAM role", "CAPABILITY_NAMED_IAM"],
+      ["Validate real VPC ID", "AWS::EC2::VPC::Id type"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
