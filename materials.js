@@ -23,5 +23,6 @@ window.MATERIALS = [
   { domain: "d1", topics: [], title: "Domain 1 master cheat sheet and keyword list (SDLC Automation)", file: "pdfs/Domain1_Master_Cheat_Sheet.pdf" },
   { domain: "d1", topics: [], title: "Deployment types by service (canary, linear, blue/green, rolling)", file: "pdfs/Domain1_Deployment_Types_by_Service.pdf" },
   { domain: "d2", topics: ["CloudFormation Core"], title: "Week 3 notes - CloudFormation core (traps, lab, check yourself)", file: "pdfs/Week3_CloudFormation_Core.pdf" },
-  { domain: "d2", topics: ["CloudFormation Change Control"], title: "Week 3 notes - CloudFormation change control (traps, lab, check yourself)", file: "pdfs/Week3_CloudFormation_Change_Control.pdf" }
+  { domain: "d2", topics: ["CloudFormation Change Control"], title: "Week 3 notes - CloudFormation change control (traps, lab, check yourself)", file: "pdfs/Week3_CloudFormation_Change_Control.pdf" },
+  { domain: "d2", topics: ["Nested and Cross-Stack"], title: "Week 3 notes - Nested stacks vs cross-stack references (traps, lab, check yourself)", file: "pdfs/Week3_Nested_vs_CrossStack.pdf" }
 ];

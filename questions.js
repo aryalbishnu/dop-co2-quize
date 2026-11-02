@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -6095,5 +6095,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "deploy creates a change set; --no-execute-changeset = preview only."
+  },
+
+  // ───────────────────────────── Domain 2: Nested and Cross-Stack ─────────────────────────────
+  {
+    id: "ncs-01", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A central network team manages a VPC that 15 application teams use. Each team deploys its own stack on its own schedule and must reference the VPC and subnet IDs. The network stack changes rarely. Which approach fits BEST?",
+    options: [
+      { t: "Export the VPC and subnet IDs from the network stack and use Fn::ImportValue in each application stack.",
+        why: "Correct. Cross-stack references suit shared resources with their own lifecycle and owner, used by independently deployed stacks." },
+      { t: "Make the network template a nested stack inside every application's root stack.",
+        why: "Each application would create its own VPC, and the network team would lose control of one shared VPC." },
+      { t: "Copy the VPC resources into every application template.",
+        why: "Creates many VPCs and duplicated code." },
+      { t: "Hard-code the VPC ID in each template.",
+        why: "Fragile and breaks when the VPC changes." }
+    ],
+    answer: [0],
+    tip: "Shared resource, separate lifecycle, many consumers → cross-stack exports (or SSM)."
+  },
+  {
+    id: "ncs-02", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A company has an approved template for an ALB, target group, listeners and alarms. Every application template must include this exact setup, deployed together with the application. What is the BEST way to reuse it?",
+    options: [
+      { t: "Use it as a nested stack (AWS::CloudFormation::Stack) in each application's root template, or package it as a CloudFormation module.",
+        why: "Correct. Nested stacks (or modules) reuse a template as a component, so each app gets its own copy deployed with it." },
+      { t: "Deploy one ALB stack and export its ARN to all applications.",
+        why: "That shares one ALB instance; the requirement is a standard setup per application." },
+      { t: "Store the template in Parameter Store.",
+        why: "Parameter Store holds values, not deployable components." },
+      { t: "Use Fn::ImportValue to import the template.",
+        why: "ImportValue reads exported values, not templates." }
+    ],
+    answer: [0],
+    tip: "Reuse a template as a component → nested stack (or module)."
+  },
+  {
+    id: "ncs-03", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "An application's single template has grown to 750 resources and can't be deployed. The application must still be deployed and rolled back as one unit. What should the team do?",
+    options: [
+      { t: "Split it into a root stack with nested child stacks; each child has its own 500-resource limit.",
+        why: "Correct. Nested stacks scale past the per-stack limit while keeping one deployment unit." },
+      { t: "Request an increase to 1,000 resources per stack.",
+        why: "Restructuring into nested stacks is the intended approach." },
+      { t: "Split it into independent stacks with exports.",
+        why: "Possible, but they would no longer deploy and roll back as one unit." },
+      { t: "Move resources into Mappings.",
+        why: "Mappings can't contain resources." }
+    ],
+    answer: [0],
+    tip: "More than 500 resources, one unit → nested stacks."
+  },
+  {
+    id: "ncs-04", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "In a root stack, child stack Database needs the VPC ID created by child stack Network. What is the correct way to pass it?",
+    options: [
+      { t: "In the root template, set the Database stack's VpcId parameter to !GetAtt Network.Outputs.VpcId.",
+        why: "Correct. The parent reads a child output with GetAtt and passes it as a parameter to the sibling, which also orders creation." },
+      { t: "Export VpcId from Network and use ImportValue in Database.",
+        why: "Works but adds unnecessary exports and export locks inside one unit." },
+      { t: "Use !Ref Network.VpcId in the Database template.",
+        why: "A child template can't reference resources in another child." },
+      { t: "Use DependsOn only.",
+        why: "DependsOn controls order but doesn't pass values." }
+    ],
+    answer: [0],
+    tip: "Sibling to sibling → parent passes !GetAtt ChildA.Outputs.X as a parameter to ChildB."
+  },
+  {
+    id: "ncs-05", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A root template references child templates with local paths in TemplateURL (for example network.yaml). Deployment with create-stack fails. What should be done?",
+    options: [
+      { t: "Run aws cloudformation package to upload the child templates to S3 and rewrite TemplateURL, then deploy the packaged template.",
+        why: "Correct. TemplateURL must be an S3 URL; package handles uploading and rewriting." },
+      { t: "Zip the templates and upload them as one file.",
+        why: "CloudFormation doesn't accept zipped template sets." },
+      { t: "Use Fn::ImportValue for the child templates.",
+        why: "ImportValue reads exports, not templates." },
+      { t: "Put the child templates in Mappings.",
+        why: "Mappings hold literal values." }
+    ],
+    answer: [0],
+    tip: "Nested TemplateURL must be S3 → aws cloudformation package."
+  },
+  {
+    id: "ncs-06", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A stack in eu-west-1 needs the VPC ID exported by a stack in us-east-1. The engineer uses Fn::ImportValue and the stack fails. What is a valid solution?",
+    options: [
+      { t: "Store the value in SSM Parameter Store in eu-west-1 (written by a pipeline, StackSets or a custom resource) and read it with an SSM parameter type or dynamic reference.",
+        why: "Correct. Exports are same account and same Region only." },
+      { t: "Add the Region to the export name.",
+        why: "Naming doesn't make exports work across Regions." },
+      { t: "Make the eu-west-1 stack a nested stack of the us-east-1 stack.",
+        why: "Nested stacks are created in the root's Region." },
+      { t: "Enable cross-Region replication on the export.",
+        why: "There is no such feature for exports." }
+    ],
+    answer: [0],
+    tip: "Cross-Region / cross-account values → SSM Parameter Store, StackSets, custom resource."
+  },
+  {
+    id: "ncs-07", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "The network team must replace the shared VPC. Updating the network stack fails: 'Export network-prod-VpcId cannot be updated as it is in use by app-a, app-b'. What is the correct process?",
+    options: [
+      { t: "Update app-a and app-b to stop importing (or switch to a new export or value) first, then update the network stack.",
+        why: "Correct. Exports in use are locked until every importing stack removes the import." },
+      { t: "Delete the network stack and recreate it.",
+        why: "The stack can't be deleted while its exports are imported." },
+      { t: "Add DeletionPolicy: Retain to the export.",
+        why: "DeletionPolicy applies to resources, not exports." },
+      { t: "Use termination protection on the app stacks.",
+        why: "Unrelated to export locks." }
+    ],
+    answer: [0],
+    tip: "Export in use is locked → change consumers first."
+  },
+  {
+    id: "ncs-08", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A new application stack fails with 'No export named network-prod-VpcId found'. What are the MOST likely causes? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "The network stack hasn't been deployed yet (or failed) in this account and Region.",
+        why: "Correct. The producer must exist before consumers." },
+      { t: "The export name differs (for example a different stack name prefix) or it's in a different Region.",
+        why: "Correct. Names must match exactly, and imports are Region-scoped." },
+      { t: "The application stack has termination protection.",
+        why: "Unrelated." },
+      { t: "The application stack lacks CAPABILITY_IAM.",
+        why: "That error is about IAM resources, not exports." },
+      { t: "Exports only work with nested stacks.",
+        why: "Exports are for independent stacks." }
+    ],
+    answer: [0, 1],
+    tip: "No export found → producer not deployed / wrong name / wrong Region."
+  },
+  {
+    id: "ncs-09", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "Before changing an export, an engineer needs to know every stack that uses it. Which command helps?",
+    options: [
+      { t: "aws cloudformation list-imports --export-name network-prod-VpcId",
+        why: "Correct. list-imports lists the stacks importing an export." },
+      { t: "aws cloudformation detect-stack-drift",
+        why: "Drift detection compares resources with templates." },
+      { t: "aws cloudformation describe-change-set",
+        why: "Shows proposed changes, not importers." },
+      { t: "aws cloudformation validate-template",
+        why: "Syntax check only." }
+    ],
+    answer: [0],
+    tip: "Who uses an export → list-imports."
+  },
+  {
+    id: "ncs-10", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A root stack update fails with 'Embedded stack arn:...-Database-ABC was not successfully updated'. Where should the engineer look for the actual error?",
+    options: [
+      { t: "In the events of the nested Database stack itself.",
+        why: "Correct. The root shows only a summary; the real error is in the child stack's events." },
+      { t: "In the root stack's outputs.",
+        why: "Outputs don't contain error details." },
+      { t: "In AWS Config.",
+        why: "Config records configuration, not stack operation errors." },
+      { t: "In the S3 bucket holding the template.",
+        why: "The bucket only stores templates." }
+    ],
+    answer: [0],
+    tip: "Embedded stack failed → read the nested stack's own events."
+  },
+  {
+    id: "ncs-11", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "Three teams want to deploy their own parts of an application (frontend, API, data) independently, on different schedules. A proposal puts all three as nested stacks under one root stack. What is the problem?",
+    options: [
+      { t: "Nested stacks are deployed and rolled back together through the root, so teams can't deploy independently; use separate stacks with exports or SSM parameters.",
+        why: "Correct. Nested stacks are one unit; independent lifecycles need separate stacks." },
+      { t: "Nested stacks can't contain Lambda functions.",
+        why: "They can contain any resources." },
+      { t: "Nested stacks can't have outputs.",
+        why: "Children have outputs read with GetAtt." },
+      { t: "There is no problem.",
+        why: "The design conflicts with independent deployments." }
+    ],
+    answer: [0],
+    tip: "Independent team deployments → separate stacks, not nested."
+  },
+  {
+    id: "ncs-12", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "During a root stack update, the App child stack fails. What happens to the Network and Database child stacks that were updated successfully in the same operation?",
+    options: [
+      { t: "The whole root update rolls back, including the successfully updated children.",
+        why: "Correct. Nested stacks are one unit; a failure rolls back the entire tree." },
+      { t: "Only the App stack rolls back.",
+        why: "The rollback covers the whole root operation." },
+      { t: "Network and Database are deleted.",
+        why: "They're rolled back to their previous state, not deleted." },
+      { t: "The update is paused until someone approves.",
+        why: "CloudFormation rolls back automatically by default." }
+    ],
+    answer: [0],
+    tip: "Nested = whole-tree rollback."
+  },
+  {
+    id: "ncs-13", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A team wants to reduce the coupling between a frequently updated shared configuration stack and dozens of consumer stacks. Export locks keep blocking updates. Which alternative removes the lock, and what is the trade-off?",
+    options: [
+      { t: "Write the values to SSM Parameter Store and have consumers read them with SSM parameter types or dynamic references; there's no lock, but nothing prevents breaking consumers, and they get new values only on their next update.",
+        why: "Correct. SSM decouples stacks but gives up the protection exports provide." },
+      { t: "Use nested stacks for all consumers.",
+        why: "Would force all consumers into one deployment unit." },
+      { t: "Use longer export names.",
+        why: "Names don't affect locking." },
+      { t: "Disable export locking in account settings.",
+        why: "No such setting exists." }
+    ],
+    answer: [0],
+    tip: "No export locks → SSM Parameter Store (trade-off: no protection, update on next deploy)."
+  },
+  {
+    id: "ncs-14", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "Two teams each deploy a stack with an Output export named 'VpcId' in the same account and Region. The second deployment fails. Why, and what's the fix?",
+    options: [
+      { t: "Export names must be unique per account and Region; prefix them with the stack name, for example !Sub \"${AWS::StackName}-VpcId\".",
+        why: "Correct. Unique export names avoid collisions." },
+      { t: "Only one stack per Region can have outputs.",
+        why: "Any number of stacks can have outputs." },
+      { t: "Exports need CAPABILITY_NAMED_IAM.",
+        why: "Capabilities aren't related to exports." },
+      { t: "The second stack must import the first export.",
+        why: "Doesn't solve the duplicate name." }
+    ],
+    answer: [0],
+    tip: "Export names unique per account+Region → ${AWS::StackName}-Name."
+  },
+  {
+    id: "ncs-15", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A root stack contains a nested stack built from a SAM AWS::Serverless::Application and another nested template using a macro. Deployment fails on capabilities. What must be acknowledged?",
+    options: [
+      { t: "CAPABILITY_AUTO_EXPAND (plus CAPABILITY_IAM or CAPABILITY_NAMED_IAM if IAM resources are created).",
+        why: "Correct. Macros, transforms and serverless applications require auto-expand acknowledgment." },
+      { t: "Only CAPABILITY_IAM.",
+        why: "Not enough for macros and nested serverless applications." },
+      { t: "No capabilities; nested stacks don't need them.",
+        why: "Capabilities are required for these resources." },
+      { t: "A stack policy allowing Update:*.",
+        why: "Stack policies aren't capabilities." }
+    ],
+    answer: [0],
+    tip: "Macros / SAM nested apps → CAPABILITY_AUTO_EXPAND."
+  },
+  {
+    id: "ncs-16", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A nested child stack is stuck in UPDATE_ROLLBACK_FAILED because one of its resources was deleted outside CloudFormation. How should the team recover?",
+    options: [
+      { t: "Run continue-update-rollback on the root stack with --resources-to-skip ChildStackLogicalId.ResourceLogicalId.",
+        why: "Correct. Recovery is done from the root, skipping the resources that can't be rolled back." },
+      { t: "Delete the child stack directly.",
+        why: "Nested stacks should be managed through the root." },
+      { t: "Run drift detection.",
+        why: "Detects but doesn't recover the rollback." },
+      { t: "Update the child stack directly with a new template.",
+        why: "Updates must go through the root, and a stack in this state can't be updated." }
+    ],
+    answer: [0],
+    tip: "Nested UPDATE_ROLLBACK_FAILED → continue-update-rollback on root with --resources-to-skip Child.Res."
+  },
+  {
+    id: "ncs-17", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A company deploys layered stacks: network, security (KMS keys, roles), data (RDS) and several app stacks. In which order should they be deployed and deleted when using exports?",
+    options: [
+      { t: "Deploy bottom to top (network, security, data, apps); delete top to bottom (apps first, network last).",
+        why: "Correct. Producers must exist before consumers, and consumers must stop importing before producers are deleted." },
+      { t: "Deploy apps first, then the network.",
+        why: "Imports would fail with no export found." },
+      { t: "Delete the network first.",
+        why: "Blocked while exports are imported." },
+      { t: "Order doesn't matter with exports.",
+        why: "Exports create strict dependencies." }
+    ],
+    answer: [0],
+    tip: "Layered exports: deploy bottom-up, delete top-down."
+  },
+  {
+    id: "ncs-18", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A child template expects a list of subnet IDs. The parent passes !GetAtt Network.Outputs.PrivateSubnetIds, which the Network child built with !Join. How should the receiving child declare the parameter?",
+    options: [
+      { t: "As List<AWS::EC2::Subnet::Id> (or CommaDelimitedList), because nested stack parameters arrive as comma-delimited strings.",
+        why: "Correct. Lists are passed as strings and converted by the list parameter type." },
+      { t: "As Number.",
+        why: "Subnet IDs aren't numbers." },
+      { t: "As a JSON object.",
+        why: "Parameters don't accept objects." },
+      { t: "Lists can't be passed to nested stacks.",
+        why: "They can, as comma-delimited strings." }
+    ],
+    answer: [0],
+    tip: "Lists between stacks = comma-delimited strings (Join / Split, list parameter types)."
+  },
+  {
+    id: "ncs-19", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A team wants the database and the application tier separated so that a failed application deployment never rolls back or redeploys the database. Which design is BEST?",
+    options: [
+      { t: "Put the database in its own stack (with DeletionPolicy protection) and have the app stack import its endpoint (or read it from SSM).",
+        why: "Correct. Separate stacks give separate lifecycles and blast radius." },
+      { t: "Put both as nested stacks under one root.",
+        why: "A failed app update would roll back the whole tree, including the database stack." },
+      { t: "Put both in one template with DependsOn.",
+        why: "Still one stack and one rollback." },
+      { t: "Use a stack policy on the app stack.",
+        why: "Doesn't separate lifecycles." }
+    ],
+    answer: [0],
+    tip: "Different lifecycle / blast radius → separate stacks (cross-stack or SSM)."
+  },
+  {
+    id: "ncs-20", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A team using AWS CDK moved a bucket from one stack to another. Deployment fails because the producing stack can't remove an export that the consumer still imports. What causes this, and what is a common fix?",
+    options: [
+      { t: "CDK automatically creates Export/ImportValue pairs for cross-stack references; deploy in two steps (remove the use from the consumer first) or share the value through SSM Parameter Store.",
+        why: "Correct. CDK cross-stack references are CloudFormation exports and inherit the export lock." },
+      { t: "CDK can't share resources between stacks.",
+        why: "It can, through generated exports." },
+      { t: "The bucket needs termination protection.",
+        why: "Unrelated." },
+      { t: "CDK always uses nested stacks.",
+        why: "Only NestedStack constructs create nested stacks." }
+    ],
+    answer: [0],
+    tip: "CDK cross-stack refs = exports → export lock; two-step deploy or SSM."
+  },
+  {
+    id: "ncs-21", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "A team wants to preview which resources inside child stacks will change before updating a root stack with several nested stacks. What should they use?",
+    options: [
+      { t: "A change set on the root stack created with --include-nested-stacks.",
+        why: "Correct. Nested change sets show resource-level changes in each child." },
+      { t: "Drift detection on the root.",
+        why: "Drift compares current resources with the current template." },
+      { t: "list-imports.",
+        why: "Lists stacks importing an export." },
+      { t: "Termination protection.",
+        why: "Unrelated to previews." }
+    ],
+    answer: [0],
+    tip: "Preview nested changes → change set with --include-nested-stacks."
+  },
+  {
+    id: "ncs-22", domain: "d2", topic: "Nested and Cross-Stack",
+    q: "Which statement correctly compares nested stacks and cross-stack references?",
+    options: [
+      { t: "Nested stacks reuse a template as components deployed together as one unit; cross-stack references share values from separately managed stacks in the same account and Region.",
+        why: "Correct. That's the core distinction tested on the exam." },
+      { t: "Nested stacks work across Regions; exports don't.",
+        why: "Neither works across Regions." },
+      { t: "Cross-stack references roll back all importing stacks when the exporter fails.",
+        why: "Stacks with imports are independent operations." },
+      { t: "Nested stacks need exports to pass values to the parent.",
+        why: "The parent uses GetAtt on child outputs." }
+    ],
+    answer: [0],
+    tip: "Nested = template reuse, one unit. Cross-stack = shared values, separate lifecycles, same Region."
   }
 ];

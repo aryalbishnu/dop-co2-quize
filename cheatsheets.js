@@ -1172,6 +1172,63 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Nested and Cross-Stack",
+  sections: [
+    { h: "Nested vs cross-stack", table: [
+      ["", "Nested stacks", "Cross-stack references"],
+      ["Relationship", "Parent owns children (`AWS::CloudFormation::Stack`)", "Independent peer stacks"],
+      ["Lifecycle", "**One unit** through the root · **whole-tree rollback**", "**Separate** schedules and owners"],
+      ["Values", "Parameters down · **`!GetAtt Child.Outputs.X`** up", "**`Export`** + **`Fn::ImportValue`**"],
+      ["Reuse", "**Same template** in many parents", "**One shared instance** for many stacks"],
+      ["Change shared value", "Update the root", "**Locked while imported**"],
+      ["Limits", "Each child **500 resources** (scale past 500)", "200 outputs · unique export names"],
+      ["Cross-Region / account", "No", "**No** → SSM, StackSets, custom resource"]
+    ]},
+    { h: "Nested stacks", items: [
+      "`TemplateURL` must be **S3** → **`aws cloudformation package`** uploads children and rewrites URLs",
+      "Parameters are **strings** (lists comma-delimited) · siblings: parent passes `GetAtt A.Outputs.X` to B (implicit order)",
+      "Create / update / delete **through the root** · don't update children directly",
+      "Errors: read the **child stack's events** (root says Embedded stack failed)",
+      "`--include-nested-stacks` for change sets · termination protection on **root**",
+      "**`CAPABILITY_AUTO_EXPAND`** for macros / `AWS::Serverless::Application` (+ CAPABILITY_IAM)",
+      "UPDATE_ROLLBACK_FAILED → **continue-update-rollback on root** with `--resources-to-skip Child.Res`"
+    ]},
+    { h: "Cross-stack exports", items: [
+      "Export names **unique per account + Region** → `${AWS::StackName}-Name`",
+      "**Same account and Region only**",
+      "**Export lock:** can't delete producer or change/remove an export while imported → change consumers first",
+      "Producer first, else **No export named X found** (or wrong name / Region)",
+      "`list-exports` · **`list-imports --export-name`**",
+      "Lists: Join on export, `!Split` on import · consumers don't auto-update",
+      "Layered stacks: deploy **bottom-up**, delete **top-down**"
+    ]},
+    { h: "SSM Parameter Store alternative", items: [
+      "Producer `AWS::SSM::Parameter` · consumer `AWS::SSM::Parameter::Value<...>` or `{{resolve:ssm:...}}`",
+      "**No lock**, works for non-CloudFormation tools, per-Region with StackSets, RAM sharing across accounts (advanced)",
+      "Trade-off: **no protection**, consumers get new values only on next update",
+      "CDK cross-stack references = generated exports → two-step deploy or SSM"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Shared VPC, many teams, own schedules", "Cross-stack exports (or SSM)"],
+      ["Standard ALB in every app", "Nested stack (or module)"],
+      ["750 resources, one unit", "Nested stacks"],
+      ["Sibling needs other sibling's output", "Parent passes GetAtt Child.Outputs.X"],
+      ["Local TemplateURL fails", "cloudformation package"],
+      ["Value from another Region", "SSM Parameter Store / custom resource"],
+      ["Export in use blocks update", "Change consumers first"],
+      ["No export named X found", "Producer missing / wrong name / Region"],
+      ["Who imports this export", "list-imports"],
+      ["Embedded stack failed", "Child stack events"],
+      ["Teams deploy parts independently", "Separate stacks, not nested"],
+      ["Avoid export locks", "SSM Parameter Store"],
+      ["Macros / SAM app nested", "CAPABILITY_AUTO_EXPAND"],
+      ["Nested UPDATE_ROLLBACK_FAILED", "continue-update-rollback on root"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
