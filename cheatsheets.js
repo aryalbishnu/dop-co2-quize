@@ -1303,6 +1303,78 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Extending CloudFormation",
+  sections: [
+    { h: "Five ways to extend", table: [
+      ["Feature", "What / when", "Keyword"],
+      ["**Custom resource**", "Your code (Lambda / SNS) during Create / Update / Delete", "Unsupported action, lookup, empty bucket"],
+      ["**Macro**", "Rewrites the template **before** processing", "Shorthand, boilerplate, Transform"],
+      ["**Module**", "Reusable resource bundle `...::MODULE`, **same stack**", "Approved pattern, no extra stacks"],
+      ["**Hook**", "Validates **before** provisioning · FAIL or WARN", "Proactive control"],
+      ["**Registry**", "Resource types, modules, hooks · public / private", "Third-party, activate, private type"]
+    ]},
+    { h: "Custom resources", items: [
+      "`Type: Custom::X` · **`ServiceToken`** = Lambda ARN or SNS topic · optional **`ServiceTimeout`** (max 3600 s)",
+      "Event: **RequestType Create / Update / Delete**, **ResponseURL** (presigned S3), ResourceProperties (strings), OldResourceProperties, PhysicalResourceId",
+      "Response: **PUT JSON** Status SUCCESS / FAILED, Reason, PhysicalResourceId, **Data** (→ `!GetAtt Res.Key`), NoEcho · max 4 KB",
+      "**Always respond** (try / except / finally) — else stack waits **1 h default** (or ServiceTimeout)",
+      "**Delete must succeed** · 'already gone' = SUCCESS · else DELETE_FAILED / stuck rollback",
+      "**Stable PhysicalResourceId** — new ID = replacement = Delete of old",
+      "Update runs only when **properties change** → bump `Version`",
+      "VPC Lambda needs **NAT / S3 endpoint** for ResponseURL · `cfnresponse` only for **inline ZipFile** (else crhelper)",
+      "Uses: empty bucket, cross-Region / account lookups, unsupported APIs, SaaS, seed DB"
+    ]},
+    { h: "Macros", items: [
+      "AWS transforms: **Serverless** (SAM), **Include** (S3 snippet), **LanguageExtensions** (ForEach, Length, ToJsonString, FindInMap DefaultValue), SecretsManager (rotation), CodeDeployBlueGreen (ECS)",
+      "Custom: Lambda + **`AWS::CloudFormation::Macro`** · returns requestId, status success, fragment",
+      "Template-level `Transform: [...]` (in order) · snippet-level `Fn::Transform`",
+      "**CAPABILITY_AUTO_EXPAND** · **same account + Region** (StackSets to distribute)",
+      "Change sets show processed template · keep macros deterministic"
+    ]},
+    { h: "Modules", items: [
+      "`Org::Service::Name::MODULE` · built with CloudFormation CLI (`cfn init`, `cfn submit`) · versioned in Registry",
+      "Resources **merged into the same stack** · IDs prefixed: `LogsBucket` + `Bucket` = **`LogsBucketBucket`**",
+      "**Don't help past 500 resources** (use nested stacks)",
+      "Module = small standard block · nested stack = big component / separate stack"
+    ]},
+    { h: "Hooks and other controls", table: [
+      ["Control", "When / what"],
+      ["**Hooks** (Guard, Lambda, custom)", "**Proactive**: pre-create / update / delete in CloudFormation, every stack · FAIL or **WARN** · resources, stacks, change sets"],
+      ["cfn-lint / cfn-guard in CI", "Shift-left in one pipeline"],
+      ["SCPs / IAM", "Preventive at the API level, all tools"],
+      ["AWS Config", "**Detective** after creation (+ remediation)"],
+      ["Control Tower proactive controls", "Built on **Hooks**"]
+    ]},
+    { h: "Registry", items: [
+      "Extensions: **resource types** (handlers CRUD + list, drift, import), **modules**, **hooks**",
+      "**Public** (AWS / verified third party, e.g. MongoDB::Atlas, Datadog) → **activate** per account + Region, optional minor auto-update",
+      "**Private** → register with `cfn submit` · set default version",
+      "Execution role + logging config · roll out with **StackSets** (TypeActivation, ResourceVersion, HookVersion, ModuleVersion)",
+      "Private resource type > custom resource for **long-lived reused** integrations (drift, import, schema)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Empty bucket on delete", "Custom resource"],
+      ["Stack hangs ~1 h on custom resource", "No response sent"],
+      ["VPC custom resource hangs", "S3 endpoint / NAT"],
+      ["Rerun custom resource", "Change a property"],
+      ["Unexpected deletes after update", "Unstable PhysicalResourceId"],
+      ["Loops", "LanguageExtensions ForEach"],
+      ["Snippet from S3", "AWS::Include"],
+      ["Macro / SAM capability error", "CAPABILITY_AUTO_EXPAND"],
+      ["Macro not found in other account", "Deploy macro there (StackSets)"],
+      ["Secure bucket pattern, no extra stack", "Module"],
+      ["Module resource reference", "ModuleIdResourceId"],
+      ["Block bad SGs in every stack", "Hook (FAIL)"],
+      ["Roll out a Hook safely", "WARN first"],
+      ["MongoDB / Datadog in templates", "Activate public extension"],
+      ["Reused integration with drift", "Private resource type"],
+      ["Cross-Region value at deploy", "Custom resource"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

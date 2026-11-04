@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -6809,5 +6809,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Declarative EC2 config: Init metadata + cfn-init + cfn-signal/CreationPolicy + cfn-hup."
+  },
+
+  // ───────────────────────────── Domain 2: Extending CloudFormation ─────────────────────────────
+  {
+    id: "ext-01", domain: "d2", topic: "Extending CloudFormation",
+    q: "A stack contains an S3 bucket that always has objects in it. Deleting the stack fails with DELETE_FAILED on the bucket. The team wants the stack to delete cleanly, including the bucket, with no manual steps. What should they add?",
+    options: [
+      { t: "A Lambda-backed custom resource that empties the bucket when it receives a Delete request, then responds SUCCESS.",
+        why: "Correct. CloudFormation can't delete non-empty buckets; a custom resource can empty it during stack deletion." },
+      { t: "DeletionPolicy: Retain on the bucket.",
+        why: "The stack deletes, but the bucket and its data remain, which isn't the requirement." },
+      { t: "A Hook that deletes objects.",
+        why: "Hooks validate configurations; they don't perform cleanup actions." },
+      { t: "Termination protection.",
+        why: "Blocks deletion entirely." }
+    ],
+    answer: [0],
+    tip: "Empty bucket on stack delete → custom resource (Delete handler)."
+  },
+  {
+    id: "ext-02", domain: "d2", topic: "Extending CloudFormation",
+    q: "A custom resource's Lambda function throws an exception and exits without sending a response. What happens to the stack, and how should the code be fixed?",
+    options: [
+      { t: "The stack waits for a response until the custom resource timeout (1 hour by default, or ServiceTimeout) and then fails; the code should send SUCCESS or FAILED in a try/except/finally for every request type.",
+        why: "Correct. CloudFormation only knows the result from the response PUT to the ResponseURL." },
+      { t: "The stack fails immediately when Lambda reports an error.",
+        why: "CloudFormation doesn't see Lambda invocation errors; it waits for the response." },
+      { t: "CloudFormation retries the function every minute until it succeeds.",
+        why: "It doesn't keep retrying; it waits until the timeout." },
+      { t: "The resource is marked successful by default.",
+        why: "No response means it eventually fails." }
+    ],
+    answer: [0],
+    tip: "Custom resource must ALWAYS respond (default wait 1 h; set ServiceTimeout)."
+  },
+  {
+    id: "ext-03", domain: "d2", topic: "Extending CloudFormation",
+    q: "A stack is stuck in DELETE_IN_PROGRESS on a custom resource for nearly an hour. The function's Delete branch calls an API that returns 'not found' because the resource was already removed, and the code raises an error without responding. What should the developer change?",
+    options: [
+      { t: "Treat 'not found' as success in the Delete handler and always send a response; optionally set ServiceTimeout to fail faster.",
+        why: "Correct. Delete handlers must succeed (or respond FAILED) so stack deletion and rollbacks don't hang." },
+      { t: "Add DeletionPolicy: Snapshot to the custom resource.",
+        why: "Snapshot isn't supported for custom resources and doesn't fix the response." },
+      { t: "Disable termination protection.",
+        why: "The stack is already deleting." },
+      { t: "Increase the Lambda memory.",
+        why: "Not related to missing responses." }
+    ],
+    answer: [0],
+    tip: "Delete handler: idempotent, 'already gone' = SUCCESS, always respond."
+  },
+  {
+    id: "ext-04", domain: "d2", topic: "Extending CloudFormation",
+    q: "A Lambda-backed custom resource runs in private subnets without a NAT gateway. Its code finishes successfully, but the stack always waits until the timeout. Why?",
+    options: [
+      { t: "The function can't reach the presigned S3 ResponseURL to send its response; add an S3 gateway endpoint or NAT.",
+        why: "Correct. The response is an HTTPS PUT to S3, which needs a network path." },
+      { t: "Custom resources can't run in a VPC.",
+        why: "They can, with the right network access." },
+      { t: "The ServiceToken must be an SNS topic.",
+        why: "Lambda ServiceTokens work fine." },
+      { t: "The stack needs CAPABILITY_AUTO_EXPAND.",
+        why: "That capability is for macros." }
+    ],
+    answer: [0],
+    tip: "VPC custom resource hangs → no route to S3 ResponseURL (S3 endpoint / NAT)."
+  },
+  {
+    id: "ext-05", domain: "d2", topic: "Extending CloudFormation",
+    q: "A team improved the code of the Lambda function behind a custom resource and updated the stack, but the custom resource didn't run again. How can they make CloudFormation send an Update request?",
+    options: [
+      { t: "Change one of the custom resource's properties, for example a Version or timestamp property.",
+        why: "Correct. Update requests are sent only when the custom resource's own properties change." },
+      { t: "Delete the Lambda function and redeploy.",
+        why: "Changing the function doesn't change the custom resource's properties." },
+      { t: "Run drift detection.",
+        why: "Drift detection doesn't trigger custom resources." },
+      { t: "Add DependsOn to the function.",
+        why: "Ordering doesn't trigger updates." }
+    ],
+    answer: [0],
+    tip: "Force custom resource rerun → change a property (Version)."
+  },
+  {
+    id: "ext-06", domain: "d2", topic: "Extending CloudFormation",
+    q: "After every stack update, a custom resource's external object is unexpectedly deleted. The handler returns context.log_stream_name as the PhysicalResourceId. What is the cause?",
+    options: [
+      { t: "A new PhysicalResourceId on Update makes CloudFormation treat it as a replacement and send a Delete for the old ID during cleanup; return a stable ID.",
+        why: "Correct. Changing the physical ID signals replacement." },
+      { t: "Custom resources always delete on update.",
+        why: "Only when the physical ID changes." },
+      { t: "The stack has DeletionPolicy: Delete.",
+        why: "DeletionPolicy applies on removal, not this behaviour." },
+      { t: "The Lambda timeout is too short.",
+        why: "The issue is the changing ID." }
+    ],
+    answer: [0],
+    tip: "Stable PhysicalResourceId — a new one = replacement = Delete of old."
+  },
+  {
+    id: "ext-07", domain: "d2", topic: "Extending CloudFormation",
+    q: "A custom resource looks up a value from an API and must make it available to other resources in the template. How should it do this?",
+    options: [
+      { t: "Return the value in the response Data and reference it with !GetAtt CustomResource.KeyName.",
+        why: "Correct. Data keys become attributes of the custom resource." },
+      { t: "Write it into the template file in S3.",
+        why: "The running stack doesn't re-read the template." },
+      { t: "Use Fn::ImportValue on the Lambda function.",
+        why: "Lambda functions don't create exports." },
+      { t: "Return it as the Reason field.",
+        why: "Reason is a text message, not an attribute." }
+    ],
+    answer: [0],
+    tip: "Custom resource outputs → response Data → GetAtt (NoEcho to mask)."
+  },
+  {
+    id: "ext-08", domain: "d2", topic: "Extending CloudFormation",
+    q: "A developer packages a custom resource Lambda as a zip in S3 and imports the cfnresponse module, but the function fails with 'No module named cfnresponse'. Why?",
+    options: [
+      { t: "cfnresponse is only provided automatically for inline ZipFile code; packaged code must include its own helper (for example crhelper or a copy of the module).",
+        why: "Correct. Packaged deployments don't get the module automatically." },
+      { t: "cfnresponse only works with Node.js.",
+        why: "It's available for Python and Node.js inline code." },
+      { t: "The function needs CAPABILITY_IAM.",
+        why: "Capabilities don't add modules." },
+      { t: "Custom resources must use SNS.",
+        why: "Lambda is the common choice." }
+    ],
+    answer: [0],
+    tip: "cfnresponse = inline ZipFile only."
+  },
+  {
+    id: "ext-09", domain: "d2", topic: "Extending CloudFormation",
+    q: "A template must create 20 nearly identical SQS queues from a list parameter, without writing a custom Lambda. What is the simplest option?",
+    options: [
+      { t: "Use the AWS::LanguageExtensions transform with Fn::ForEach.",
+        why: "Correct. LanguageExtensions provides loops in templates with no custom code." },
+      { t: "Write a custom macro in Lambda.",
+        why: "Works, but needs custom code when ForEach exists." },
+      { t: "Use Mappings to create resources.",
+        why: "Mappings can't create resources." },
+      { t: "Use a custom resource that creates the queues.",
+        why: "The queues wouldn't be normal stack resources." }
+    ],
+    answer: [0],
+    tip: "Loops in templates → AWS::LanguageExtensions Fn::ForEach."
+  },
+  {
+    id: "ext-10", domain: "d2", topic: "Extending CloudFormation",
+    q: "Several templates must include the same block of standard alarm resources stored centrally in S3, so a change to the block is picked up by every template on its next update. Which feature fits?",
+    options: [
+      { t: "The AWS::Include transform with Fn::Transform pointing to the S3 snippet.",
+        why: "Correct. AWS::Include inserts a template snippet from S3 at processing time." },
+      { t: "Fn::ImportValue",
+        why: "Imports values, not template blocks." },
+      { t: "A Hook.",
+        why: "Hooks validate, they don't insert resources." },
+      { t: "Mappings.",
+        why: "Literal lookup tables only." }
+    ],
+    answer: [0],
+    tip: "Shared snippet from S3 → AWS::Include."
+  },
+  {
+    id: "ext-11", domain: "d2", topic: "Extending CloudFormation",
+    q: "Deploying a template that uses AWS::Serverless and a custom macro fails with 'Requires capabilities: [CAPABILITY_AUTO_EXPAND]'. What does this mean?",
+    options: [
+      { t: "Templates with macros or transforms change before processing, so you must acknowledge CAPABILITY_AUTO_EXPAND to deploy them.",
+        why: "Correct. Auto-expand acknowledges that the processed template may differ from what you submitted." },
+      { t: "The stack creates IAM roles.",
+        why: "That would need CAPABILITY_IAM." },
+      { t: "The macro isn't registered.",
+        why: "That gives a different error about the missing macro." },
+      { t: "Nested stacks aren't allowed with SAM.",
+        why: "They are allowed." }
+    ],
+    answer: [0],
+    tip: "Macros / transforms / SAM → CAPABILITY_AUTO_EXPAND."
+  },
+  {
+    id: "ext-12", domain: "d2", topic: "Extending CloudFormation",
+    q: "A central team created a custom macro AddStandardTags in its tooling account in us-east-1. Application stacks in other accounts and in eu-west-1 fail because the macro can't be found. What is the fix?",
+    options: [
+      { t: "Deploy the macro (Lambda + AWS::CloudFormation::Macro) into each account and Region that uses it, for example with StackSets.",
+        why: "Correct. Macros must exist in the same account and Region as the stacks using them." },
+      { t: "Share the macro with AWS RAM.",
+        why: "Macros aren't shared through RAM." },
+      { t: "Reference the macro by full ARN.",
+        why: "Macros are referenced by name in the local account and Region." },
+      { t: "Add CAPABILITY_AUTO_EXPAND.",
+        why: "Needed, but doesn't make a remote macro available." }
+    ],
+    answer: [0],
+    tip: "Macros are per account + Region → roll out with StackSets."
+  },
+  {
+    id: "ext-13", domain: "d2", topic: "Extending CloudFormation",
+    q: "A platform team wants every team to create S3 buckets with the company's encryption, logging and public access settings by declaring a single resource, without creating extra stacks, and with versioned updates. What should they build?",
+    options: [
+      { t: "A CloudFormation module (for example MyCo::S3::SecureBucket::MODULE) registered in the Registry.",
+        why: "Correct. Modules package resources as one versioned type and are merged into the stack." },
+      { t: "A nested stack for each bucket.",
+        why: "Creates extra stacks." },
+      { t: "A custom resource that calls CreateBucket.",
+        why: "The bucket wouldn't be a normal managed resource with drift support." },
+      { t: "A Hook that creates the bucket.",
+        why: "Hooks validate; they don't create resources." }
+    ],
+    answer: [0],
+    tip: "Reusable versioned resource bundle, no extra stacks → module."
+  },
+  {
+    id: "ext-14", domain: "d2", topic: "Extending CloudFormation",
+    q: "A template uses a module with logical ID LogsBucket, and inside the module the bucket's logical ID is Bucket. How does another resource in the same template reference the bucket ARN?",
+    options: [
+      { t: "!GetAtt LogsBucketBucket.Arn",
+        why: "Correct. Module resource IDs are prefixed with the module's logical ID." },
+      { t: "!GetAtt LogsBucket.Outputs.Arn",
+        why: "That's nested stack syntax." },
+      { t: "!ImportValue LogsBucket-Arn",
+        why: "Modules don't create exports." },
+      { t: "!Ref Bucket",
+        why: "The plain name isn't used after the module is expanded." }
+    ],
+    answer: [0],
+    tip: "Module internals → <ModuleLogicalId><ResourceLogicalId>."
+  },
+  {
+    id: "ext-15", domain: "d2", topic: "Extending CloudFormation",
+    q: "An application template has 650 resources. A team suggests moving groups of resources into CloudFormation modules to get under the 500-resource limit. Will this work?",
+    options: [
+      { t: "No. Module resources are merged into the same stack and still count toward its limit; use nested stacks instead.",
+        why: "Correct. Only nested stacks give each part its own resource limit." },
+      { t: "Yes, modules don't count toward the limit.",
+        why: "They count once expanded." },
+      { t: "Yes, if the modules are public.",
+        why: "Visibility doesn't affect the limit." },
+      { t: "Yes, with CAPABILITY_AUTO_EXPAND.",
+        why: "Capabilities don't change resource limits." }
+    ],
+    answer: [0],
+    tip: "Modules don't beat 500 resources → nested stacks."
+  },
+  {
+    id: "ext-16", domain: "d2", topic: "Extending CloudFormation",
+    q: "Security requires that no CloudFormation stack in any account can create a security group allowing SSH from 0.0.0.0/0. Teams deploy with different pipelines and sometimes from the console. The check must happen before the resource is created. What should be used?",
+    options: [
+      { t: "A CloudFormation Hook (Guard or Lambda) targeting AWS::EC2::SecurityGroup with FailureMode FAIL, activated in all accounts and Regions.",
+        why: "Correct. Hooks run inside CloudFormation for every stack before provisioning, regardless of who deploys." },
+      { t: "cfn-guard in one central pipeline.",
+        why: "Deployments outside that pipeline wouldn't be checked." },
+      { t: "An AWS Config rule.",
+        why: "Config detects after the resource exists." },
+      { t: "A stack policy on each stack.",
+        why: "Stack policies control update actions, not property values." }
+    ],
+    answer: [0],
+    tip: "Block bad resources in every stack before creation → CloudFormation Hooks."
+  },
+  {
+    id: "ext-17", domain: "d2", topic: "Extending CloudFormation",
+    q: "A team is introducing a new Hook rule and is worried it might block legitimate production deployments. What is the safest rollout approach?",
+    options: [
+      { t: "Activate the Hook with FailureMode set to WARN, review the warnings in stack events, then switch to FAIL.",
+        why: "Correct. WARN reports violations without blocking." },
+      { t: "Activate with FAIL in production only.",
+        why: "Risky without testing." },
+      { t: "Use TargetStacks NONE permanently.",
+        why: "The Hook would never run." },
+      { t: "Delete the Hook if a deployment fails.",
+        why: "Reactive, not safe." }
+    ],
+    answer: [0],
+    tip: "Roll out Hooks with FailureMode WARN first."
+  },
+  {
+    id: "ext-18", domain: "d2", topic: "Extending CloudFormation",
+    q: "Which statement correctly describes the difference between CloudFormation Hooks and AWS Config rules? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Hooks are proactive: they evaluate resources before CloudFormation provisions them and can block the operation.",
+        why: "Correct. Hooks run in the provisioning path." },
+      { t: "Config rules are detective: they evaluate resources after they exist and can trigger remediation.",
+        why: "Correct. Config checks deployed resources." },
+      { t: "Config rules block CloudFormation stack creation.",
+        why: "Config doesn't block creation." },
+      { t: "Hooks evaluate resources created outside CloudFormation in the console.",
+        why: "Hooks only apply to CloudFormation (and Cloud Control API) operations." },
+      { t: "Hooks and Config rules are the same feature.",
+        why: "They work at different times." }
+    ],
+    answer: [0, 1],
+    tip: "Hooks = proactive (before), Config = detective (after), SCP = preventive (API)."
+  },
+  {
+    id: "ext-19", domain: "d2", topic: "Extending CloudFormation",
+    q: "A company wants to manage MongoDB Atlas clusters and Datadog monitors in its CloudFormation templates. What is the simplest approach?",
+    options: [
+      { t: "Activate the public third-party extensions from the CloudFormation Registry in each account and Region, with their execution roles and API keys (for example in Secrets Manager).",
+        why: "Correct. Public third-party resource types can be used like native types after activation." },
+      { t: "Write a custom resource for each SaaS API.",
+        why: "More work than using existing published types." },
+      { t: "Use a macro to call the SaaS APIs.",
+        why: "Macros transform templates; they don't manage external resources." },
+      { t: "This isn't possible in CloudFormation.",
+        why: "The Registry supports third-party resource types." }
+    ],
+    answer: [0],
+    tip: "Third-party SaaS in templates → activate public Registry extensions."
+  },
+  {
+    id: "ext-20", domain: "d2", topic: "Extending CloudFormation",
+    q: "A team's custom resource manages an internal firewall product used by hundreds of stacks. They need drift detection, resource import and a proper schema. What should they build instead?",
+    options: [
+      { t: "A private resource type with the CloudFormation CLI (schema plus create, read, update, delete, list handlers) registered in the Registry.",
+        why: "Correct. Registry resource types are first-class and support drift detection and import." },
+      { t: "A bigger custom resource Lambda.",
+        why: "Custom resources don't support drift detection or import." },
+      { t: "A module.",
+        why: "Modules bundle existing types; they can't call a new API." },
+      { t: "A Hook.",
+        why: "Hooks validate, they don't manage resources." }
+    ],
+    answer: [0],
+    tip: "Widely reused integration with drift/import → private registry resource type."
+  },
+  {
+    id: "ext-21", domain: "d2", topic: "Extending CloudFormation",
+    q: "A stack in us-east-1 needs a value stored in an SSM parameter in ap-southeast-1 during deployment. Which approach works?",
+    options: [
+      { t: "A Lambda-backed custom resource that reads the parameter from ap-southeast-1 and returns it in Data.",
+        why: "Correct. Custom resources can call any API in any Region; dynamic references and SSM parameter types are Region-local." },
+      { t: "{{resolve:ssm:/name}} with the Region in the name.",
+        why: "Dynamic references read the stack's own Region." },
+      { t: "Fn::ImportValue.",
+        why: "Exports are same-Region only." },
+      { t: "A module.",
+        why: "Modules can't read cross-Region values." }
+    ],
+    answer: [0],
+    tip: "Cross-Region / cross-account lookups during deploy → custom resource."
+  },
+  {
+    id: "ext-22", domain: "d2", topic: "Extending CloudFormation",
+    q: "A company must roll out an approved private resource type and a Guard Hook to all accounts in its AWS Organization and all used Regions, and keep new accounts covered automatically. What is the BEST approach?",
+    options: [
+      { t: "Use service-managed StackSets with automatic deployment, deploying templates that register / activate the extensions (for example ResourceVersion, TypeActivation, Hook resources).",
+        why: "Correct. Extensions are per account and Region; StackSets roll them out and cover new accounts." },
+      { t: "Register them once in the management account.",
+        why: "Registration is per account and Region." },
+      { t: "Share them with AWS RAM.",
+        why: "Registry extensions aren't distributed with RAM." },
+      { t: "Ask every team to register them manually.",
+        why: "Manual and error-prone." }
+    ],
+    answer: [0],
+    tip: "Extensions are per account+Region → StackSets (service-managed, auto deploy)."
   }
 ];
