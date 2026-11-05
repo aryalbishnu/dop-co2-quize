@@ -1440,6 +1440,84 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "StackSets",
+  sections: [
+    { h: "Core terms", items: [
+      "**StackSet** = one template → many **accounts × Regions**, kept in the **admin account** (home Region)",
+      "**Stack instance** = pointer to one stack in one account + Region · **Operation** = create / update / delete with per-instance results",
+      "Uses: org **security baseline** (Config, CloudTrail, GuardDuty), **IAM roles** everywhere, Registry extensions / macros / Hooks, Control Tower CfCT"
+    ]},
+    { h: "Self-managed vs service-managed", table: [
+      ["", "Self-managed", "Service-managed"],
+      ["Roles", "**You** create Admin + Execution roles", "**Automatic** service-linked roles"],
+      ["Organizations", "Not needed", "**Trusted access** required"],
+      ["Targets", "Account IDs (**outside org OK**)", "**OUs** / root + account filters"],
+      ["Management account", "YES", "**NEVER**"],
+      ["Auto-deployment", "NO", "**YES**"],
+      ["Delegated admin", "NO", "**YES** (`--call-as DELEGATED_ADMIN`)"],
+      ["Least-privilege roles per StackSet", "**YES** (custom role names)", "NO"]
+    ]},
+    { h: "Self-managed roles", items: [
+      "**AWSCloudFormationStackSetAdministrationRole** (admin account) trusts `cloudformation.amazonaws.com`",
+      "**AWSCloudFormationStackSetExecutionRole** (every target) trusts the **admin account**",
+      "Missing / wrong execution role → **INOPERABLE** or FAILED instance",
+      "Custom: `--administration-role-arn`, `--execution-role-name` + restrict **iam:PassRole**"
+    ]},
+    { h: "Organizations integration", items: [
+      "Enable **trusted access** in the CloudFormation console (management account)",
+      "**Delegated admin** (up to 5): `register-delegated-administrator --service-principal member.org.stacksets.cloudformation.amazonaws.com` → keeps people out of the management account",
+      "Delegated admin calls **must** use **`--call-as DELEGATED_ADMIN`** (default SELF → 'not found')",
+      "**AccountFilterType**: NONE (all) · **INTERSECTION** (only listed) · **DIFFERENCE** (all except listed) · **UNION** (OU + listed)",
+      "Targeting an OU includes **child OUs**"
+    ]},
+    { h: "Automatic deployment (service-managed only)", items: [
+      "`--auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false`",
+      "Account **joins / moves into** a targeted OU → instances created in the StackSet's **existing Regions**",
+      "Account **leaves** → instances deleted, or **kept** with **RetainStacksOnAccountRemoval=true**",
+      "Move between two targeted OUs → nothing happens",
+      "**New Region = manual** `create-stack-instances` · set on the StackSet, not per OU"
+    ]},
+    { h: "Rollout control", items: [
+      "**RegionOrder** (test Region first) · **SEQUENTIAL** (default) / PARALLEL",
+      "**MaxConcurrent** Count / % and **FailureTolerance** Count / % → **per Region**",
+      "Tolerance exceeded → stops that Region, **no further Regions**",
+      "**STRICT** (default): concurrency ≤ tolerance + 1 · **SOFT**: keeps concurrency (faster)",
+      "**Managed execution** `Active=true` → no more OperationInProgressException (queues conflicts)"
+    ]},
+    { h: "Lifecycle and statuses", items: [
+      "**Parameter overrides** per instance: `update-stack-instances --parameter-overrides`",
+      "**delete-stack-set** only after **all instances deleted** · `--retain-stacks` keeps the stack",
+      "**CURRENT** ok · **OUTDATED** = last op failed / not applied → fix + re-run · **INOPERABLE** → delete with `--retain-stacks`",
+      "SKIPPED_SUSPENDED_ACCOUNT · opt-in Regions must be enabled",
+      "**IAM is global** → fixed-name roles fail in the 2nd Region → deploy IAM in **one Region**",
+      "`detect-stack-set-drift` · `import-stacks-to-stack-set` · `AWS::CloudFormation::StackSet` · CodePipeline **CloudFormationStackSet** / **CloudFormationStackInstances**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Every new account in OU gets it automatically", "Service-managed + auto-deployment"],
+      ["Accounts outside the organization", "Self-managed"],
+      ["Management account missing the stack", "Self-managed / normal stack there"],
+      ["Don't use the management account", "Delegated administrator"],
+      ["Delegated admin gets 'not found'", "--call-as DELEGATED_ADMIN"],
+      ["New account fails (self-managed)", "Create execution role"],
+      ["Least privilege per StackSet", "Custom admin / execution roles"],
+      ["Keep resources when account leaves OU", "RetainStacksOnAccountRemoval=true"],
+      ["Add a new Region", "create-stack-instances"],
+      ["All OU accounts except one", "AccountFilterType DIFFERENCE"],
+      ["Stop at first failure, one Region at a time", "Tolerance 0 + SEQUENTIAL + RegionOrder"],
+      ["Fast rollout, some failures OK", "SOFT_FAILURE_TOLERANCE"],
+      ["OperationInProgressException", "Managed execution"],
+      ["IAM 'already exists' in 2nd Region", "Deploy IAM in one Region"],
+      ["Different CIDR for some accounts", "Parameter overrides"],
+      ["delete-stack-set fails", "Delete instances first"],
+      ["Stop managing, keep resources", "--retain-stacks"],
+      ["Detect / prevent local changes", "StackSet drift + SCP"],
+      ["Users launch approved products", "Service Catalog"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -7523,5 +7523,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "ROLLBACK_FAILED (create) → delete stack (retain stuck resources), clean up."
+  },
+  // ───────────────────────────── Domain 2: StackSets ─────────────────────────────
+  {
+    id: "sts-01", domain: "d2", topic: "StackSets",
+    q: "A company uses AWS Organizations with 150 accounts. The security team must deploy an AWS Config recorder and a set of Config rules to every account in the Workloads OU, in three Regions. New accounts are created in the OU every week and must receive the same configuration with no manual steps. What is the MOST operationally efficient solution?",
+    options: [
+      { t: "Create a CloudFormation StackSet with service-managed permissions targeting the Workloads OU in the three Regions, with automatic deployment enabled.",
+        why: "Correct. Service-managed StackSets target OUs and, with auto-deployment, create stack instances whenever an account joins the OU." },
+      { t: "Create a self-managed StackSet and add each new account ID with create-stack-instances.",
+        why: "Self-managed doesn't support automatic deployment; every new account needs manual role setup and instance creation." },
+      { t: "Use a CodePipeline pipeline with one CloudFormation deploy action per account and Region.",
+        why: "Hundreds of actions to maintain, and new accounts need pipeline edits." },
+      { t: "Share the template with AWS Service Catalog and ask account owners to launch it.",
+        why: "Service Catalog is self-service; it depends on people launching the product, so it isn't automatic." }
+    ],
+    answer: [0],
+    tip: "Every new account in an OU, automatically = service-managed StackSet + auto-deployment."
+  },
+  {
+    id: "sts-02", domain: "d2", topic: "StackSets",
+    q: "A company must deploy a standard IAM audit role to 12 AWS accounts. Four of the accounts belong to a partner and are NOT part of the company's AWS Organization. The deployment must be managed centrally with CloudFormation. Which approach works?",
+    options: [
+      { t: "Use a StackSet with self-managed permissions: create AWSCloudFormationStackSetAdministrationRole in the admin account and AWSCloudFormationStackSetExecutionRole in each target account, trusting the admin account.",
+        why: "Correct. Self-managed permissions work with any account ID, including accounts outside the organization." },
+      { t: "Use a service-managed StackSet targeting the root of the organization.",
+        why: "Service-managed StackSets can only target accounts inside the organization." },
+      { t: "Use a service-managed StackSet with AccountFilterType UNION to add the partner account IDs.",
+        why: "UNION still only applies to accounts in the organization." },
+      { t: "Enable trusted access and register the partner accounts as delegated administrators.",
+        why: "Delegated administrators must be member accounts of the organization, and this doesn't deploy anything to them." }
+    ],
+    answer: [0],
+    tip: "Accounts outside the org = self-managed StackSet."
+  },
+  {
+    id: "sts-03", domain: "d2", topic: "StackSets",
+    q: "A service-managed StackSet targets the organization root with automatic deployment. The security team notices the baseline stack exists in every member account but NOT in the management account. They need the same resources in the management account. What should they do?",
+    options: [
+      { t: "Deploy the template to the management account with a self-managed StackSet or a regular stack, because service-managed StackSets never deploy to the management account.",
+        why: "Correct. Service-managed StackSets skip the management account even when the root is targeted." },
+      { t: "Add the management account ID with AccountFilterType UNION.",
+        why: "Service-managed StackSets still won't create an instance in the management account." },
+      { t: "Disable and re-enable trusted access with AWS Organizations.",
+        why: "Trusted access isn't the issue; the management account is excluded by design." },
+      { t: "Move the management account into a targeted OU.",
+        why: "The management account always sits at the root and can't be moved into an OU." }
+    ],
+    answer: [0],
+    tip: "Service-managed StackSets never deploy to the management account."
+  },
+  {
+    id: "sts-04", domain: "d2", topic: "StackSets",
+    q: "Following best practice, a company wants its platform team to manage organization-wide StackSets without signing in to the management account. What should the company do?",
+    options: [
+      { t: "Register the platform team's member account as a delegated administrator for CloudFormation StackSets and create service-managed StackSets from it.",
+        why: "Correct. A delegated administrator can create and manage service-managed StackSets, keeping people out of the management account." },
+      { t: "Create an IAM user in the management account for the platform team.",
+        why: "That's still day-to-day use of the management account, which is what they want to avoid." },
+      { t: "Use self-managed StackSets from the platform account with execution roles everywhere.",
+        why: "It works, but loses OU targeting and automatic deployment and needs manual role setup in every account." },
+      { t: "Share the StackSet with the platform account using AWS RAM.",
+        why: "StackSets aren't shared through AWS RAM." }
+    ],
+    answer: [0],
+    tip: "Avoid the management account = delegated administrator."
+  },
+  {
+    id: "sts-05", domain: "d2", topic: "StackSets",
+    q: "An engineer in a member account that is registered as a delegated administrator for StackSets runs aws cloudformation describe-stack-set for a service-managed StackSet they created, and receives StackSetNotFoundException. What is the MOST likely cause?",
+    options: [
+      { t: "The command is missing the --call-as DELEGATED_ADMIN parameter.",
+        why: "Correct. The default is SELF; delegated admins must pass --call-as DELEGATED_ADMIN for service-managed StackSets." },
+      { t: "Trusted access with AWS Organizations is disabled.",
+        why: "The StackSet was created successfully, so trusted access is working." },
+      { t: "The StackSet is in a different account.",
+        why: "Possible in general, but the engineer created it from this account; the classic cause is the missing --call-as." },
+      { t: "The engineer needs CAPABILITY_NAMED_IAM.",
+        why: "Capabilities apply to templates with IAM resources, not to describe calls." }
+    ],
+    answer: [0],
+    tip: "Delegated admin calls need --call-as DELEGATED_ADMIN."
+  },
+  {
+    id: "sts-06", domain: "d2", topic: "StackSets",
+    q: "A self-managed StackSet works for existing accounts. A newly added target account fails immediately and the stack instance shows an error that the account should have 'AWSCloudFormationStackSetExecutionRole'. What should the engineer do?",
+    options: [
+      { t: "Create AWSCloudFormationStackSetExecutionRole in the new account with a trust policy for the administrator account, then retry the stack instance.",
+        why: "Correct. Self-managed StackSets need the execution role in every target account." },
+      { t: "Enable automatic deployment on the StackSet.",
+        why: "Auto-deployment is only for service-managed StackSets and doesn't create the roles." },
+      { t: "Add the new account to the administration role's trust policy.",
+        why: "The administration role trusts the CloudFormation service; the new account needs the execution role." },
+      { t: "Increase the failure tolerance of the operation.",
+        why: "That lets the operation continue past failures but doesn't fix the missing role." }
+    ],
+    answer: [0],
+    tip: "Self-managed: execution role in every target, trusting the admin account."
+  },
+  {
+    id: "sts-07", domain: "d2", topic: "StackSets",
+    q: "A company uses self-managed StackSets. Some StackSets only deploy CloudWatch alarms, others deploy networking. Security wants each StackSet to have only the permissions it needs, and only specific teams to be able to deploy networking StackSets. What should they do?",
+    options: [
+      { t: "Create custom administration and execution roles per StackSet type and specify them with --administration-role-arn and --execution-role-name; restrict iam:PassRole on the networking administration role to the networking team.",
+        why: "Correct. Self-managed StackSets support custom role names per StackSet for least privilege." },
+      { t: "Use service-managed StackSets with one execution role per StackSet.",
+        why: "Service-managed StackSets use the managed service-linked roles; you can't scope them per StackSet." },
+      { t: "Give AWSCloudFormationStackSetExecutionRole AdministratorAccess and rely on CloudTrail.",
+        why: "That's the opposite of least privilege." },
+      { t: "Use stack policies in each target account.",
+        why: "Stack policies protect resources from updates; they don't scope deployment permissions per StackSet." }
+    ],
+    answer: [0],
+    tip: "Least privilege per StackSet = custom admin/execution roles (self-managed)."
+  },
+  {
+    id: "sts-08", domain: "d2", topic: "StackSets",
+    q: "A service-managed StackSet with automatic deployment targets the Prod OU. An account is moved from the Prod OU to the Suspended OU, which isn't targeted. The team needs the logging resources created by the StackSet to stay in that account. What should be configured?",
+    options: [
+      { t: "Set RetainStacksOnAccountRemoval to true in the StackSet's auto-deployment settings.",
+        why: "Correct. With true, the stack stays in the account (no longer managed) when the account leaves the targeted OUs." },
+      { t: "Set DeletionPolicy: Retain on the StackSet.",
+        why: "DeletionPolicy is a resource attribute in a template, not a StackSet setting for account removal." },
+      { t: "Disable automatic deployment before moving the account.",
+        why: "That stops future auto-deployments for every account; it isn't the setting that controls retention." },
+      { t: "Enable termination protection on the StackSet.",
+        why: "Termination protection is set on stacks; it doesn't control what auto-deployment does when accounts leave." }
+    ],
+    answer: [0],
+    tip: "Keep stacks when accounts leave the OU = RetainStacksOnAccountRemoval=true."
+  },
+  {
+    id: "sts-09", domain: "d2", topic: "StackSets",
+    q: "A service-managed StackSet with automatic deployment deploys a baseline to us-east-1 and eu-west-1 for all accounts in an OU. The company now also needs the baseline in ap-southeast-2. What must the engineer do?",
+    options: [
+      { t: "Run create-stack-instances for the targeted OUs with the ap-southeast-2 Region.",
+        why: "Correct. Auto-deployment only reacts to accounts joining or leaving OUs; new Regions must be added explicitly." },
+      { t: "Nothing; automatic deployment adds new Regions automatically.",
+        why: "It doesn't. It deploys only to the Regions already on the StackSet." },
+      { t: "Create a new StackSet in ap-southeast-2 as the home Region.",
+        why: "Unnecessary; one StackSet can deploy to any number of Regions." },
+      { t: "Update the template with a Region condition.",
+        why: "The template doesn't decide where instances are created." }
+    ],
+    answer: [0],
+    tip: "New Region = create-stack-instances; auto-deployment won't do it."
+  },
+  {
+    id: "sts-10", domain: "d2", topic: "StackSets",
+    q: "A StackSet must deploy to every account in the Workloads OU except one sandbox account used for experiments. New accounts in the OU should still be included. What is the correct configuration?",
+    options: [
+      { t: "Use service-managed DeploymentTargets with the Workloads OU, the sandbox account ID, and AccountFilterType DIFFERENCE.",
+        why: "Correct. DIFFERENCE deploys to all accounts in the OU except the listed accounts." },
+      { t: "Use AccountFilterType INTERSECTION with the sandbox account ID.",
+        why: "INTERSECTION would deploy ONLY to the sandbox account." },
+      { t: "Use AccountFilterType UNION with the sandbox account ID.",
+        why: "UNION adds accounts; it doesn't exclude them." },
+      { t: "Use a self-managed StackSet listing all account IDs except the sandbox.",
+        why: "New accounts wouldn't be included automatically." }
+    ],
+    answer: [0],
+    tip: "Exclude accounts from an OU = AccountFilterType DIFFERENCE."
+  },
+  {
+    id: "sts-11", domain: "d2", topic: "StackSets",
+    q: "A team updates a StackSet that has 300 stack instances across 5 Regions. They want the update to go to one Region at a time, starting with us-west-2 as a test Region, and the whole rollout must stop as soon as any single account fails. Which operation preferences meet these requirements?",
+    options: [
+      { t: "RegionConcurrencyType SEQUENTIAL, RegionOrder starting with us-west-2, FailureToleranceCount 0.",
+        why: "Correct. Sequential Regions in the given order, and tolerance 0 stops at the first failure." },
+      { t: "RegionConcurrencyType PARALLEL, FailureToleranceCount 0.",
+        why: "Parallel deploys all Regions at once, so there's no test Region first." },
+      { t: "RegionConcurrencyType SEQUENTIAL, FailureTolerancePercentage 10.",
+        why: "This allows several failures before stopping." },
+      { t: "MaxConcurrentPercentage 100 with SOFT_FAILURE_TOLERANCE.",
+        why: "This maximises speed and tolerates failures, the opposite of what's asked." }
+    ],
+    answer: [0],
+    tip: "One Region at a time + test Region first + stop on first failure = SEQUENTIAL, RegionOrder, tolerance 0."
+  },
+  {
+    id: "sts-12", domain: "d2", topic: "StackSets",
+    q: "A StackSet deploys a low-risk tagging Lambda to 800 accounts. The current update takes many hours because concurrency keeps dropping after a few account-level failures. The team accepts up to 5% failures and wants the rollout as fast as possible. What should they change?",
+    options: [
+      { t: "Raise MaxConcurrentPercentage, set FailureTolerancePercentage to 5, and set ConcurrencyMode to SOFT_FAILURE_TOLERANCE.",
+        why: "Correct. Soft failure tolerance keeps concurrency at the configured level even when failures occur." },
+      { t: "Keep STRICT_FAILURE_TOLERANCE and set FailureToleranceCount to 0.",
+        why: "This makes the rollout slower and stops it at the first failure." },
+      { t: "Set RegionConcurrencyType SEQUENTIAL.",
+        why: "Sequential Regions slow the rollout down." },
+      { t: "Split the StackSet into 800 separate stacks.",
+        why: "Much more work, and loses central management." }
+    ],
+    answer: [0],
+    tip: "Fast rollout despite some failures = higher concurrency + SOFT_FAILURE_TOLERANCE."
+  },
+  {
+    id: "sts-13", domain: "d2", topic: "StackSets",
+    q: "With STRICT_FAILURE_TOLERANCE, an engineer sets FailureToleranceCount to 2 and MaxConcurrentCount to 10, but the operation deploys to only 3 accounts at a time per Region. Why?",
+    options: [
+      { t: "In strict mode, the maximum concurrency is limited to the failure tolerance plus one.",
+        why: "Correct. With tolerance 2, concurrency can be at most 3 in strict mode." },
+      { t: "StackSets can't deploy to more than 3 accounts at a time.",
+        why: "There's no such fixed limit; concurrency can be much higher." },
+      { t: "RegionConcurrencyType is PARALLEL.",
+        why: "Region concurrency doesn't limit accounts per Region." },
+      { t: "Managed execution is disabled.",
+        why: "Managed execution controls whether multiple operations run concurrently, not accounts per operation." }
+    ],
+    answer: [0],
+    tip: "Strict mode: max concurrent is at most failure tolerance + 1."
+  },
+  {
+    id: "sts-14", domain: "d2", topic: "StackSets",
+    q: "A CI/CD pipeline updates several StackSets. Frequently, a pipeline run fails with OperationInProgressException because another StackSet operation is still running. The team wants CloudFormation to handle this automatically. What should they do?",
+    options: [
+      { t: "Enable managed execution (ManagedExecution Active=true) on the StackSets.",
+        why: "Correct. Managed execution runs non-conflicting operations concurrently and queues conflicting ones." },
+      { t: "Increase FailureToleranceCount.",
+        why: "Failure tolerance is about failed stack instances, not concurrent operations." },
+      { t: "Add a retry loop with sleep to the pipeline.",
+        why: "This works around the problem; managed execution is the built-in solution." },
+      { t: "Switch to RegionConcurrencyType PARALLEL.",
+        why: "This speeds up one operation but doesn't let a second operation start." }
+    ],
+    answer: [0],
+    tip: "OperationInProgressException on StackSets = managed execution."
+  },
+  {
+    id: "sts-15", domain: "d2", topic: "StackSets",
+    q: "A StackSet creates an IAM role named 'org-audit-role' and is deployed to us-east-1 and eu-west-1 in each account. Instances in us-east-1 succeed, but every eu-west-1 instance fails with 'org-audit-role already exists'. What should the engineer do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Deploy the IAM role StackSet to only one Region, because IAM is a global service.",
+        why: "Correct. Global resources with fixed names should be created in a single Region." },
+      { t: "Move Regional resources into a separate StackSet that deploys to all required Regions.",
+        why: "Correct. Split global and Regional resources so each StackSet targets the right Regions." },
+      { t: "Increase FailureToleranceCount so eu-west-1 is ignored.",
+        why: "That hides the failure; the instances stay failed." },
+      { t: "Enable automatic deployment.",
+        why: "Auto-deployment doesn't change how global resources behave." },
+      { t: "Use RegionConcurrencyType PARALLEL.",
+        why: "The name conflict happens regardless of Region concurrency." }
+    ],
+    answer: [0, 1],
+    tip: "Global IAM resources in a multi-Region StackSet = name conflict; deploy IAM in one Region."
+  },
+  {
+    id: "sts-16", domain: "d2", topic: "StackSets",
+    q: "Most accounts receiving a networking StackSet should use the default VPC CIDR parameter, but three accounts need different CIDR ranges. How should the engineer handle this with minimal effort?",
+    options: [
+      { t: "Use parameter overrides for those stack instances with update-stack-instances --parameter-overrides.",
+        why: "Correct. Parameter overrides set different values for specific accounts and Regions within one StackSet." },
+      { t: "Create a separate StackSet for each of the three accounts.",
+        why: "Works, but more StackSets to maintain; overrides are built for this." },
+      { t: "Add a Mappings section keyed by account ID and redeploy.",
+        why: "Possible, but it hardcodes account IDs in the template; overrides are the StackSet feature for this." },
+      { t: "Edit the stacks directly in the three accounts.",
+        why: "Manual changes cause drift and are overwritten by the next StackSet update." }
+    ],
+    answer: [0],
+    tip: "Different parameter values per account/Region = parameter overrides."
+  },
+  {
+    id: "sts-17", domain: "d2", topic: "StackSets",
+    q: "An engineer tries to delete an old StackSet with delete-stack-set and the request fails. What must be done first?",
+    options: [
+      { t: "Delete all stack instances from the StackSet (with or without --retain-stacks), then delete the StackSet.",
+        why: "Correct. A StackSet can only be deleted when it has no stack instances." },
+      { t: "Disable termination protection on the StackSet.",
+        why: "This isn't why delete-stack-set fails; the StackSet still has instances." },
+      { t: "Disable trusted access with AWS Organizations.",
+        why: "That would break service-managed StackSets, not help delete one." },
+      { t: "Delete the stacks directly in each target account.",
+        why: "This leaves orphaned instances in the StackSet; use delete-stack-instances." }
+    ],
+    answer: [0],
+    tip: "Delete StackSet = delete instances first."
+  },
+  {
+    id: "sts-18", domain: "d2", topic: "StackSets",
+    q: "A company wants to stop managing a set of logging stacks through a StackSet but must keep the deployed resources in all target accounts. What should the engineer do?",
+    options: [
+      { t: "Run delete-stack-instances with --retain-stacks, then delete the StackSet.",
+        why: "Correct. --retain-stacks removes the instances from the StackSet while keeping the stacks and their resources." },
+      { t: "Run delete-stack-instances with --no-retain-stacks.",
+        why: "That deletes the stacks and their resources." },
+      { t: "Set DeletionPolicy: Retain on every resource, then delete-stack-set.",
+        why: "delete-stack-set still fails while instances exist, and this is more work." },
+      { t: "Disable automatic deployment.",
+        why: "This doesn't detach existing instances." }
+    ],
+    answer: [0],
+    tip: "Stop managing but keep resources = delete-stack-instances --retain-stacks."
+  },
+  {
+    id: "sts-19", domain: "d2", topic: "StackSets",
+    q: "A StackSet update was stopped by failure tolerance. In the console, some stack instances now show the status OUTDATED. What does this mean and what should the engineer do?",
+    options: [
+      { t: "The last operation failed or was not applied for those instances; fix the root cause and re-run the update for those accounts and Regions.",
+        why: "Correct. OUTDATED means the instance doesn't match the latest StackSet configuration." },
+      { t: "The instances were deleted and must be recreated in a new StackSet.",
+        why: "OUTDATED instances still exist; they just aren't up to date." },
+      { t: "The instances drifted and need drift detection.",
+        why: "Drift is a separate status (DRIFTED); OUTDATED is about failed or skipped operations." },
+      { t: "The accounts were suspended.",
+        why: "Suspended accounts show SKIPPED_SUSPENDED_ACCOUNT." }
+    ],
+    answer: [0],
+    tip: "OUTDATED = last operation failed or not applied; fix and re-run."
+  },
+  {
+    id: "sts-20", domain: "d2", topic: "StackSets",
+    q: "A security baseline is deployed through a service-managed StackSet. Auditors found that administrators in some member accounts modified the baseline security group rules. The company wants to detect such changes and prevent them in the future. What should they do? (Choose the BEST combination.)",
+    options: [
+      { t: "Run drift detection on the StackSet to find changed resources, and apply an SCP that denies changes to the baseline resources except by the StackSets execution role.",
+        why: "Correct. StackSet drift detection finds the changes; an SCP prevents member-account admins from making them." },
+      { t: "Enable termination protection on the StackSet.",
+        why: "Termination protection prevents stack deletion, not resource changes." },
+      { t: "Set FailureToleranceCount to 0.",
+        why: "Rollout setting; has nothing to do with manual changes." },
+      { t: "Re-run the StackSet update every hour.",
+        why: "It may overwrite some drift but doesn't detect or prevent it reliably." }
+    ],
+    answer: [0],
+    tip: "Detect = StackSet drift detection; prevent = SCP."
+  },
+  {
+    id: "sts-21", domain: "d2", topic: "StackSets",
+    q: "A company wants developers in each account to choose and launch pre-approved infrastructure patterns (for example a standard RDS database) when they need them, with governance controls. Which service fits BEST?",
+    options: [
+      { t: "AWS Service Catalog with portfolios shared across the organization.",
+        why: "Correct. Service Catalog is for self-service launching of approved products by end users." },
+      { t: "A service-managed StackSet with automatic deployment.",
+        why: "StackSets push the same resources to every account centrally; developers don't choose when to launch." },
+      { t: "Self-managed StackSets per developer.",
+        why: "Not self-service, and lots of manual work." },
+      { t: "Service control policies.",
+        why: "SCPs restrict actions; they don't provision infrastructure." }
+    ],
+    answer: [0],
+    tip: "Push the same baseline to all = StackSets; users choose and launch = Service Catalog."
+  },
+  {
+    id: "sts-22", domain: "d2", topic: "StackSets",
+    q: "A company wants StackSet changes to go through code review and a pipeline. The StackSet definition, its target OUs and its auto-deployment settings should be version-controlled and deployed from the delegated administrator account. Which approach meets these requirements?",
+    options: [
+      { t: "Define the StackSet with the AWS::CloudFormation::StackSet resource in a template and deploy it from a CodePipeline pipeline in the delegated administrator account (or use the CloudFormationStackSet pipeline action).",
+        why: "Correct. StackSets can be managed as code, and CodePipeline has StackSet actions for create, update and instances." },
+      { t: "Create the StackSet in the console and export a screenshot for review.",
+        why: "Not version-controlled or automated." },
+      { t: "Use a self-managed StackSet run from a developer laptop.",
+        why: "No review or pipeline, and it loses OU targeting and auto-deployment." },
+      { t: "Store the template in S3 and enable S3 versioning.",
+        why: "Versioning the template alone doesn't manage targets and settings or deploy them." }
+    ],
+    answer: [0],
+    tip: "StackSets as code = AWS::CloudFormation::StackSet or the CodePipeline StackSet actions."
   }
 ];
+
