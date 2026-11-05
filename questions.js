@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -7166,5 +7166,362 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Extensions are per account+Region → StackSets (service-managed, auto deploy)."
+  },
+
+  // ───────────────────────────── Domain 2: Rollback and Troubleshooting ─────────────────────────────
+  {
+    id: "rbt-01", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A new stack failed during creation and is now in ROLLBACK_COMPLETE. The engineer fixed the template and tried update-stack, but the request was rejected. What should they do?",
+    options: [
+      { t: "Delete the stack and create it again with the fixed template.",
+        why: "Correct. A stack in ROLLBACK_COMPLETE after a failed create can't be updated; it must be deleted and recreated." },
+      { t: "Run continue-update-rollback.",
+        why: "That's for UPDATE_ROLLBACK_FAILED." },
+      { t: "Run drift detection, then update.",
+        why: "Drift detection doesn't change the stack status." },
+      { t: "Use cancel-update-stack.",
+        why: "There's no update in progress." }
+    ],
+    answer: [0],
+    tip: "ROLLBACK_COMPLETE after create → delete and recreate."
+  },
+  {
+    id: "rbt-02", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack update failed and the stack is now in UPDATE_ROLLBACK_COMPLETE. What does this mean?",
+    options: [
+      { t: "The update was rolled back successfully; the stack is in its previous working state and can be updated again after fixing the template.",
+        why: "Correct. UPDATE_ROLLBACK_COMPLETE is a stable, healthy state." },
+      { t: "The stack is broken and must be deleted.",
+        why: "It's usable and updatable." },
+      { t: "The stack is stuck and needs continue-update-rollback.",
+        why: "That's UPDATE_ROLLBACK_FAILED." },
+      { t: "All resources were deleted.",
+        why: "Resources were restored to the previous configuration." }
+    ],
+    answer: [0],
+    tip: "UPDATE_ROLLBACK_COMPLETE = back to last good state, update again."
+  },
+  {
+    id: "rbt-03", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "During a stack update, a resource failed. While rolling back, CloudFormation couldn't restore a security group because an engineer had deleted it manually. The stack is in UPDATE_ROLLBACK_FAILED. What is the correct way to recover?",
+    options: [
+      { t: "Fix the cause if possible, then run continue-update-rollback; if the resource can't be restored, use --resources-to-skip for that logical ID and reconcile it later.",
+        why: "Correct. continue-update-rollback retries the rollback, and skipping marks unrecoverable resources as rolled back." },
+      { t: "Run update-stack with the old template.",
+        why: "Updates aren't allowed in UPDATE_ROLLBACK_FAILED." },
+      { t: "Delete and recreate the stack immediately.",
+        why: "Possible as a last resort, but it destroys working resources; recovery should be tried first." },
+      { t: "Run drift detection to fix the stack.",
+        why: "Drift detection only reports differences." }
+    ],
+    answer: [0],
+    tip: "UPDATE_ROLLBACK_FAILED → continue-update-rollback (+ --resources-to-skip)."
+  },
+  {
+    id: "rbt-04", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "An engineer used continue-update-rollback with --resources-to-skip for a database resource. What should they be aware of afterwards?",
+    options: [
+      { t: "The skipped resource was only marked as rolled back, so its real configuration may not match the template; it must be checked and reconciled manually or by a later update.",
+        why: "Correct. Skipping doesn't change the resource; CloudFormation just records it as rolled back." },
+      { t: "The skipped resource was deleted.",
+        why: "Skipping doesn't delete it." },
+      { t: "The skipped resource was restored automatically.",
+        why: "It was left as it was." },
+      { t: "The stack can never be updated again.",
+        why: "Once rollback completes, the stack can be updated." }
+    ],
+    answer: [0],
+    tip: "--resources-to-skip = marked rolled back, not fixed → reconcile."
+  },
+  {
+    id: "rbt-05", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A root stack with nested stacks is in UPDATE_ROLLBACK_FAILED because a resource ServiceSg inside the nested stack AppStack can't be rolled back. How should the engineer skip it?",
+    options: [
+      { t: "Run continue-update-rollback on the root stack with --resources-to-skip AppStack.ServiceSg.",
+        why: "Correct. Nested stack resources are skipped from the root using NestedStackLogicalId.ResourceLogicalId." },
+      { t: "Run continue-update-rollback on the nested stack directly.",
+        why: "Recovery is done from the root stack." },
+      { t: "Delete the nested stack.",
+        why: "Breaks the root stack's state." },
+      { t: "Use --resources-to-skip ServiceSg on the root.",
+        why: "Needs the nested stack prefix." }
+    ],
+    answer: [0],
+    tip: "Nested skip → root stack, Child.Resource format."
+  },
+  {
+    id: "rbt-06", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "After a CloudFormation update deploys a new Lambda version and API settings, the team wants the stack to roll back automatically if the API 5XX error alarm fires within 20 minutes of the deployment finishing. What should they configure?",
+    options: [
+      { t: "A rollback configuration with the 5XX CloudWatch alarm as a rollback trigger and MonitoringTimeInMinutes set to 20.",
+        why: "Correct. CloudFormation watches the alarm during the update and the monitoring period, and rolls back if it fires." },
+      { t: "A stack policy denying updates when errors happen.",
+        why: "Stack policies don't watch alarms." },
+      { t: "Termination protection.",
+        why: "Only blocks stack deletion." },
+      { t: "Drift detection every 20 minutes.",
+        why: "Drift doesn't measure errors or roll back." }
+    ],
+    answer: [0],
+    tip: "Roll back stack on alarm after deploy → rollback triggers + MonitoringTimeInMinutes."
+  },
+  {
+    id: "rbt-07", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A team wants to use 8 different CloudWatch alarms as CloudFormation rollback triggers, but the configuration is rejected. What should they do?",
+    options: [
+      { t: "Combine the alarms into a CloudWatch composite alarm (or a few composites) and use it as a trigger; up to 5 triggers are allowed.",
+        why: "Correct. Rollback triggers accept up to 5 alarms, including composite alarms." },
+      { t: "Use metrics directly instead of alarms.",
+        why: "Triggers must be alarms." },
+      { t: "Split the stack into 8 stacks.",
+        why: "Unnecessary." },
+      { t: "Request a quota increase to 10 triggers.",
+        why: "Composite alarms are the intended approach." }
+    ],
+    answer: [0],
+    tip: "Max 5 rollback triggers → composite alarm."
+  },
+  {
+    id: "rbt-08", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "What is the maximum MonitoringTimeInMinutes for CloudFormation rollback triggers, and what does a value of 0 mean?",
+    options: [
+      { t: "180 minutes; 0 means alarms are monitored only while resources are being deployed, with no extra period afterwards.",
+        why: "Correct." },
+      { t: "60 minutes; 0 disables triggers.",
+        why: "The maximum is 180, and 0 still monitors during deployment." },
+      { t: "24 hours; 0 means monitor forever.",
+        why: "Incorrect limits." },
+      { t: "30 minutes; 0 uses the default of 30.",
+        why: "Incorrect." }
+    ],
+    answer: [0],
+    tip: "Rollback triggers: ≤5 alarms, monitoring 0–180 min."
+  },
+  {
+    id: "rbt-09", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "Developers waste time because every failed stack creation deletes all the resources, so they can't inspect what went wrong and must wait for recreation. What should they use in development?",
+    options: [
+      { t: "Create stacks with --disable-rollback (or --on-failure DO_NOTHING / Preserve successfully provisioned resources), inspect the failed resources, then fix and retry or update.",
+        why: "Correct. Successful resources are kept and the failure can be investigated and resumed." },
+      { t: "Enable termination protection.",
+        why: "Doesn't affect rollback during creation." },
+      { t: "Use DeletionPolicy: Retain on everything permanently.",
+        why: "Creates orphaned resources and doesn't let the stack resume." },
+      { t: "Use a stack policy.",
+        why: "Stack policies apply to updates." }
+    ],
+    answer: [0],
+    tip: "Keep resources on failure → disable rollback / DO_NOTHING / preserve resources."
+  },
+  {
+    id: "rbt-10", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A CI pipeline creates temporary test stacks. When creation fails, the team wants the whole stack removed immediately rather than left in ROLLBACK_COMPLETE. Which option should be used?",
+    options: [
+      { t: "create-stack --on-failure DELETE",
+        why: "Correct. The stack is deleted entirely when creation fails." },
+      { t: "--on-failure DO_NOTHING",
+        why: "Keeps resources." },
+      { t: "--disable-rollback",
+        why: "Keeps resources and the stack." },
+      { t: "cancel-update-stack",
+        why: "For in-progress updates." }
+    ],
+    answer: [0],
+    tip: "Remove stack on failed create → --on-failure DELETE."
+  },
+  {
+    id: "rbt-11", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A CodePipeline CloudFormation deploy action keeps failing because a previous run left the stack in ROLLBACK_COMPLETE. How can the pipeline recover automatically next time?",
+    options: [
+      { t: "Use the CloudFormation action mode REPLACE_ON_FAILURE, which deletes a failed stack and creates it again.",
+        why: "Correct. This mode handles stacks in failed states." },
+      { t: "Use CREATE_UPDATE.",
+        why: "Can't update a ROLLBACK_COMPLETE stack." },
+      { t: "Use CHANGE_SET_EXECUTE.",
+        why: "Change sets can't be executed on such a stack either." },
+      { t: "Add a manual approval.",
+        why: "Doesn't fix the stack state." }
+    ],
+    answer: [0],
+    tip: "Pipeline + ROLLBACK_COMPLETE → REPLACE_ON_FAILURE."
+  },
+  {
+    id: "rbt-12", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack update is clearly going wrong and is still in UPDATE_IN_PROGRESS. How can the engineer stop it and return to the previous state?",
+    options: [
+      { t: "Run aws cloudformation cancel-update-stack, which cancels the update and rolls back.",
+        why: "Correct. Cancel is available while the update is in progress." },
+      { t: "Delete the stack.",
+        why: "Destroys everything." },
+      { t: "Run continue-update-rollback.",
+        why: "Only for UPDATE_ROLLBACK_FAILED." },
+      { t: "Disable termination protection.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Stop an in-progress update → cancel-update-stack."
+  },
+  {
+    id: "rbt-13", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A failed stack operation shows dozens of failure events, most saying 'Resource creation cancelled'. Where is the root cause most likely shown?",
+    options: [
+      { t: "In the first (oldest) *_FAILED event of the operation, and its status reason; for nested stacks, in the child stack's events.",
+        why: "Correct. Later failures are usually cancellations triggered by the first failure." },
+      { t: "In the last event.",
+        why: "Usually a rollback event." },
+      { t: "In the stack outputs.",
+        why: "Outputs don't contain errors." },
+      { t: "In the template's Description.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Root cause = first FAILED event (child stack for nested)."
+  },
+  {
+    id: "rbt-14", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack update fails with an AccessDenied error on an API call. The deployment uses a CloudFormation service role. How can the team find exactly which call and role were denied?",
+    options: [
+      { t: "Check AWS CloudTrail for the failed API call, its error code and the role that made it, then fix the service role (or iam:PassRole) permissions.",
+        why: "Correct. CloudTrail records the exact denied API call and principal." },
+      { t: "Run drift detection.",
+        why: "Drift doesn't show permission errors." },
+      { t: "Check CloudWatch metrics for the stack.",
+        why: "Stacks don't emit such metrics." },
+      { t: "Delete the service role so CloudFormation uses the user's permissions.",
+        why: "Breaking the role can cause UPDATE_ROLLBACK_FAILED." }
+    ],
+    answer: [0],
+    tip: "AccessDenied in stack events → CloudTrail + service role / PassRole."
+  },
+  {
+    id: "rbt-15", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "Deleting a stack ends in DELETE_FAILED because a security group is still used by ENIs created by a Lambda function outside the stack, and the team needs the stack gone now. What can they do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Remove the dependency (for example detach or delete the outside resources using the SG) and retry the delete.",
+        why: "Correct. Once the SG is no longer in use, deletion succeeds." },
+      { t: "Retry the delete with --retain-resources for the security group, then clean it up later.",
+        why: "Correct. The stack is deleted and the SG is left for manual cleanup." },
+      { t: "Run continue-update-rollback.",
+        why: "Only for UPDATE_ROLLBACK_FAILED." },
+      { t: "Enable termination protection.",
+        why: "Would block deletion." },
+      { t: "Run cancel-update-stack.",
+        why: "No update is in progress." }
+    ],
+    answer: [0, 1],
+    tip: "DELETE_FAILED → remove dependency and retry, or --retain-resources."
+  },
+  {
+    id: "rbt-16", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack has been in CREATE_IN_PROGRESS for nearly an hour on a single resource. Which causes should be checked FIRST? ",
+    options: [
+      { t: "A CreationPolicy or wait condition waiting for a signal, a custom resource that never responded, or a resource waiting to stabilize (for example an ECS service).",
+        why: "Correct. These are the usual causes of long waits; check cfn-init/cloud-init logs, Lambda logs and ECS events." },
+      { t: "The template is too large.",
+        why: "Size problems fail at validation." },
+      { t: "Termination protection is enabled.",
+        why: "Doesn't slow creation." },
+      { t: "The stack has too many outputs.",
+        why: "Outputs don't cause waits." }
+    ],
+    answer: [0],
+    tip: "Long IN_PROGRESS → signals, custom resource responses, stabilization."
+  },
+  {
+    id: "rbt-17", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack creation fails with 'company-app-logs already exists'. What is the most likely cause?",
+    options: [
+      { t: "A resource with a fixed custom name (BucketName) collides with an existing bucket, possibly retained from an earlier stack; remove the custom name, change it, or import the existing resource.",
+        why: "Correct. Custom names must be unique." },
+      { t: "The stack lacks CAPABILITY_IAM.",
+        why: "That gives a capabilities error." },
+      { t: "The export name is duplicated.",
+        why: "The error refers to a bucket." },
+      { t: "Drift detection is running.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "AlreadyExists → custom name conflict (often a retained resource)."
+  },
+  {
+    id: "rbt-18", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "Rollbacks of failed creations keep leaving orphaned S3 buckets because the buckets have DeletionPolicy: Retain. The team wants retained buckets on normal deletes, but cleanup after failed creations. What should they use?",
+    options: [
+      { t: "DeletionPolicy: RetainExceptOnCreate (or the --retain-except-on-create stack option).",
+        why: "Correct. Newly created resources are deleted on rollback of a failed create." },
+      { t: "DeletionPolicy: Delete.",
+        why: "Would delete buckets on normal stack deletion too." },
+      { t: "UpdateReplacePolicy: Retain.",
+        why: "Applies to replacement, not failed creation." },
+      { t: "Termination protection.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "No orphans after failed creates → RetainExceptOnCreate."
+  },
+  {
+    id: "rbt-19", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "The operations team wants to be alerted automatically whenever any CloudFormation stack in the account enters UPDATE_ROLLBACK_FAILED or DELETE_FAILED. What is the BEST solution?",
+    options: [
+      { t: "An Amazon EventBridge rule on CloudFormation Stack Status Change events for those statuses, targeting an SNS topic.",
+        why: "Correct. CloudFormation emits stack status change events to EventBridge." },
+      { t: "Poll describe-stacks every minute with a script.",
+        why: "Custom polling instead of events." },
+      { t: "Enable drift detection.",
+        why: "Doesn't report stack status changes." },
+      { t: "Use rollback triggers.",
+        why: "Triggers cause rollbacks; they don't send notifications about stuck stacks." }
+    ],
+    answer: [0],
+    tip: "Alert on stack statuses → EventBridge Stack Status Change → SNS."
+  },
+  {
+    id: "rbt-20", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack update failed with rollback disabled and is now in UPDATE_FAILED. The team decides they don't want to fix forward. What should they do to return to the previous state?",
+    options: [
+      { t: "Run aws cloudformation rollback-stack (or choose Roll back in the console).",
+        why: "Correct. A stack with preserved resources can be rolled back manually." },
+      { t: "Run continue-update-rollback.",
+        why: "That's for UPDATE_ROLLBACK_FAILED." },
+      { t: "Delete and recreate the stack.",
+        why: "Unnecessary and destructive." },
+      { t: "Run cancel-update-stack.",
+        why: "The update is no longer in progress." }
+    ],
+    answer: [0],
+    tip: "Preserved failed update → retry, update, or rollback-stack."
+  },
+  {
+    id: "rbt-21", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "Which practices reduce the chance of stacks ending in UPDATE_ROLLBACK_FAILED?",
+    options: [
+      { t: "Preventing manual changes to stack resources (IAM/SCP) with drift detection, keeping the CloudFormation service role stable and sufficient, and making custom resources always respond.",
+        why: "Correct. Outside changes, missing permissions and silent custom resources are the main causes of failed rollbacks." },
+      { t: "Using more outputs.",
+        why: "Unrelated." },
+      { t: "Disabling change sets.",
+        why: "Change sets help prevent surprises." },
+      { t: "Deleting the service role after each deployment.",
+        why: "Causes permission failures during rollback." }
+    ],
+    answer: [0],
+    tip: "Avoid stuck rollbacks: no drift, stable service role, responsive custom resources."
+  },
+  {
+    id: "rbt-22", domain: "d2", topic: "Rollback and Troubleshooting",
+    q: "A stack creation failed and then the rollback failed too, leaving the stack in ROLLBACK_FAILED. What should the engineer do?",
+    options: [
+      { t: "Delete the stack (retaining resources that can't be deleted, if necessary) and clean up or fix those resources manually before recreating.",
+        why: "Correct. ROLLBACK_FAILED after a create can only be resolved by deleting the stack." },
+      { t: "Run continue-update-rollback.",
+        why: "That's for failed update rollbacks." },
+      { t: "Update the stack with a fixed template.",
+        why: "Updates aren't possible from this state." },
+      { t: "Run rollback-stack.",
+        why: "The rollback already failed; deletion is the path forward." }
+    ],
+    answer: [0],
+    tip: "ROLLBACK_FAILED (create) → delete stack (retain stuck resources), clean up."
   }
 ];

@@ -1375,6 +1375,71 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Rollback and Troubleshooting",
+  sections: [
+    { h: "Key stack statuses", table: [
+      ["Status", "Meaning", "Next step"],
+      ["**ROLLBACK_COMPLETE**", "Create failed, rolled back (empty)", "**Delete and recreate** · pipeline **REPLACE_ON_FAILURE**"],
+      ["**ROLLBACK_FAILED**", "Create failed and rollback failed", "**Delete stack** (retain stuck resources), clean up"],
+      ["CREATE_FAILED / UPDATE_FAILED", "Failed with rollback disabled", "Retry · update · **rollback-stack**"],
+      ["**UPDATE_ROLLBACK_COMPLETE**", "Update rolled back, last good state", "**Fix and update again**"],
+      ["**UPDATE_ROLLBACK_FAILED**", "Update and rollback both failed", "**continue-update-rollback** (+ `--resources-to-skip`)"],
+      ["**DELETE_FAILED**", "Some resources not deleted", "Fix and retry · **`--retain-resources`**"],
+      ["UPDATE_IN_PROGRESS", "Update or monitoring period", "**cancel-update-stack** to roll back"],
+      ["REVIEW_IN_PROGRESS", "CREATE change set not executed", "Execute or delete change set"]
+    ]},
+    { h: "Rollback control", items: [
+      "Default: create fails → delete created resources · update fails → restore previous · **all or nothing** (incl. nested)",
+      "`create-stack --on-failure` **ROLLBACK** (default) · **DELETE** (remove stack) · **DO_NOTHING** (keep)",
+      "**`--disable-rollback`** = console **Preserve successfully provisioned resources** → then retry / update / `rollback-stack`",
+      "**RetainExceptOnCreate** (DeletionPolicy or `--retain-except-on-create`) → no orphans after failed create",
+      "`--timeout-in-minutes` (create only) · **cancel-update-stack** (UPDATE_IN_PROGRESS only)"
+    ]},
+    { h: "Rollback triggers", items: [
+      "`--rollback-configuration`: **RollbackTriggers** (up to **5** CloudWatch / **composite** alarms) + **MonitoringTimeInMinutes 0–180**",
+      "Alarm in ALARM during the operation or monitoring period → **whole operation rolls back**",
+      "0 minutes = watch only during deployment · missing alarm = operation fails",
+      "Saved on the stack and reused · works for create, update, change set execution",
+      "Compare: CodeDeploy alarms (deployment), ECS circuit breaker, SAM DeploymentPreference, CodePipeline V2 rollback"
+    ]},
+    { h: "UPDATE_ROLLBACK_FAILED", items: [
+      "Causes: **manual changes / deletes (drift)**, **service role permissions**, old state impossible (capacity, quota), **custom resource not responding**, nested stack failure, missing signals",
+      "**Fix the cause → `continue-update-rollback`**",
+      "**`--resources-to-skip LogicalId`** = marked rolled back, **not changed** → reconcile later",
+      "Nested: run on **root** with **`Child.Resource`**",
+      "Last resort: delete (retain resources) and recreate / import · AWS Support"
+    ]},
+    { h: "Troubleshooting", items: [
+      "**First (oldest) *_FAILED event** = root cause · later = 'Resource creation cancelled'",
+      "Nested: **child stack events** · console root cause / timeline view",
+      "Logs: cfn-init / cloud-init, Lambda (custom resources, macros), ECS events, extension logs",
+      "**CloudTrail** for AccessDenied / LimitExceeded / ValidationException + role",
+      "Long IN_PROGRESS: **signals**, **custom resource response**, **stabilization** (ECS → circuit breaker)",
+      "AlreadyExists = custom name · DELETE_FAILED = bucket not empty / SG in use / export imported",
+      "Notify: **EventBridge Stack Status Change** → SNS (or NotificationARNs)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["ROLLBACK_COMPLETE, can't update", "Delete and recreate"],
+      ["Pipeline stuck on ROLLBACK_COMPLETE", "REPLACE_ON_FAILURE"],
+      ["Stack stuck UPDATE_ROLLBACK_FAILED", "continue-update-rollback"],
+      ["Resource deleted by hand blocks rollback", "--resources-to-skip, reconcile"],
+      ["Nested resource skip", "Root + Child.Resource"],
+      ["Roll back if alarm fires after deploy", "Rollback triggers + monitoring time"],
+      ["More than 5 alarms", "Composite alarm"],
+      ["Keep failed resources to debug", "--disable-rollback / DO_NOTHING"],
+      ["Remove stack on failed create", "--on-failure DELETE"],
+      ["Stop a bad update now", "cancel-update-stack"],
+      ["Undo a preserved failed update", "rollback-stack"],
+      ["Find root cause", "First FAILED event / CloudTrail"],
+      ["DELETE_FAILED on SG", "Remove dependency or --retain-resources"],
+      ["Orphans after failed create", "RetainExceptOnCreate"],
+      ["Alert on stuck stacks", "EventBridge → SNS"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
