@@ -1686,6 +1686,94 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Systems Manager",
+  sections: [
+    { h: "Managed node (all three)", items: [
+      "**SSM Agent** (pre-installed AL2 / AL2023 / Windows / Ubuntu) · keep updated with `AWS-UpdateSSMAgent`",
+      "**IAM**: instance profile **`AmazonSSMManagedInstanceCore`** or **DHMC** (all EC2, needs IMDSv2)",
+      "**Network** outbound 443 to **ssm, ssmmessages, ec2messages** · no NAT → **VPC interface endpoints** (+ S3 gateway) · **no inbound ports**",
+      "On-prem → **hybrid activation** (`mi-` IDs) · **Quick Setup** for org-wide setup",
+      "Documents: **Command**, **Automation**, Session, Package, Policy, ChangeCalendar (JSON / YAML, versioned, shareable)"
+    ]},
+    { h: "Run Command vs State Manager", table: [
+      ["", "Run Command", "State Manager"],
+      ["When", "**Once, now**", "**Schedule / continuous**"],
+      ["New instances", "No", "**Yes, auto (tags)**"],
+      ["Key features", "**Concurrency + error threshold**, output **S3 / CW Logs** (console 2,500 chars), SNS, EventBridge target", "**Associations**, compliance, agent updates, CloudWatch agent, Inventory, Ansible / Chef"],
+      ["Keyword", "Run a script now", "**Ensure always**"]
+    ]},
+    { h: "Patch Manager", items: [
+      "**Baseline** = what: approval rules (classification, severity, **auto-approve after N days**), approved / rejected lists · **predefined can't be edited** · one default per OS",
+      "**Patch group** = tag **`Patch Group`** / `PatchGroup` → **one baseline per OS**",
+      "**Maintenance window** = when: schedule, duration, **cutoff**, targets, tasks (Run Command, Automation, Lambda, Step Functions), concurrency / errors",
+      "**AWS-RunPatchBaseline**: **Scan** (report) / **Install** · **RebootIfNeeded** / **NoReboot**",
+      "**A baseline alone patches nothing** · org-wide → **patch policies** (Quick Setup)",
+      "Compliance → SSM Compliance, Security Hub, Config `ec2-managedinstance-patch-compliance-status-check`"
+    ]},
+    { h: "Inventory and Session Manager", items: [
+      "**Inventory**: `AWS-GatherSoftwareInventory` association · apps, files, services, registry, custom",
+      "Cross-account / Region → **Resource Data Sync → S3 → Athena / QuickSight**",
+      "**Session Manager**: no SSH keys / bastion / inbound ports / public IP",
+      "Audit: **CloudTrail StartSession** + **session logging S3 / CW Logs (KMS)** · not inside SSH tunnels",
+      "IAM **`ssm:StartSession` + tag conditions** · Run As · idle timeout",
+      "**Port forwarding** · **ToRemoteHost** → private RDS · needs `ssmmessages`"
+    ]},
+    { h: "Parameter Store", table: [
+      ["", "Standard", "Advanced"],
+      ["Cost / count", "**Free**, 10,000", "Paid, 100,000"],
+      ["Size", "**4 KB**", "**8 KB**"],
+      ["Policies", "No", "**Expiration, ExpirationNotification, NoChangeNotification**"],
+      ["RAM sharing", "No", "Yes"],
+      ["Downgrade", "-", "**Not possible**"]
+    ]},
+    { h: "Parameter Store details", items: [
+      "Types: String, StringList, **SecureString (KMS)** → needs **`kms:Decrypt`** + `--with-decryption`",
+      "Hierarchy **`GetParametersByPath --recursive`** · versions + **labels** · IAM by path",
+      "**Public params**: `/aws/service/ami-amazon-linux-latest/...` (latest AMI)",
+      "CFN: **`AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>`**, `{{resolve:ssm:...}}`, `{{resolve:ssm-secure:...}}`",
+      "ECS `secrets valueFrom` (execution role) · CodeBuild `parameter-store` · Lambda extension (cache) · higher throughput",
+      "**Rotation / 64 KB / replication → Secrets Manager**"
+    ]},
+    { h: "Automation, Distributor, Fleet Manager", items: [
+      "**Runbooks**: `executeAwsApi`, `runCommand`, `executeScript`, **`approve`**, `branch`, `createImage`, `waitFor...`",
+      "**AutomationAssumeRole** · rate control · multi-account / Region",
+      "Triggers: **Config remediation**, EventBridge, State Manager, maintenance window, Change Manager, OpsCenter",
+      "Runbooks: `AWS-UpdateLinuxAmi` (golden AMI), **`AWSSupport-ResetAccess`**, EC2Rescue, `AWSConfigRemediation-*`",
+      "**Distributor**: zip per platform + manifest → Package doc · `AWS-ConfigureAWSPackage` · **+ State Manager** for new instances",
+      "**Fleet Manager**: files, logs, performance, registry, users, processes, **browser RDP (no 3389)**",
+      "**Change Calendar** = freeze periods · OpsCenter = OpsItems · Change Manager = approvals"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Instance not managed", "Agent + instance profile + endpoints"],
+      ["Private subnet, no NAT", "ssm / ssmmessages / ec2messages endpoints"],
+      ["SSM for all EC2, no instance profiles", "DHMC"],
+      ["On-prem servers", "Hybrid activation"],
+      ["Script on many now, 10% at a time", "Run Command + rate control"],
+      ["Output truncated", "S3 / CloudWatch Logs"],
+      ["Always installed incl. new instances", "State Manager"],
+      ["Different patch delays prod / dev", "Custom baselines + Patch Group + windows"],
+      ["Nothing patched after baseline", "Run AWS-RunPatchBaseline Install"],
+      ["Report missing patches only", "Operation Scan"],
+      ["Patch across org", "Patch policies"],
+      ["Software across accounts + SQL", "Inventory + Resource Data Sync + Athena"],
+      ["No bastion, audit commands", "Session Manager + logging + KMS"],
+      ["Sessions only on dev instances", "StartSession + tag condition"],
+      ["Laptop → private RDS", "Port forwarding to remote host"],
+      ["SecureString AccessDenied", "kms:Decrypt"],
+      ["6 KB value / expiry notice", "Advanced tier + policies"],
+      ["Latest AMI in CFN", "SSM public parameter type"],
+      ["Automatic rotation", "Secrets Manager"],
+      ["Auto-fix Config non-compliance", "SSM Automation remediation"],
+      ["Approval inside runbook", "aws:approve"],
+      ["Custom agent everywhere + versions", "Distributor + State Manager"],
+      ["RDP without 3389", "Fleet Manager / port forwarding"],
+      ["Block changes during freeze", "Change Calendar"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

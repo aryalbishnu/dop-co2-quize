@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -8591,8 +8591,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Reusable serverless app across teams = SAR + AWS::Serverless::Application."
+  },
+  // ───────────────────────────── Domain 2: Systems Manager ─────────────────────────────
+  {
+    id: "ssm-01", domain: "d2", topic: "Systems Manager",
+    q: "A company launched EC2 instances from the latest Amazon Linux 2023 AMI in private subnets that have no NAT gateway and no internet access. The instances have an instance profile with the AmazonSSMManagedInstanceCore policy, but they don't appear as managed nodes in Fleet Manager. What should a DevOps engineer do?",
+    options: [
+      { t: "Create VPC interface endpoints for ssm, ssmmessages and ec2messages in the VPC (with private DNS enabled).",
+        why: "Correct. The agent and permissions are in place; the instances need a network path to the Systems Manager endpoints." },
+      { t: "Open inbound port 22 in the security group.",
+        why: "Systems Manager uses outbound HTTPS from the agent; no inbound ports are needed." },
+      { t: "Install the SSM Agent.",
+        why: "It's pre-installed on Amazon Linux 2023." },
+      { t: "Attach an Elastic IP address to each instance.",
+        why: "A public IP doesn't help in a subnet without an internet gateway route, and VPC endpoints are the private solution." }
+    ],
+    answer: [0],
+    tip: "Managed node = agent + AmazonSSMManagedInstanceCore + route to ssm / ssmmessages / ec2messages."
+  },
+  {
+    id: "ssm-02", domain: "d2", topic: "Systems Manager",
+    q: "A security team wants every EC2 instance in an account to be manageable by Systems Manager without having to attach an instance profile to each instance. What should they configure?",
+    options: [
+      { t: "Default Host Management Configuration (DHMC) for the account and Region.",
+        why: "Correct. DHMC gives EC2 instances Systems Manager permissions automatically (requires IMDSv2)." },
+      { t: "A service control policy allowing ssm:*.",
+        why: "SCPs only restrict permissions; they don't grant them to instances." },
+      { t: "A hybrid activation.",
+        why: "Hybrid activations are for on-premises and other non-EC2 servers." },
+      { t: "An IAM user with access keys stored on each instance.",
+        why: "Insecure long-term credentials." }
+    ],
+    answer: [0],
+    tip: "SSM for all EC2 without instance profiles = DHMC."
+  },
+  {
+    id: "ssm-03", domain: "d2", topic: "Systems Manager",
+    q: "A company wants to manage 300 on-premises Linux servers with Systems Manager, including running commands and patching, in the same way as its EC2 instances. What must be done?",
+    options: [
+      { t: "Create a hybrid activation, install the SSM Agent on each server and register it with the activation code and ID.",
+        why: "Correct. Registered on-premises servers become managed nodes with mi- IDs." },
+      { t: "Install the CloudWatch agent on each server.",
+        why: "The CloudWatch agent collects metrics and logs; it doesn't make servers managed nodes." },
+      { t: "Create an instance profile for each server.",
+        why: "Instance profiles apply only to EC2." },
+      { t: "Use AWS Application Migration Service first.",
+        why: "Migration isn't required to manage the servers." }
+    ],
+    answer: [0],
+    tip: "On-prem servers in SSM = hybrid activation (mi- IDs)."
+  },
+  {
+    id: "ssm-04", domain: "d2", topic: "Systems Manager",
+    q: "An operations team must restart the application service on 800 EC2 instances tagged Role=web. To limit impact, only 10% of the instances should be processed at a time, and the operation must stop if more than 5% of the instances fail. SSH is not allowed, and the full command output must be retained. What should they do?",
+    options: [
+      { t: "Use Systems Manager Run Command with AWS-RunShellScript targeting tag Role=web, max concurrency 10%, max errors 5%, and output to an S3 bucket or CloudWatch Logs.",
+        why: "Correct. Run Command supports tag targets, rate control and full output to S3 or CloudWatch Logs." },
+      { t: "Use a State Manager association that runs every 30 minutes.",
+        why: "State Manager is for ongoing desired state, not a one-time restart." },
+      { t: "Write a script that connects to each instance with SSH.",
+        why: "SSH isn't allowed." },
+      { t: "Use EC2 user data.",
+        why: "User data runs at launch, not on demand." }
+    ],
+    answer: [0],
+    tip: "One-time command at scale + rate control = Run Command (concurrency + error threshold)."
+  },
+  {
+    id: "ssm-05", domain: "d2", topic: "Systems Manager",
+    q: "An engineer runs a Run Command document that produces a lot of output, but the console shows only part of it. The team needs the complete output for troubleshooting. What should the engineer do?",
+    options: [
+      { t: "Configure the command to send output to an S3 bucket and/or CloudWatch Logs.",
+        why: "Correct. The console shows only the first 2,500 characters; S3 and CloudWatch Logs keep the full output." },
+      { t: "Increase the command execution timeout.",
+        why: "The timeout doesn't change how much output the console shows." },
+      { t: "Use Session Manager instead.",
+        why: "Possible manually, but it doesn't scale and doesn't fix Run Command output." },
+      { t: "Increase the instance size.",
+        why: "Unrelated to output length." }
+    ],
+    answer: [0],
+    tip: "Run Command console output truncated → send to S3 / CloudWatch Logs."
+  },
+  {
+    id: "ssm-06", domain: "d2", topic: "Systems Manager",
+    q: "A company requires the CloudWatch agent to be installed and configured on all EC2 instances tagged Env=prod, including instances that Auto Scaling launches in the future. If someone removes the agent, it must be reinstalled automatically. What is the MOST operationally efficient solution?",
+    options: [
+      { t: "Create a Systems Manager State Manager association that installs and configures the agent on instances tagged Env=prod on a schedule.",
+        why: "Correct. Associations apply to new matching instances and reapply on the schedule, correcting drift." },
+      { t: "Run the installation once with Run Command.",
+        why: "Doesn't cover future instances or fix later drift." },
+      { t: "Add the installation to a one-time maintenance window task.",
+        why: "Runs only in the window and doesn't continuously enforce state." },
+      { t: "Ask developers to install the agent manually.",
+        why: "Not automated." }
+    ],
+    answer: [0],
+    tip: "Ensure always + new instances = State Manager association."
+  },
+  {
+    id: "ssm-07", domain: "d2", topic: "Systems Manager",
+    q: "A company patches Amazon Linux instances with Patch Manager. Security patches must be approved 7 days after release in development and 14 days after release in production. Development instances are patched on Saturday nights and production on Sunday nights. Which solution meets these requirements?",
+    options: [
+      { t: "Create two custom patch baselines (7-day and 14-day auto-approval), tag instances with Patch Group dev or prod, register each patch group with its baseline, and create two maintenance windows that run AWS-RunPatchBaseline with Operation Install.",
+        why: "Correct. Baselines define what is approved, patch groups map nodes to baselines, and maintenance windows define when." },
+      { t: "Edit the AWS predefined baseline to use 7 and 14 days.",
+        why: "Predefined baselines can't be edited, and one baseline can't have two delays for different groups." },
+      { t: "Create one baseline and register it with both patch groups.",
+        why: "One baseline can't have different approval delays." },
+      { t: "Use a State Manager association that runs yum update every week.",
+        why: "No approval delays or compliance reporting." }
+    ],
+    answer: [0],
+    tip: "Different approval delays = custom baselines + Patch Group tags + maintenance windows."
+  },
+  {
+    id: "ssm-08", domain: "d2", topic: "Systems Manager",
+    q: "A team created a custom patch baseline and registered the patch group prod with it. A week later, no instances have been patched. What is missing?",
+    options: [
+      { t: "A task that runs AWS-RunPatchBaseline with Operation Install (for example in a maintenance window, a State Manager association or a patch policy).",
+        why: "Correct. A baseline only defines rules; something must run AWS-RunPatchBaseline on the nodes." },
+      { t: "The baseline must be set as the default baseline.",
+        why: "Patch groups already map nodes to the baseline." },
+      { t: "The instances must be rebooted.",
+        why: "Rebooting doesn't install patches." },
+      { t: "AWS Config must be enabled.",
+        why: "Config reports compliance; it doesn't patch." }
+    ],
+    answer: [0],
+    tip: "A baseline alone patches nothing; run AWS-RunPatchBaseline (Install)."
+  },
+  {
+    id: "ssm-09", domain: "d2", topic: "Systems Manager",
+    q: "Compliance auditors want a daily report of missing patches on all production instances. Patches must NOT be installed outside the approved Sunday maintenance window. What should the engineer configure for the daily job?",
+    options: [
+      { t: "A State Manager association that runs AWS-RunPatchBaseline daily with Operation Scan.",
+        why: "Correct. Scan reports patch compliance without installing anything." },
+      { t: "AWS-RunPatchBaseline daily with Operation Install and RebootOption NoReboot.",
+        why: "That still installs patches outside the window." },
+      { t: "Run yum check-update with Run Command and email the output.",
+        why: "No compliance reporting, and more manual." },
+      { t: "Amazon Inspector only.",
+        why: "Inspector finds vulnerabilities, but the requirement is Patch Manager compliance against the approved baseline." }
+    ],
+    answer: [0],
+    tip: "Report without installing = Operation Scan."
+  },
+  {
+    id: "ssm-10", domain: "d2", topic: "Systems Manager",
+    q: "A company with 40 AWS accounts in AWS Organizations wants one central way to patch EC2 instances in all accounts and Regions with consistent baselines and schedules, with minimal per-account setup. What should they use?",
+    options: [
+      { t: "A Systems Manager patch policy created with Quick Setup, targeting the organization's OUs and Regions.",
+        why: "Correct. Patch policies centrally define baselines and schedules across accounts and Regions." },
+      { t: "Create maintenance windows manually in each account and Region.",
+        why: "Works, but a lot of per-account effort." },
+      { t: "Use AWS Config conformance packs.",
+        why: "Conformance packs evaluate compliance; they don't install patches." },
+      { t: "Use a Lambda function in each account that runs yum update.",
+        why: "Custom, with no baselines or compliance reporting." }
+    ],
+    answer: [0],
+    tip: "Org-wide patching = patch policies (Quick Setup)."
+  },
+  {
+    id: "ssm-11", domain: "d2", topic: "Systems Manager",
+    q: "A company wants to know which versions of OpenSSL are installed on every EC2 instance across 25 accounts and several Regions, and to query this data with SQL. What is the MOST efficient solution?",
+    options: [
+      { t: "Enable Systems Manager Inventory with AWS-GatherSoftwareInventory, configure Resource Data Sync to a central S3 bucket, and query it with Amazon Athena.",
+        why: "Correct. Inventory collects application data, and Resource Data Sync aggregates it in S3 for Athena." },
+      { t: "Run a Run Command script every day and email the results.",
+        why: "Manual and hard to query." },
+      { t: "Use CloudTrail Lake.",
+        why: "CloudTrail records API calls, not installed software." },
+      { t: "Log in to each instance with Session Manager.",
+        why: "Doesn't scale." }
+    ],
+    answer: [0],
+    tip: "Software across accounts + SQL = Inventory + Resource Data Sync + Athena."
+  },
+  {
+    id: "ssm-12", domain: "d2", topic: "Systems Manager",
+    q: "A company wants to remove its bastion hosts and close port 22 on all instances. Administrators still need interactive shell access, and the security team requires a record of every command typed, encrypted at rest. What should the company do?",
+    options: [
+      { t: "Use Systems Manager Session Manager with session logging to S3 and/or CloudWatch Logs, encrypted with a KMS key, and control access with IAM.",
+        why: "Correct. Session Manager needs no inbound ports or SSH keys and can log session data with KMS encryption." },
+      { t: "Use EC2 Instance Connect.",
+        why: "Instance Connect still uses SSH on port 22 (or an EIC Endpoint) and doesn't log every command." },
+      { t: "Keep the bastion host and enable VPC Flow Logs.",
+        why: "Flow Logs show network traffic, not commands, and the bastion stays." },
+      { t: "Use SSH over Session Manager with AWS-StartSSHSession.",
+        why: "Session logging can't capture commands inside an SSH tunnel." }
+    ],
+    answer: [0],
+    tip: "No bastion / port 22 + audit commands = Session Manager + logging (S3 / CW) + KMS."
+  },
+  {
+    id: "ssm-13", domain: "d2", topic: "Systems Manager",
+    q: "Developers must be able to start Session Manager sessions only on instances tagged Env=dev, never on production instances. How should this be enforced?",
+    options: [
+      { t: "Use an IAM policy that allows ssm:StartSession on instances only when the resource tag Env equals dev.",
+        why: "Correct. IAM tag conditions control which instances users can start sessions on." },
+      { t: "Use security groups to block production.",
+        why: "Session Manager doesn't use inbound security group rules." },
+      { t: "Remove the SSM Agent from production instances.",
+        why: "This would break management of production." },
+      { t: "Disable session logging for production.",
+        why: "Logging doesn't control access." }
+    ],
+    answer: [0],
+    tip: "Restrict sessions to tagged instances = IAM ssm:StartSession with tag conditions."
+  },
+  {
+    id: "ssm-14", domain: "d2", topic: "Systems Manager",
+    q: "A developer needs to connect a database client on their laptop to an Amazon RDS instance in a private subnet. There's no public endpoint, no VPN and no bastion SSH access, but there is a managed EC2 instance in the same VPC. What should they use?",
+    options: [
+      { t: "Session Manager port forwarding with the AWS-StartPortForwardingSessionToRemoteHost document through the managed instance.",
+        why: "Correct. It forwards a local port through the instance to the remote RDS host and port." },
+      { t: "Make the RDS instance publicly accessible.",
+        why: "Insecure and against the requirement." },
+      { t: "Use AWS-RunShellScript to run SQL queries.",
+        why: "Not interactive client access." },
+      { t: "Use Fleet Manager file browsing.",
+        why: "File browsing doesn't provide database connectivity." }
+    ],
+    answer: [0],
+    tip: "Laptop → private RDS = port forwarding to remote host."
+  },
+  {
+    id: "ssm-15", domain: "d2", topic: "Systems Manager",
+    q: "An application reads a SecureString parameter encrypted with a customer managed KMS key. The application role has ssm:GetParameter permission, but the call fails with AccessDeniedException. What is the MOST likely cause?",
+    options: [
+      { t: "The role lacks kms:Decrypt permission on the customer managed key (in the IAM policy and/or key policy).",
+        why: "Correct. Decrypting a SecureString needs KMS decrypt permission on the key." },
+      { t: "SecureString parameters can't use customer managed keys.",
+        why: "They can." },
+      { t: "The parameter must be in the Advanced tier.",
+        why: "SecureString works in the Standard tier." },
+      { t: "Parameter Store must be enabled per Region.",
+        why: "No such setting." }
+    ],
+    answer: [0],
+    tip: "SecureString AccessDenied = missing kms:Decrypt."
+  },
+  {
+    id: "ssm-16", domain: "d2", topic: "Systems Manager",
+    q: "A team needs to store a configuration value of 6 KB in Parameter Store and receive a notification if the parameter hasn't been updated for 90 days. What should they do?",
+    options: [
+      { t: "Create the parameter in the Advanced tier and attach a NoChangeNotification parameter policy (notifications delivered through EventBridge).",
+        why: "Correct. Advanced parameters support up to 8 KB and parameter policies." },
+      { t: "Use the Standard tier with a parameter policy.",
+        why: "Standard is limited to 4 KB and doesn't support policies." },
+      { t: "Split the value into two Standard parameters and use a cron Lambda.",
+        why: "More complex than the built-in feature." },
+      { t: "Store it as a StringList.",
+        why: "The type doesn't change size limits or add policies." }
+    ],
+    answer: [0],
+    tip: "Over 4 KB / expiry / no-change notification = Advanced tier + parameter policies."
+  },
+  {
+    id: "ssm-17", domain: "d2", topic: "Systems Manager",
+    q: "A CloudFormation template launches EC2 instances and must always use the latest Amazon Linux 2023 AMI in whatever Region it's deployed to, without updating the template. What should the template use?",
+    options: [
+      { t: "A parameter of type AWS::SSM::Parameter::Value<AWS::EC2::Image::Id> with the default value /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64.",
+        why: "Correct. The public SSM parameter always resolves to the latest AMI in the Region." },
+      { t: "A Mappings section with AMI IDs per Region.",
+        why: "Mappings have to be updated manually for every new AMI." },
+      { t: "A custom resource that calls DescribeImages.",
+        why: "Works, but unnecessary complexity." },
+      { t: "Hardcode the AMI ID.",
+        why: "It becomes outdated and differs per Region." }
+    ],
+    answer: [0],
+    tip: "Latest AMI = public SSM parameter via AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>."
+  },
+  {
+    id: "ssm-18", domain: "d2", topic: "Systems Manager",
+    q: "A company stores an Amazon RDS database password and requires it to be rotated automatically every 30 days, with the application always retrieving the current value. Which service should store the password?",
+    options: [
+      { t: "AWS Secrets Manager with automatic rotation enabled.",
+        why: "Correct. Secrets Manager has built-in rotation for RDS." },
+      { t: "Parameter Store SecureString in the Standard tier.",
+        why: "No built-in rotation." },
+      { t: "Parameter Store Advanced tier with an Expiration policy.",
+        why: "Expiration deletes or notifies; it doesn't rotate the password in the database." },
+      { t: "An encrypted S3 object.",
+        why: "No rotation or database integration." }
+    ],
+    answer: [0],
+    tip: "Automatic rotation = Secrets Manager."
+  },
+  {
+    id: "ssm-19", domain: "d2", topic: "Systems Manager",
+    q: "A company uses an AWS Config rule to detect security groups that allow SSH from 0.0.0.0/0. The security team wants these rules removed automatically within minutes of detection, with least-privilege permissions. What should the DevOps engineer do?",
+    options: [
+      { t: "Configure automatic remediation on the Config rule with an SSM Automation runbook (for example AWS-DisablePublicAccessForSecurityGroup) and an AutomationAssumeRole that has only the required EC2 permissions.",
+        why: "Correct. Config remediation runs SSM Automation runbooks with a scoped service role." },
+      { t: "Run Command on every instance to update iptables.",
+        why: "Security groups are AWS resources, not instance firewall rules." },
+      { t: "Ask the security team to review the Config dashboard daily.",
+        why: "Manual and not within minutes." },
+      { t: "Use Patch Manager.",
+        why: "Patch Manager installs OS patches." }
+    ],
+    answer: [0],
+    tip: "Auto-fix Config non-compliance = Config remediation + SSM Automation runbook."
+  },
+  {
+    id: "ssm-20", domain: "d2", topic: "Systems Manager",
+    q: "A team needs an operational runbook that stops an EC2 instance, creates an AMI and restarts the instance, but only after a manager approves the action through an email notification. What should they create?",
+    options: [
+      { t: "A custom Systems Manager Automation runbook with an aws:approve step (SNS notification), followed by aws:changeInstanceState and aws:createImage steps.",
+        why: "Correct. Automation supports manual approval steps and resource actions in one runbook." },
+      { t: "A Run Command document with an approval parameter.",
+        why: "Command documents run on instances and have no approval step." },
+      { t: "A State Manager association.",
+        why: "Associations enforce state on a schedule, without approvals." },
+      { t: "A Distributor package.",
+        why: "Distributor installs software." }
+    ],
+    answer: [0],
+    tip: "Multi-step ops + human approval = Automation runbook with aws:approve."
+  },
+  {
+    id: "ssm-21", domain: "d2", topic: "Systems Manager",
+    q: "A company built a custom monitoring agent for both Windows and Linux. It must be installed on all existing instances and automatically on every new instance, and the team wants to manage agent versions centrally. Which solution meets these requirements?",
+    options: [
+      { t: "Package the agent with Systems Manager Distributor and create a State Manager association that installs the package (AWS-ConfigureAWSPackage) on the target instances.",
+        why: "Correct. Distributor provides versioned multi-platform packages, and State Manager keeps them installed, including on new instances." },
+      { t: "Bake the agent into AMIs only.",
+        why: "Doesn't update existing instances and makes version changes slow." },
+      { t: "Use Run Command once.",
+        why: "Doesn't cover new instances." },
+      { t: "Store the installer in Parameter Store.",
+        why: "Parameter Store isn't for software packages." }
+    ],
+    answer: [0],
+    tip: "Custom agent, versions, all current + future instances = Distributor + State Manager."
+  },
+  {
+    id: "ssm-22", domain: "d2", topic: "Systems Manager",
+    q: "Windows administrators need graphical Remote Desktop access to Windows instances in private subnets. The security team prohibits opening port 3389 and running bastion hosts. Which TWO Systems Manager capabilities can provide this? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Fleet Manager Remote Desktop, which connects through Session Manager in the browser.",
+        why: "Correct. Browser-based RDP with no inbound port." },
+      { t: "Session Manager port forwarding (AWS-StartPortForwardingSession) of the instance's RDP port to a local port, then a local RDP client.",
+        why: "Correct. Traffic goes through Session Manager, so port 3389 doesn't need to be open inbound." },
+      { t: "Open port 3389 to the administrators' IP addresses.",
+        why: "Prohibited by the security team." },
+      { t: "Patch Manager.",
+        why: "Patching doesn't provide remote access." },
+      { t: "Parameter Store.",
+        why: "Stores configuration values only." }
+    ],
+    answer: [0, 1],
+    tip: "RDP without 3389 = Fleet Manager Remote Desktop / Session Manager port forwarding."
   }
 ];
+
 
 
 

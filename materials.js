@@ -30,5 +30,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["Rollback and Troubleshooting"], title: "Week 3 notes - Rollback triggers and failure troubleshooting (traps, lab, check yourself)", file: "pdfs/Week3_Rollback_and_Troubleshooting.pdf" },
   { domain: "d2", topics: ["StackSets"], title: "Week 3 notes - StackSets: self-managed vs service-managed, Organizations, auto-deployment (traps, lab, check yourself)", file: "pdfs/Week3_StackSets.pdf" },
   { domain: "d2", topics: ["AWS CDK"], title: "Week 3 notes - AWS CDK: constructs, cdk synth / diff / deploy, CDK Pipelines (traps, lab, check yourself)", file: "pdfs/Week3_AWS_CDK.pdf" },
-  { domain: "d2", topics: ["AWS SAM"], title: "Week 3 notes - AWS SAM: templates, sam build / deploy, local testing (traps, lab, check yourself)", file: "pdfs/Week3_AWS_SAM.pdf" }
+  { domain: "d2", topics: ["AWS SAM"], title: "Week 3 notes - AWS SAM: templates, sam build / deploy, local testing (traps, lab, check yourself)", file: "pdfs/Week3_AWS_SAM.pdf" },
+  { domain: "d2", topics: ["Systems Manager"], title: "Week 4 notes - AWS Systems Manager: Run Command, State Manager, Patch Manager, Inventory, Session Manager, Parameter Store, Automation, Distributor, Fleet Manager (traps, lab, check yourself)", file: "pdfs/Week4_Systems_Manager.pdf" }
 ];
