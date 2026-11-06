@@ -1518,6 +1518,91 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AWS CDK",
+  sections: [
+    { h: "Core model", items: [
+      "**CDK = code → CloudFormation**: TS, JS, Python, Java, C#, Go · v2 = **`aws-cdk-lib`** + `constructs`",
+      "**App → Stage → Stack (= 1 CFN stack) → Construct `(scope, id, props)`**",
+      "Output = cloud assembly in **`cdk.out`** · CloudFormation deploys (rollback, drift, limits still apply)"
+    ]},
+    { h: "Construct levels", table: [
+      ["Level", "What", "Example"],
+      ["**L1**", "`Cfn*`, one-to-one with CFN, no defaults", "`CfnBucket`"],
+      ["**L2**", "Curated: secure defaults + helpers (`grant*`, `metric*`)", "`Bucket`, `bucket.grantRead(fn)`"],
+      ["**L3**", "Patterns: several resources", "`ApplicationLoadBalancedFargateService`"]
+    ]},
+    { h: "Escape hatches and existing resources", items: [
+      "Missing property → **`node.defaultChild`** as L1 → **`addPropertyOverride`** / `addOverride`",
+      "`fromBucketName` / `fromLookup` / `fromRoleArn` = **reference only** (not managed)",
+      "**`cdk import`** = manage an existing resource · **`cdk migrate`** = CFN template / stack → CDK app · `CfnInclude` = embed a template"
+    ]},
+    { h: "Core concepts", items: [
+      "**Logical ID = construct path + hash** → rename / move = **replacement** → keep ids or **`overrideLogicalId`**",
+      "**RemovalPolicy RETAIN** default for stateful · dev: **DESTROY + `autoDeleteObjects`** (custom resource)",
+      "**Lookups need explicit `env`** (account + Region) · env-agnostic = no lookups, 2 AZs",
+      "**Commit `cdk.context.json`** (cached lookups → deterministic synth)",
+      "Tokens = deploy-time values · `valueForStringParameter` deploy time vs `valueFromLookup` synth time",
+      "Secrets: **`SecretValue.secretsManager`** (dynamic reference), never hardcode",
+      "Cross-stack: auto Exports · **deadly embrace** → `exportValue` two-step · **`crossRegionReferences: true`**",
+      "**Aspects** / **cdk-nag** → fail synth on violations · **`Tags.of(scope).add`**"
+    ]},
+    { h: "Bootstrap", items: [
+      "`cdk bootstrap aws://ACCT/REGION` → **CDKToolkit**: S3 bucket, ECR repo, deploy / publishing / lookup / **CFN execution** roles, version param",
+      "**Every account + Region** · 'version not found' = not bootstrapped · re-bootstrap for newer versions",
+      "Cross-account: **`--trust <pipeline acct>`**, `--trust-for-lookup`, **`--cloudformation-execution-policies`** (least privilege)",
+      "`--qualifier` (side by side) · `--custom-permissions-boundary`"
+    ]},
+    { h: "CLI", table: [
+      ["Command", "Use"],
+      ["**`cdk synth`**", "Templates to `cdk.out`, no AWS changes · pipeline build step"],
+      ["**`cdk diff`**", "Vs deployed: **replacements**, **IAM / SG** changes"],
+      ["**`cdk deploy`**", "Assets + change set · `--require-approval broadening` (default) / never · `--no-execute` · `--no-rollback`"],
+      ["`cdk destroy`", "Delete stacks (RETAIN resources stay)"],
+      ["`cdk watch` / `--hotswap`", "**Dev only**, bypasses CFN (drift)"],
+      ["`cdk import` / `cdk migrate`", "Adopt resource / convert CFN"],
+      ["`cdk context` / `cdk doctor`", "Cache / diagnostics"]
+    ]},
+    { h: "Testing", items: [
+      "**`assertions`**: `Template.fromStack`, `hasResourceProperties`, `resourceCountIs`, `Match`",
+      "**Snapshot tests** catch unexpected template changes",
+      "cdk-nag / cfn-lint / cfn-guard on `cdk.out` · `integ-tests` or pipeline post steps"
+    ]},
+    { h: "CDK Pipelines", items: [
+      "**Source → Synth → UpdatePipeline (self-mutation) → Assets → Stages**",
+      "**First `cdk deploy PipelineStack` manual**, then git push drives everything",
+      "Source: **`CodePipelineSource.connection()`** (CodeConnections), codeCommit, s3, ecr",
+      "Synth: `ShellStep` / **`CodeBuildStep`** (role, VPC, image) · `dockerEnabledForSynth`",
+      "**`addStage()`** sequential · **`addWave()`** parallel (Regions)",
+      "pre / post: **`ManualApprovalStep`**, ShellStep tests + **`envFromCfnOutputs`**",
+      "Cross-account: targets **`--trust`** + **`crossAccountKeys: true`**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Familiar language, loops, unit tests, CFN", "CDK"],
+      ["Bootstrap version not found", "cdk bootstrap"],
+      ["Pipeline can't deploy to other account", "--trust + crossAccountKeys"],
+      ["See replacements / IAM before deploy", "cdk diff"],
+      ["Renamed id, table replaced", "Keep id / overrideLogicalId"],
+      ["L2 lacks property", "Escape hatch"],
+      ["Whole Fargate + ALB in few lines", "L3 pattern"],
+      ["fromLookup fails", "Set env"],
+      ["Synth differs in pipeline", "Commit cdk.context.json"],
+      ["Bucket left after destroy", "RETAIN default; DESTROY + autoDeleteObjects"],
+      ["Enforce encryption everywhere at synth", "Aspect / cdk-nag"],
+      ["Hardcoded password", "SecretValue.secretsManager"],
+      ["CI deploy hangs on approval", "--require-approval never"],
+      ["Fast Lambda iteration (dev)", "cdk watch / --hotswap"],
+      ["Pipeline code changed", "Self-mutation"],
+      ["Parallel Regions in pipeline", "addWave()"],
+      ["Approval before prod", "ManualApprovalStep (pre)"],
+      ["Tests after deploy", "post ShellStep + envFromCfnOutputs"],
+      ["Export in use on removal", "exportValue, two-step"],
+      ["CFN → CDK / adopt resource", "cdk migrate / cdk import"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

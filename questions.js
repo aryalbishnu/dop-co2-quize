@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -7879,6 +7879,363 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "StackSets as code = AWS::CloudFormation::StackSet or the CodePipeline StackSet actions."
+  },
+  // ───────────────────────────── Domain 2: AWS CDK ─────────────────────────────
+  {
+    id: "cdk-01", domain: "d2", topic: "AWS CDK",
+    q: "A development team wants to define AWS infrastructure in TypeScript, the language they already use for their application. They want to use loops, classes and reusable components, and write unit tests for the infrastructure code with their existing test framework. The infrastructure must still be deployed through AWS CloudFormation. Which solution meets these requirements?",
+    options: [
+      { t: "Use the AWS CDK to define the infrastructure and synthesize CloudFormation templates; test with the CDK assertions module.",
+        why: "Correct. CDK lets you use a programming language and synthesizes CloudFormation, and the assertions module supports unit tests." },
+      { t: "Write CloudFormation YAML templates and use the AWS::LanguageExtensions transform for loops.",
+        why: "Gives loops, but not classes, reusable components or unit tests in TypeScript." },
+      { t: "Use AWS SAM templates.",
+        why: "SAM is YAML shorthand for serverless resources, not a programming language." },
+      { t: "Use the AWS SDK for JavaScript to call the service APIs directly from a script.",
+        why: "This bypasses CloudFormation, so there's no stack, rollback or drift detection." }
+    ],
+    answer: [0],
+    tip: "Familiar language + reusable constructs + unit tests + CloudFormation = CDK."
+  },
+  {
+    id: "cdk-02", domain: "d2", topic: "AWS CDK",
+    q: "An engineer runs cdk deploy for the first time in a new AWS account and Region. The deployment fails with an error that SSM parameter /cdk-bootstrap/hnb659fds/version was not found and that the stack uses assets. What should the engineer do?",
+    options: [
+      { t: "Run cdk bootstrap for that account and Region, then deploy again.",
+        why: "Correct. The account/Region isn't bootstrapped; cdk bootstrap creates the CDKToolkit stack (S3 bucket, ECR repo, roles, version parameter)." },
+      { t: "Create the SSM parameter manually with the value 1.",
+        why: "That fakes the version without creating the bucket, repository and roles." },
+      { t: "Run cdk synth before cdk deploy.",
+        why: "cdk deploy already synthesizes; synth doesn't create the bootstrap resources." },
+      { t: "Add --require-approval never.",
+        why: "Approval settings don't fix missing bootstrap resources." }
+    ],
+    answer: [0],
+    tip: "Bootstrap version not found / assets error = cdk bootstrap that account + Region."
+  },
+  {
+    id: "cdk-03", domain: "d2", topic: "AWS CDK",
+    q: "A CDK Pipelines pipeline runs in tooling account 999999999999 and must deploy application stacks to the production account 333333333333. The prod deployment fails because the pipeline cannot assume the deployment roles in the production account. What should be done? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Bootstrap the production account with cdk bootstrap --trust 999999999999 --cloudformation-execution-policies <policy>.",
+        why: "Correct. --trust lets the pipeline account assume the deploy and publishing roles in the target account." },
+      { t: "Set crossAccountKeys: true on the CodePipeline construct so artifacts are encrypted with a KMS key the target account can use.",
+        why: "Correct. Cross-account deployments need KMS-encrypted artifacts." },
+      { t: "Create an IAM user in the production account and store its keys in the pipeline.",
+        why: "Long-term keys are insecure, and CDK uses the bootstrap roles instead." },
+      { t: "Enable trusted access for CloudFormation StackSets.",
+        why: "That's for StackSets, not CDK Pipelines." },
+      { t: "Run cdk deploy --hotswap from the pipeline.",
+        why: "Hotswap bypasses CloudFormation and is for development only." }
+    ],
+    answer: [0, 1],
+    tip: "Cross-account CDK = target bootstrapped with --trust + crossAccountKeys: true."
+  },
+  {
+    id: "cdk-04", domain: "d2", topic: "AWS CDK",
+    q: "A team wants to see, before deploying, whether a CDK code change will replace any resources or broaden IAM permissions compared with what is currently deployed. Which command should they run?",
+    options: [
+      { t: "cdk diff",
+        why: "Correct. cdk diff compares the synthesized template with the deployed stack and highlights replacements and IAM / security group changes." },
+      { t: "cdk synth",
+        why: "Synth only produces templates; it doesn't compare with the deployed stack." },
+      { t: "cdk ls",
+        why: "Lists stacks only." },
+      { t: "cdk doctor",
+        why: "Checks the local CDK environment, not stack changes." }
+    ],
+    answer: [0],
+    tip: "What will change vs deployed (replacements, IAM) = cdk diff."
+  },
+  {
+    id: "cdk-05", domain: "d2", topic: "AWS CDK",
+    q: "During a refactor, a developer renamed the construct ID of a DynamoDB table from 'OrdersTable' to 'Orders'. cdk diff now shows the table will be destroyed and a new table created. The table holds production data. What is the BEST way to refactor without replacing the table?",
+    options: [
+      { t: "Keep the original construct ID, or call overrideLogicalId on the underlying CfnTable to keep the original logical ID.",
+        why: "Correct. The logical ID comes from the construct path; keeping it stable avoids replacement." },
+      { t: "Deploy with --require-approval never.",
+        why: "This only skips the prompt; the table is still replaced." },
+      { t: "Set RemovalPolicy.RETAIN and deploy.",
+        why: "The old table would be retained but orphaned, and a new empty table created; the app would point at the new one." },
+      { t: "Use cdk deploy --hotswap.",
+        why: "Hotswap doesn't apply to DynamoDB tables and is for development only." }
+    ],
+    answer: [0],
+    tip: "Renamed construct id → new logical ID → replacement; keep the id or overrideLogicalId."
+  },
+  {
+    id: "cdk-06", domain: "d2", topic: "AWS CDK",
+    q: "An L2 construct in aws-cdk-lib does not yet expose a property that was recently added to the underlying CloudFormation resource. The team needs to set this property now without waiting for a CDK release. What should they do?",
+    options: [
+      { t: "Use an escape hatch: get the L1 resource with node.defaultChild and use addPropertyOverride to set the property.",
+        why: "Correct. Escape hatches give access to the underlying CloudFormation resource, and raw overrides work even if the L1 class lacks the property." },
+      { t: "Rewrite the whole stack in CloudFormation YAML.",
+        why: "Unnecessary; escape hatches solve this inside CDK." },
+      { t: "Create a custom resource to set the property after deployment.",
+        why: "More complex and it fights CloudFormation's management of the resource." },
+      { t: "Use an L3 construct instead.",
+        why: "L3 patterns are built on L2s and won't expose the new property either." }
+    ],
+    answer: [0],
+    tip: "Missing property = escape hatch (node.defaultChild / addPropertyOverride)."
+  },
+  {
+    id: "cdk-07", domain: "d2", topic: "AWS CDK",
+    q: "Which statement correctly describes AWS CDK construct levels?",
+    options: [
+      { t: "L1 constructs map one-to-one to CloudFormation resources (Cfn prefix); L2 constructs add defaults and helper methods; L3 constructs are patterns that combine several resources.",
+        why: "Correct. For example CfnBucket (L1), Bucket with grantRead (L2), ApplicationLoadBalancedFargateService (L3)." },
+      { t: "L1 constructs are the highest-level patterns and L3 constructs are raw CloudFormation resources.",
+        why: "Reversed: L1 is the lowest level." },
+      { t: "L2 constructs are only available in TypeScript.",
+        why: "All construct levels are available in every supported language." },
+      { t: "L3 constructs deploy without CloudFormation.",
+        why: "All constructs synthesize to CloudFormation." }
+    ],
+    answer: [0],
+    tip: "L1 = Cfn* raw · L2 = curated · L3 = patterns."
+  },
+  {
+    id: "cdk-08", domain: "d2", topic: "AWS CDK",
+    q: "A team wants a complete Fargate service behind an Application Load Balancer, with a cluster, task definition, service, load balancer, listener and security groups, using as little code as possible. Which CDK construct type should they use?",
+    options: [
+      { t: "An L3 pattern such as ecs_patterns.ApplicationLoadBalancedFargateService.",
+        why: "Correct. L3 patterns wire several resources together for common architectures." },
+      { t: "Only L1 Cfn* constructs.",
+        why: "Possible, but it requires the most code and no defaults." },
+      { t: "A custom resource backed by Lambda.",
+        why: "Unnecessary; native constructs exist." },
+      { t: "A CloudFormation macro.",
+        why: "Macros transform templates; CDK patterns already provide this." }
+    ],
+    answer: [0],
+    tip: "Whole architecture in a few lines = L3 pattern."
+  },
+  {
+    id: "cdk-09", domain: "d2", topic: "AWS CDK",
+    q: "A stack uses ec2.Vpc.fromLookup() to find an existing VPC. cdk synth fails with an error that the context provider cannot be used because the stack is environment-agnostic. What should the developer do?",
+    options: [
+      { t: "Specify env with an explicit account and Region on the stack.",
+        why: "Correct. Lookups need a concrete environment to query." },
+      { t: "Run cdk bootstrap.",
+        why: "Bootstrapping doesn't make a stack environment-aware." },
+      { t: "Replace fromLookup with a CfnParameter.",
+        why: "Possible workaround, but it doesn't fix the cause; CDK prefers synth-time values." },
+      { t: "Delete cdk.context.json.",
+        why: "The cache isn't the problem; the stack has no environment." }
+    ],
+    answer: [0],
+    tip: "Lookups (fromLookup) need an explicit env (account + Region)."
+  },
+  {
+    id: "cdk-10", domain: "d2", topic: "AWS CDK",
+    q: "A CDK app uses Vpc.fromLookup and an AMI lookup. Templates synthesized in the CI pipeline sometimes differ from those synthesized on developer laptops, and the pipeline's build role needs extra permissions for lookups. What should the team do?",
+    options: [
+      { t: "Commit cdk.context.json to source control so lookup results are cached and synthesis is deterministic.",
+        why: "Correct. Cached context makes synth repeatable and avoids live lookups in the pipeline." },
+      { t: "Add cdk.context.json to .gitignore.",
+        why: "That causes the inconsistency described." },
+      { t: "Run cdk context --clear in every pipeline run.",
+        why: "That forces fresh lookups, making synth less predictable." },
+      { t: "Use environment-agnostic stacks.",
+        why: "Then lookups don't work at all." }
+    ],
+    answer: [0],
+    tip: "Deterministic synth = commit cdk.context.json."
+  },
+  {
+    id: "cdk-11", domain: "d2", topic: "AWS CDK",
+    q: "After running cdk destroy on a development stack, the team finds the S3 bucket created by the stack still exists. They want development buckets, including their objects, to be removed automatically on destroy. What should they configure?",
+    options: [
+      { t: "removalPolicy: RemovalPolicy.DESTROY and autoDeleteObjects: true on the bucket.",
+        why: "Correct. Stateful resources default to RETAIN; autoDeleteObjects adds a custom resource that empties the bucket so it can be deleted." },
+      { t: "Enable termination protection on the stack.",
+        why: "That prevents stack deletion; it doesn't delete buckets." },
+      { t: "Use RemovalPolicy.SNAPSHOT.",
+        why: "SNAPSHOT is for resources like RDS and EBS." },
+      { t: "Run cdk destroy --force.",
+        why: "--force skips the confirmation prompt; it doesn't change the retain policy." }
+    ],
+    answer: [0],
+    tip: "Bucket remains after destroy = default RETAIN; dev: DESTROY + autoDeleteObjects."
+  },
+  {
+    id: "cdk-12", domain: "d2", topic: "AWS CDK",
+    q: "A company needs every S3 bucket defined in any CDK app to have encryption and versioning enabled. Violations should be caught before deployment, during synthesis, across all constructs including those from shared libraries. What should they implement?",
+    options: [
+      { t: "An Aspect (for example cdk-nag or a custom aspect) applied to the app that adds error annotations for non-compliant buckets.",
+        why: "Correct. Aspects visit every construct in the tree, and errors fail synth." },
+      { t: "An AWS Config rule.",
+        why: "Config is detective and evaluates resources after deployment." },
+      { t: "A code review checklist.",
+        why: "Manual and unreliable." },
+      { t: "A stack policy.",
+        why: "Stack policies protect resources from updates; they don't validate configuration." }
+    ],
+    answer: [0],
+    tip: "Enforce rules across all constructs at synth = Aspects / cdk-nag."
+  },
+  {
+    id: "cdk-13", domain: "d2", topic: "AWS CDK",
+    q: "A CDK app needs a database password. A developer hardcoded the password as a string in the stack code. What is the MOST secure way to fix this?",
+    options: [
+      { t: "Store the password in AWS Secrets Manager and reference it with SecretValue.secretsManager(), which becomes a CloudFormation dynamic reference.",
+        why: "Correct. The secret isn't stored in code or in the synthesized template in plain text." },
+      { t: "Move the password into cdk.json context.",
+        why: "Still in source control and in the template." },
+      { t: "Pass the password as a CfnParameter with a default value.",
+        why: "The default value is visible in the template." },
+      { t: "Base64-encode the password in the code.",
+        why: "Encoding isn't encryption." }
+    ],
+    answer: [0],
+    tip: "Secrets in CDK = SecretValue.secretsManager (dynamic reference)."
+  },
+  {
+    id: "cdk-14", domain: "d2", topic: "AWS CDK",
+    q: "A team's CI job runs cdk deploy, but it hangs and times out, waiting for confirmation of IAM security changes. The team reviews IAM changes in pull requests using cdk diff output. What should they change in the CI job?",
+    options: [
+      { t: "Run cdk deploy --require-approval never.",
+        why: "Correct. The default 'broadening' prompts on IAM/SG broadening; 'never' disables the interactive prompt for CI." },
+      { t: "Run cdk deploy --hotswap.",
+        why: "Hotswap bypasses CloudFormation and is for development only." },
+      { t: "Run cdk synth instead of deploy.",
+        why: "Synth doesn't deploy." },
+      { t: "Remove all IAM resources from the app.",
+        why: "Not practical and doesn't address the prompt." }
+    ],
+    answer: [0],
+    tip: "CI hangs on approval = --require-approval never (default broadening)."
+  },
+  {
+    id: "cdk-15", domain: "d2", topic: "AWS CDK",
+    q: "Developers want to iterate quickly on a Lambda function's code in their personal development stack. A full CloudFormation deployment takes several minutes for each change. Which option gives the fastest feedback, and where is it appropriate?",
+    options: [
+      { t: "cdk watch or cdk deploy --hotswap, only in development environments, because they update resources directly and bypass CloudFormation.",
+        why: "Correct. Hotswap is fast but causes drift, so it's not for production." },
+      { t: "cdk deploy --hotswap in all environments, including production.",
+        why: "Hotswap skips change sets and rollback, and causes drift in production." },
+      { t: "cdk synth --fast.",
+        why: "There's no such option, and synth doesn't deploy." },
+      { t: "cdk diff --deploy.",
+        why: "Not a real option." }
+    ],
+    answer: [0],
+    tip: "Fast dev iteration = cdk watch / --hotswap (dev only)."
+  },
+  {
+    id: "cdk-16", domain: "d2", topic: "AWS CDK",
+    q: "A team builds a pipeline with CDK Pipelines. Later, they add a new deployment stage for a staging account in the pipeline code and push the change to the repository. What happens?",
+    options: [
+      { t: "The UpdatePipeline (self-mutation) stage deploys the updated pipeline stack, then the pipeline restarts with the new stage.",
+        why: "Correct. CDK Pipelines are self-mutating; only the first deployment of the pipeline stack is manual." },
+      { t: "Nothing; someone must run cdk deploy PipelineStack manually again.",
+        why: "Only the first deployment is manual." },
+      { t: "The pipeline fails because its structure changed.",
+        why: "Self-mutation handles structural changes." },
+      { t: "The new stage deploys only after the pipeline is deleted and recreated.",
+        why: "No recreation is needed." }
+    ],
+    answer: [0],
+    tip: "CDK Pipelines self-mutation: pipeline code changes update the pipeline itself."
+  },
+  {
+    id: "cdk-17", domain: "d2", topic: "AWS CDK",
+    q: "In a CDK Pipelines pipeline, what is the correct order of the stages created by default?",
+    options: [
+      { t: "Source → Build (synth) → UpdatePipeline → Assets → application stages",
+        why: "Correct. Synth produces cdk.out, the pipeline updates itself, assets are published, then stages deploy." },
+      { t: "Source → Assets → Build → application stages → UpdatePipeline",
+        why: "Assets need the synth output, and the pipeline updates itself before deploying." },
+      { t: "Build → Source → application stages",
+        why: "Source always comes first." },
+      { t: "Source → application stages → Build → Assets",
+        why: "Stages can't deploy before synth and asset publishing." }
+    ],
+    answer: [0],
+    tip: "Source → Synth → UpdatePipeline → Assets → Stages."
+  },
+  {
+    id: "cdk-18", domain: "d2", topic: "AWS CDK",
+    q: "A CDK Pipelines pipeline must deploy the same application stage to us-east-1, eu-west-1 and ap-southeast-1 at the same time after the staging stage succeeds, and require a manual approval before production. How should the pipeline be defined?",
+    options: [
+      { t: "Use pipeline.addWave() containing the three Regional stages, with a ManualApprovalStep as a pre step.",
+        why: "Correct. Waves deploy stages in parallel, and pre steps run before the stages." },
+      { t: "Call addStage() three times.",
+        why: "Separate addStage() calls run one after another." },
+      { t: "Create three separate pipelines.",
+        why: "More to maintain and harder to coordinate approvals." },
+      { t: "Use a StackSet inside the pipeline.",
+        why: "Possible for org-wide baselines, but waves are the CDK Pipelines feature for parallel stages." }
+    ],
+    answer: [0],
+    tip: "Parallel stages in CDK Pipelines = addWave(); approval = ManualApprovalStep in pre."
+  },
+  {
+    id: "cdk-19", domain: "d2", topic: "AWS CDK",
+    q: "After a stage deploys an API in a CDK Pipelines pipeline, the team wants to run integration tests against the deployed API URL before the pipeline continues. How should they do this?",
+    options: [
+      { t: "Add a ShellStep (or CodeBuildStep) as a post step of the stage and use envFromCfnOutputs to pass the API URL output to the test.",
+        why: "Correct. Post steps run after the stage deploys, and envFromCfnOutputs exposes stack outputs as environment variables." },
+      { t: "Run the tests in the synth step.",
+        why: "The API isn't deployed yet at synth time." },
+      { t: "Hardcode the API URL in the test script.",
+        why: "Fragile; the URL changes between environments." },
+      { t: "Use a CloudFormation rollback trigger.",
+        why: "Rollback triggers watch alarms, they don't run test scripts." }
+    ],
+    answer: [0],
+    tip: "Tests after deploy = post ShellStep + envFromCfnOutputs."
+  },
+  {
+    id: "cdk-20", domain: "d2", topic: "AWS CDK",
+    q: "A team wants unit tests that confirm a CDK stack creates an S3 bucket with versioning enabled and exactly one Lambda function, and that fail when someone unintentionally changes the template. Which approach is BEST?",
+    options: [
+      { t: "Use the aws-cdk-lib/assertions module (Template.fromStack, hasResourceProperties, resourceCountIs) plus snapshot tests.",
+        why: "Correct. Fine-grained assertions check specific properties, and snapshots catch unexpected changes." },
+      { t: "Deploy to production and check the console.",
+        why: "Manual and too late." },
+      { t: "Run cdk diff against production in every test.",
+        why: "Diff shows differences but isn't a unit test." },
+      { t: "Use AWS Config rules.",
+        why: "Config evaluates deployed resources, not code." }
+    ],
+    answer: [0],
+    tip: "CDK unit tests = assertions module + snapshot tests."
+  },
+  {
+    id: "cdk-21", domain: "d2", topic: "AWS CDK",
+    q: "Stack A in a CDK app passes its bucket to Stack B, which reads from it. Later, the team removes the code in Stack B that uses the bucket, and the deployment of Stack A fails because an export is still in use. What should they do?",
+    options: [
+      { t: "Keep the export temporarily in Stack A with this.exportValue(), deploy Stack B without the reference, then remove the export in a second deployment.",
+        why: "Correct. This two-step approach avoids the 'deadly embrace' between automatically created exports and imports." },
+      { t: "Delete Stack B and recreate it.",
+        why: "Disruptive and unnecessary." },
+      { t: "Use cdk deploy --force.",
+        why: "This doesn't bypass CloudFormation's export-in-use check." },
+      { t: "Manually delete the export in the CloudFormation console.",
+        why: "You can't delete an export that's still imported." }
+    ],
+    answer: [0],
+    tip: "Export in use when removing a cross-stack reference = exportValue + two-step deploy."
+  },
+  {
+    id: "cdk-22", domain: "d2", topic: "AWS CDK",
+    q: "A company has many existing CloudFormation templates and wants to move to CDK. They also have an S3 bucket created manually that must now be managed by a CDK stack without being recreated. Which tools should they use? (Choose the BEST match.)",
+    options: [
+      { t: "cdk migrate to generate CDK code from the existing templates or stacks, and cdk import to bring the manually created bucket under the stack's management.",
+        why: "Correct. cdk migrate converts templates into a CDK app, and cdk import uses CloudFormation resource import." },
+      { t: "Bucket.fromBucketName for the bucket, which makes CDK manage it.",
+        why: "fromBucketName only references the bucket; it isn't managed by the stack." },
+      { t: "cdk synth --import.",
+        why: "Not a real option." },
+      { t: "Delete the bucket and let CDK recreate it.",
+        why: "The data would be lost." }
+    ],
+    answer: [0],
+    tip: "Convert CFN → CDK = cdk migrate; manage existing resource = cdk import (fromXxx only references)."
   }
 ];
+
 
