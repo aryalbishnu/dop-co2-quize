@@ -1774,6 +1774,80 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AppConfig",
+  sections: [
+    { h: "Core model", items: [
+      "**AppConfig** (part of Systems Manager) = safe **dynamic config + feature flags without redeploying code**",
+      "**Application → Environment (alarm monitors) → Configuration profile (source, type, validators) → Deployment (version + environment + strategy)**",
+      "Types: **Feature flags** (**hosted store only**, constraints, multi-variant) · **Freeform** (JSON / YAML / text)",
+      "Sources: **hosted store**, S3, Parameter Store, SSM document, Secrets Manager, CodePipeline · **retrieval role** · KMS"
+    ]},
+    { h: "Feature flags", items: [
+      "`enabled` + **attributes with constraints** (min / max, regex, enum) → auto-validated",
+      "**Multi-variant flags**: rules on **context** (userId, tier) evaluated by the **agent** → per-segment variants",
+      "Uses: **feature toggles**, **kill switches**, log level / rate limits, allow lists · short-term flags",
+      "**Evidently retiring** → use AppConfig flags"
+    ]},
+    { h: "Validators vs monitors", table: [
+      ["", "Validators", "Monitors"],
+      ["When", "**Before deployment starts**", "**During deployment + bake**"],
+      ["Checks", "Content", "Effect on app"],
+      ["Types", "**JSON Schema** (structure) · **Lambda** (business logic, needs **invoke permission**)", "**CloudWatch alarms** (needs **IAM role** `DescribeAlarms`)"],
+      ["Failure", "**Deployment never starts**", "**Automatic rollback**"]
+    ]},
+    { h: "Deployment strategies", table: [
+      ["Strategy", "Behaviour"],
+      ["**AllAtOnce**", "100% now, ~10 min bake"],
+      ["**Linear50PercentEvery30Seconds**", "~1 min · **testing**"],
+      ["**Canary10Percent20Minutes**", "Exponential from 10%, 20 min, ~10 min bake · **prod recommended**"],
+      ["**Linear20PercentEvery6Minutes**", "30 min, ~30 min bake · prod careful"],
+      ["Custom", "Duration, **Linear / Exponential**, growth %, **final bake time**"]
+    ]},
+    { h: "Deployment behaviour", items: [
+      "% = share of **polling targets** (clients), not users",
+      "**One active deployment per environment**",
+      "Alarm in ALARM during rollout **or bake** → **rollback** to previous version",
+      "**`StopDeployment`** = stop + roll back · after completion → deploy previous version"
+    ]},
+    { h: "Retrieval", items: [
+      "**`StartConfigurationSession`** → token → **`GetLatestConfiguration`** (use next token) · **empty body = no change**",
+      "`GetConfiguration` **deprecated** · billed per request → cache",
+      "**AppConfig Agent**: **Lambda extension** `http://localhost:2772/applications/{app}/environments/{env}/configurations/{profile}` · **ECS / EKS sidecar** · EC2 agent",
+      "Agent = cache, background polling, multi-variant evaluation"
+    ]},
+    { h: "Extensions and integration", items: [
+      "Action points: **PRE_START_DEPLOYMENT**, ON_DEPLOYMENT_START / STEP / BAKING, **ON_DEPLOYMENT_COMPLETE**, **ON_DEPLOYMENT_ROLLED_BACK**",
+      "AWS-authored → **EventBridge / SNS / SQS** notifications · custom Lambda (freeze / ticket checks)",
+      "**CodePipeline AppConfig deploy action** · CFN `AWS::AppConfig::*` · CloudTrail audit",
+      "vs **Parameter Store** (no validation / rollout / rollback) · env vars need redeploy · rotation → Secrets Manager"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Toggle feature without redeploy", "AppConfig feature flag"],
+      ["Feature flag source", "Hosted store"],
+      ["Enum / range / required fields", "JSON Schema validator"],
+      ["Business rules / lookups", "Lambda validator"],
+      ["Validator invoke error", "Lambda resource policy for appconfig"],
+      ["Auto rollback on errors", "Alarm monitors + bake time"],
+      ["Alarm fired, no rollback", "Monitor IAM role (DescribeAlarms)"],
+      ["Prod canary", "Canary10Percent20Minutes"],
+      ["Testing ~1 min", "Linear50PercentEvery30Seconds"],
+      ["Stop bad deployment now", "StopDeployment"],
+      ["Second deployment rejected", "One per environment"],
+      ["Lambda reads every invoke", "Lambda extension (localhost:2772)"],
+      ["EKS / ECS retrieval", "Agent sidecar"],
+      ["Custom client APIs", "StartConfigurationSession + GetLatestConfiguration"],
+      ["Empty response", "No change, use cache"],
+      ["Beta users get variant B", "Multi-variant flags + context"],
+      ["Notify on rollback", "Extension → SNS / EventBridge"],
+      ["Block during freeze", "PRE_START_DEPLOYMENT extension"],
+      ["Keep Parameter Store, add safety", "AppConfig profile with PS source"],
+      ["Replace Evidently", "AppConfig feature flags"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

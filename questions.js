@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -8947,8 +8947,365 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "RDP without 3389 = Fleet Manager Remote Desktop / Session Manager port forwarding."
+  },
+  // ───────────────────────────── Domain 2: AppConfig ─────────────────────────────
+  {
+    id: "acf-01", domain: "d2", topic: "AppConfig",
+    q: "A company runs a microservice on Lambda. Product managers want to turn a new checkout feature on and off quickly, without the development team redeploying the function each time. Changes must roll out gradually and roll back automatically if errors increase. What should a DevOps engineer implement?",
+    options: [
+      { t: "Store the feature as an AWS AppConfig feature flag, deploy changes with a gradual deployment strategy, configure CloudWatch alarms as environment monitors, and read the flag with the AppConfig Lambda extension.",
+        why: "Correct. AppConfig separates config from code, with gradual rollout, alarm-based rollback and efficient retrieval." },
+      { t: "Use a Lambda environment variable and update it when needed.",
+        why: "Changing environment variables updates the function configuration, with no gradual rollout or automatic rollback." },
+      { t: "Store the flag in a DynamoDB table and read it on every invocation.",
+        why: "Works for toggling but has no validation, gradual rollout or automatic rollback." },
+      { t: "Create a new Lambda version for each flag change and shift traffic with CodeDeploy.",
+        why: "That's a code deployment; the requirement is to avoid redeploying." }
+    ],
+    answer: [0],
+    tip: "Toggle features without redeploying + gradual + rollback = AppConfig feature flags."
+  },
+  {
+    id: "acf-02", domain: "d2", topic: "AppConfig",
+    q: "A team wants to create an AppConfig configuration profile of type Feature flags. Which configuration source must they use?",
+    options: [
+      { t: "The AWS AppConfig hosted configuration store.",
+        why: "Correct. Feature flag profiles are stored in the hosted configuration store." },
+      { t: "An Amazon S3 object.",
+        why: "S3 can be used for freeform profiles, not feature flag profiles." },
+      { t: "An SSM Parameter Store parameter.",
+        why: "Supported for freeform profiles only." },
+      { t: "An AWS Secrets Manager secret.",
+        why: "Supported for freeform profiles only." }
+    ],
+    answer: [0],
+    tip: "Feature flags = hosted configuration store."
+  },
+  {
+    id: "acf-03", domain: "d2", topic: "AppConfig",
+    q: "An application's JSON configuration in AppConfig must always contain a logLevel field limited to DEBUG, INFO, WARN or ERROR, and a timeoutMs integer between 100 and 10000. Invalid configuration must never reach the application. What should the engineer configure?",
+    options: [
+      { t: "A JSON Schema validator on the configuration profile.",
+        why: "Correct. JSON Schema validates structure, types, enums and ranges before the deployment starts." },
+      { t: "A CloudWatch alarm on the environment.",
+        why: "Alarms detect impact during or after deployment; they don't validate content beforehand." },
+      { t: "A bake time on the deployment strategy.",
+        why: "Bake time is monitoring after rollout, not validation." },
+      { t: "An S3 bucket policy.",
+        why: "Unrelated to config content validation." }
+    ],
+    answer: [0],
+    tip: "Structure / type / enum checks = JSON Schema validator (before deploy)."
+  },
+  {
+    id: "acf-04", domain: "d2", topic: "AppConfig",
+    q: "Before a pricing configuration is deployed, the team must verify that every product ID in it exists in a DynamoDB table and that discounts never exceed the product margin. Which AppConfig feature should they use?",
+    options: [
+      { t: "An AWS Lambda validator on the configuration profile that checks the business rules and throws an error to reject invalid configuration.",
+        why: "Correct. Lambda validators perform semantic checks, such as lookups and business rules." },
+      { t: "A JSON Schema validator.",
+        why: "JSON Schema can't look up DynamoDB or compare values with external data." },
+      { t: "A deployment strategy with exponential growth.",
+        why: "Strategies control rollout speed, not content correctness." },
+      { t: "An AppConfig extension on ON_DEPLOYMENT_COMPLETE.",
+        why: "That runs after deployment, too late to block invalid configuration." }
+    ],
+    answer: [0],
+    tip: "Business-logic validation = Lambda validator."
+  },
+  {
+    id: "acf-05", domain: "d2", topic: "AppConfig",
+    q: "An engineer added a Lambda validator to an AppConfig configuration profile. When starting a deployment, it fails with an error that AppConfig couldn't invoke the function. What should the engineer do?",
+    options: [
+      { t: "Add a resource-based policy to the Lambda function that allows appconfig.amazonaws.com to invoke it.",
+        why: "Correct. AppConfig needs permission to invoke the validator function." },
+      { t: "Give the application's IAM role lambda:InvokeFunction.",
+        why: "The application doesn't invoke the validator; AppConfig does." },
+      { t: "Increase the Lambda timeout to 15 minutes.",
+        why: "The error is about permission, not timeout." },
+      { t: "Move the configuration to S3.",
+        why: "The source doesn't affect validator permissions." }
+    ],
+    answer: [0],
+    tip: "Lambda validator invoke error = resource policy for appconfig.amazonaws.com."
+  },
+  {
+    id: "acf-06", domain: "d2", topic: "AppConfig",
+    q: "When do AppConfig validators run, and what happens if validation fails?",
+    options: [
+      { t: "They run when the deployment starts (and when a hosted version is created); if validation fails, the deployment doesn't start.",
+        why: "Correct. Validators prevent invalid configuration from ever reaching targets." },
+      { t: "They run after the deployment completes and trigger a rollback if validation fails.",
+        why: "Rollback is triggered by alarms, not validators." },
+      { t: "They run on each client poll.",
+        why: "Clients don't run validators." },
+      { t: "They run only during the bake time.",
+        why: "Bake time is for alarm monitoring." }
+    ],
+    answer: [0],
+    tip: "Validators = before deployment; failure = no deployment."
+  },
+  {
+    id: "acf-07", domain: "d2", topic: "AppConfig",
+    q: "A company wants configuration changes in production to roll out gradually and to be rolled back automatically if the application's 5XX error rate increases, either during the rollout or for 15 minutes after the change reaches all targets. Which configuration meets these requirements?",
+    options: [
+      { t: "Add a CloudWatch 5XX alarm as a monitor on the production environment (with an IAM role that can read alarms), and use a deployment strategy with gradual growth and a 15-minute final bake time.",
+        why: "Correct. Monitors trigger rollback during deployment and during the final bake time." },
+      { t: "Use a JSON Schema validator and AllAtOnce.",
+        why: "Validators check content, not error rates, and there's no monitoring configured." },
+      { t: "Use an EventBridge rule that deletes the configuration profile.",
+        why: "Not a rollback mechanism." },
+      { t: "Set the poll interval to 15 minutes.",
+        why: "The poll interval controls how often clients check for config, not rollback." }
+    ],
+    answer: [0],
+    tip: "Automatic rollback = environment alarm monitors + bake time."
+  },
+  {
+    id: "acf-08", domain: "d2", topic: "AppConfig",
+    q: "An AppConfig environment has a CloudWatch alarm configured as a monitor, but when the alarm fired during a deployment, nothing was rolled back. What is the MOST likely cause?",
+    options: [
+      { t: "The monitor isn't configured with an IAM role that allows AppConfig to read the alarm (cloudwatch:DescribeAlarms).",
+        why: "Correct. AppConfig needs a role to evaluate the alarm state." },
+      { t: "Rollback only works with Lambda validators.",
+        why: "Validators aren't involved in rollback." },
+      { t: "Feature flag profiles can't be rolled back.",
+        why: "All configuration types can roll back." },
+      { t: "Alarms must be in the us-east-1 Region.",
+        why: "Alarms are used in the environment's Region." }
+    ],
+    answer: [0],
+    tip: "Monitor alarms need an IAM role with cloudwatch:DescribeAlarms."
+  },
+  {
+    id: "acf-09", domain: "d2", topic: "AppConfig",
+    q: "Which predefined AppConfig deployment strategy does AWS recommend for production deployments, using exponential growth starting with 10% of targets?",
+    options: [
+      { t: "AppConfig.Canary10Percent20Minutes",
+        why: "Correct. Exponential growth over 20 minutes followed by a bake time." },
+      { t: "AppConfig.Linear50PercentEvery30Seconds",
+        why: "Intended for testing and demos." },
+      { t: "AppConfig.AllAtOnce",
+        why: "Deploys to all targets immediately." },
+      { t: "CodeDeployDefault.LambdaCanary10Percent5Minutes",
+        why: "That's a CodeDeploy configuration, not an AppConfig strategy." }
+    ],
+    answer: [0],
+    tip: "AppConfig production canary = Canary10Percent20Minutes."
+  },
+  {
+    id: "acf-10", domain: "d2", topic: "AppConfig",
+    q: "A team is testing AppConfig in a development environment and wants configuration changes to reach all targets in about a minute while still using a step-wise rollout. Which predefined strategy fits?",
+    options: [
+      { t: "AppConfig.Linear50PercentEvery30Seconds",
+        why: "Correct. Two steps over about one minute, intended for testing." },
+      { t: "AppConfig.Linear20PercentEvery6Minutes",
+        why: "Takes 30 minutes plus a long bake." },
+      { t: "AppConfig.Canary10Percent20Minutes",
+        why: "Takes 20 minutes plus bake." },
+      { t: "A custom strategy with a 24-hour duration.",
+        why: "Far too slow." }
+    ],
+    answer: [0],
+    tip: "Testing strategy = Linear50PercentEvery30Seconds."
+  },
+  {
+    id: "acf-11", domain: "d2", topic: "AppConfig",
+    q: "In an AppConfig deployment strategy, what does the final bake time control?",
+    options: [
+      { t: "How long AppConfig keeps monitoring the environment's alarms after the configuration reaches 100% of targets, rolling back if an alarm fires.",
+        why: "Correct. Bake time extends the monitoring window after full rollout." },
+      { t: "How long clients cache the configuration.",
+        why: "Caching is controlled by clients and the agent poll interval." },
+      { t: "How long validators run.",
+        why: "Validators run before the deployment starts." },
+      { t: "The delay before the first deployment step.",
+        why: "Not what bake time means." }
+    ],
+    answer: [0],
+    tip: "Final bake time = monitoring after 100%."
+  },
+  {
+    id: "acf-12", domain: "d2", topic: "AppConfig",
+    q: "A bad configuration change is halfway through a slow linear deployment, and the on-call engineer sees errors increasing before the alarm threshold is reached. What should they do to revert immediately?",
+    options: [
+      { t: "Call StopDeployment for the in-progress deployment, which rolls the targets back to the previous version.",
+        why: "Correct. StopDeployment stops the rollout and rolls back." },
+      { t: "Delete the configuration profile.",
+        why: "Destructive, and it doesn't cleanly roll back clients." },
+      { t: "Start a second deployment with the previous version.",
+        why: "Only one deployment can be active per environment, so this is rejected while the first is running." },
+      { t: "Increase the growth factor.",
+        why: "That pushes the bad config to more targets faster." }
+    ],
+    answer: [0],
+    tip: "Stop a bad deployment now = StopDeployment (rolls back)."
+  },
+  {
+    id: "acf-13", domain: "d2", topic: "AppConfig",
+    q: "A CI job tries to start a second AppConfig deployment to the production environment while another deployment to the same environment is still baking. What happens?",
+    options: [
+      { t: "The request is rejected because only one deployment can be active per environment at a time.",
+        why: "Correct. Wait for the current deployment to complete or stop it first." },
+      { t: "Both deployments run in parallel.",
+        why: "Not allowed in the same environment." },
+      { t: "The second deployment is merged into the first.",
+        why: "Deployments aren't merged." },
+      { t: "The first deployment is automatically rolled back.",
+        why: "Starting another deployment doesn't roll back the current one." }
+    ],
+    answer: [0],
+    tip: "One active deployment per environment."
+  },
+  {
+    id: "acf-14", domain: "d2", topic: "AppConfig",
+    q: "A high-traffic Lambda function calls the AppConfig Data API on every invocation to read its configuration. The team sees added latency and rising AppConfig costs. What should they do?",
+    options: [
+      { t: "Add the AWS AppConfig Lambda extension and read the configuration from http://localhost:2772, letting the extension cache and poll in the background.",
+        why: "Correct. The extension caches config locally and reduces API calls and latency." },
+      { t: "Increase the function's memory.",
+        why: "Doesn't reduce API calls or cost." },
+      { t: "Move the configuration into the deployment package.",
+        why: "Then changes need a code deployment." },
+      { t: "Use the deprecated GetConfiguration API.",
+        why: "Deprecated, and it doesn't solve the problem." }
+    ],
+    answer: [0],
+    tip: "Lambda + AppConfig efficiently = AppConfig Lambda extension (localhost:2772)."
+  },
+  {
+    id: "acf-15", domain: "d2", topic: "AppConfig",
+    q: "Microservices running on Amazon EKS need to read AppConfig feature flags with low latency and minimal code changes. What is the recommended approach?",
+    options: [
+      { t: "Run the AWS AppConfig Agent as a sidecar container in each pod and read configuration from its localhost endpoint.",
+        why: "Correct. The agent handles sessions, polling and caching for containers." },
+      { t: "Mount the configuration from a ConfigMap and update it manually.",
+        why: "No validation, gradual rollout or rollback." },
+      { t: "Call GetLatestConfiguration from every request handler.",
+        why: "Higher latency and cost than the cached agent." },
+      { t: "Use Parameter Store GetParameter on every request.",
+        why: "No AppConfig rollout features, and frequent calls can throttle." }
+    ],
+    answer: [0],
+    tip: "ECS / EKS + AppConfig = AppConfig Agent sidecar."
+  },
+  {
+    id: "acf-16", domain: "d2", topic: "AppConfig",
+    q: "A developer is writing a custom client for AppConfig without the agent. Which API calls should the client use to retrieve configuration?",
+    options: [
+      { t: "StartConfigurationSession once, then GetLatestConfiguration repeatedly, always using the NextPollConfigurationToken from the previous response.",
+        why: "Correct. This is the AppConfig Data API flow." },
+      { t: "GetConfiguration on every request.",
+        why: "Deprecated." },
+      { t: "GetParameter from SSM.",
+        why: "That's Parameter Store." },
+      { t: "ListDeployments, then download from S3.",
+        why: "Not how clients retrieve configuration." }
+    ],
+    answer: [0],
+    tip: "AppConfig Data API = StartConfigurationSession + GetLatestConfiguration."
+  },
+  {
+    id: "acf-17", domain: "d2", topic: "AppConfig",
+    q: "A client calls GetLatestConfiguration and receives a successful response with an empty configuration body. What does this mean?",
+    options: [
+      { t: "The configuration hasn't changed since the last call; the client should keep using its cached copy and poll again later with the new token.",
+        why: "Correct. An empty body indicates no new version." },
+      { t: "The configuration was deleted.",
+        why: "An empty response doesn't mean deletion." },
+      { t: "Validation failed.",
+        why: "Validation happens at deployment time." },
+      { t: "The session expired and the client must stop polling.",
+        why: "An expired token returns an error, not an empty success." }
+    ],
+    answer: [0],
+    tip: "Empty GetLatestConfiguration = no change; keep the cache."
+  },
+  {
+    id: "acf-18", domain: "d2", topic: "AppConfig",
+    q: "A product team wants customers in the 'beta' tier to see variant B of a recommendation widget, while all other customers see variant A, without separate deployments for each group. Which AppConfig feature should they use?",
+    options: [
+      { t: "Multi-variant feature flags with targeting rules evaluated against context (such as tier) sent by the client through the AppConfig Agent.",
+        why: "Correct. Multi-variant flags return different values based on request context." },
+      { t: "Two environments, beta and prod.",
+        why: "Environments group deployment targets (hosts), not individual customers." },
+      { t: "A deployment strategy with a 10% growth factor.",
+        why: "Growth factor is a percentage of polling targets, not of specific customers." },
+      { t: "A JSON Schema validator.",
+        why: "Validators check content; they don't target users." }
+    ],
+    answer: [0],
+    tip: "Per-user / per-segment variants = multi-variant flags + context."
+  },
+  {
+    id: "acf-19", domain: "d2", topic: "AppConfig",
+    q: "The operations team wants a message in their Slack channel (through SNS) whenever an AppConfig deployment is rolled back. What is the simplest solution?",
+    options: [
+      { t: "Associate the AWS-authored AppConfig notification extension for SNS (or EventBridge) with the application, which publishes deployment events such as rollbacks.",
+        why: "Correct. AppConfig extensions send lifecycle events like ON_DEPLOYMENT_ROLLED_BACK." },
+      { t: "Poll ListDeployments every minute with a Lambda function.",
+        why: "Works, but more custom code than the built-in extension." },
+      { t: "Create a CloudTrail trail and read it manually.",
+        why: "Not a notification mechanism." },
+      { t: "Add a Lambda validator that posts to Slack.",
+        why: "Validators run before deployment, not on rollback." }
+    ],
+    answer: [0],
+    tip: "Notify on deployment events = AppConfig extension (SNS / EventBridge / SQS)."
+  },
+  {
+    id: "acf-20", domain: "d2", topic: "AppConfig",
+    q: "During a year-end change freeze, no AppConfig deployments may start unless an approved change ticket ID is provided. What should the engineer implement?",
+    options: [
+      { t: "A custom AppConfig extension with a Lambda action on PRE_START_DEPLOYMENT that checks the freeze calendar and ticket and blocks the deployment if needed.",
+        why: "Correct. PRE_START_DEPLOYMENT extensions can stop a deployment before it begins." },
+      { t: "An ON_DEPLOYMENT_COMPLETE extension.",
+        why: "Too late; the configuration is already deployed." },
+      { t: "A longer bake time.",
+        why: "Bake time doesn't prevent deployments from starting." },
+      { t: "A JSON Schema validator requiring a ticket field.",
+        why: "Partial at best; it adds a field to the config rather than enforcing a freeze calendar." }
+    ],
+    answer: [0],
+    tip: "Block deploys before they start = PRE_START_DEPLOYMENT extension."
+  },
+  {
+    id: "acf-21", domain: "d2", topic: "AppConfig",
+    q: "A company currently stores its application settings in Parameter Store and wants to keep them there, but add validation, gradual rollout and automatic rollback when settings change. What should it do?",
+    options: [
+      { t: "Create an AppConfig freeform configuration profile that uses the Parameter Store parameter as its source, with validators, an environment with alarm monitors and a deployment strategy.",
+        why: "Correct. AppConfig can use Parameter Store as a source and add safe deployment features." },
+      { t: "Enable Parameter Store advanced tier policies.",
+        why: "Policies give expiration and notifications, not gradual rollout or rollback." },
+      { t: "Turn on Parameter Store higher throughput.",
+        why: "Throughput doesn't add deployment safety." },
+      { t: "Move the settings to Secrets Manager with rotation.",
+        why: "Rotation isn't gradual rollout or validation." }
+    ],
+    answer: [0],
+    tip: "Keep Parameter Store, add safety = AppConfig profile with Parameter Store source."
+  },
+  {
+    id: "acf-22", domain: "d2", topic: "AppConfig",
+    q: "A team has used Amazon CloudWatch Evidently for feature flags and is planning new feature-flag work. Which statement reflects AWS guidance? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Use AWS AppConfig feature flags for new feature-flag work, because CloudWatch Evidently is being retired.",
+        why: "Correct. AWS recommends moving feature flags to AppConfig." },
+      { t: "Use AppConfig multi-variant flags with targeting rules for segment-based variations.",
+        why: "Correct. Multi-variant flags cover variant targeting by context." },
+      { t: "Store feature flags in Lambda environment variables.",
+        why: "Changing them requires a function update and has no rollout safety." },
+      { t: "Use Parameter Store StringList parameters as flags with automatic rollback.",
+        why: "Parameter Store has no automatic rollback." },
+      { t: "Use CodeDeploy canary deployments to toggle flags.",
+        why: "CodeDeploy deploys code versions, not feature flags." }
+    ],
+    answer: [0, 1],
+    tip: "Evidently retiring → AppConfig feature flags (incl. multi-variant)."
   }
 ];
+
 
 
 
