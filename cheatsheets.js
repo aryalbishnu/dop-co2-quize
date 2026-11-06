@@ -1603,6 +1603,89 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AWS SAM",
+  sections: [
+    { h: "Core model", items: [
+      "**SAM = CloudFormation transform + CLI** for serverless · **`Transform: AWS::Serverless-2016-10-31`** (required)",
+      "Deploys via **CloudFormation change sets** (rollback, drift, limits still apply) · mix SAM + plain CFN resources",
+      "**Globals**: Function, Api, HttpApi, SimpleTable, LayerVersion, StateMachine · resource props override"
+    ]},
+    { h: "Resource types", table: [
+      ["Type", "Creates"],
+      ["**Serverless::Function**", "Lambda + **IAM role** + events (+ version / alias / CodeDeploy)"],
+      ["**Serverless::Api** / **HttpApi**", "REST API / HTTP API (implicit `ServerlessRestApi` from `Events: Api`)"],
+      ["**Serverless::SimpleTable**", "DynamoDB, **one key** (sort key / GSI → `AWS::DynamoDB::Table`)"],
+      ["Serverless::LayerVersion", "Lambda layer"],
+      ["Serverless::StateMachine", "Step Functions"],
+      ["**Serverless::Application**", "Nested app from **SAR** (CAPABILITY_AUTO_EXPAND)"],
+      ["**Serverless::Connector**", "Permissions between resources (Read / Write)"]
+    ]},
+    { h: "Function essentials", items: [
+      "`CodeUri` (local → packaged to S3) / `InlineCode` · `PackageType: Image` → ECR",
+      "**Policies**: **policy templates** (`S3ReadPolicy`, `DynamoDBCrudPolicy`, `SQSPollerPolicy`...), managed, inline · `Role` overrides",
+      "Events: Api, HttpApi, **S3 (bucket in same template)**, SQS / Kinesis / DynamoDB (mappings), SNS, EventBridgeRule, Schedule",
+      "**AutoPublishAlias** → version + alias · **DeploymentPreference** → CodeDeploy (needs AutoPublishAlias)"
+    ]},
+    { h: "DeploymentPreference", items: [
+      "Type: **Canary10Percent5/10/15/30Minutes**, **Linear10PercentEvery1/2/3/10Minutes**, AllAtOnce",
+      "**Alarms** → automatic rollback · **Hooks** PreTraffic / PostTraffic",
+      "Hooks must call **`PutLifecycleEventHookExecutionStatus`** (else timeout fail)",
+      "Generates CodeDeploy app + deployment group · **no separate CodeDeploy pipeline action needed**"
+    ]},
+    { h: "CLI", table: [
+      ["Command", "Use"],
+      ["**`sam build`**", "Deps + `.aws-sam/build` · **`--use-container`** for native deps"],
+      ["**`sam package`**", "Upload to S3 / ECR → packaged template (= `aws cloudformation package`)"],
+      ["**`sam deploy`**", "Change set · **`--guided`** → samconfig.toml · `--resolve-s3` · **CAPABILITY_IAM + CAPABILITY_AUTO_EXPAND** · **`--no-fail-on-empty-changeset`** · `--config-env`"],
+      ["`sam validate --lint`", "cfn-lint"],
+      ["**`sam sync --watch`**", "Code straight to Lambda, **bypasses CFN** → **dev only**"],
+      ["`sam logs` / `sam traces`", "CloudWatch Logs / X-Ray"],
+      ["`sam remote invoke`", "Invoke deployed function"],
+      ["**`sam pipeline init --bootstrap`**", "2-stage CI/CD config + per-stage roles, bucket, ECR"],
+      ["`sam publish` / `sam delete`", "SAR / remove stack"]
+    ]},
+    { h: "Local testing (needs Docker)", items: [
+      "**`sam local invoke Fn -e event.json`** → one run · `--env-vars` · `-d <port>` debugger",
+      "**`sam local start-api`** → local HTTP API **:3000** (code reload without restart)",
+      "**`sam local start-lambda`** → Invoke endpoint **:3001** for **SDK / automated tests**",
+      "**`sam local generate-event s3 put`** → sample payloads",
+      "**No IAM enforcement** (your credentials) · **no AWS service emulation** (real AWS / DynamoDB Local) · no SQS polling",
+      "Works on CDK: `sam local invoke -t cdk.out/Stack.template.json`"
+    ]},
+    { h: "Pipelines", items: [
+      "CodeBuild: `sam build` + **`sam package --output-template-file packaged.yaml`**",
+      "CFN action **CHANGE_SET_REPLACE → approval → CHANGE_SET_EXECUTE**, **CAPABILITY_AUTO_EXPAND**",
+      "Or `sam deploy --no-confirm-changeset --no-fail-on-empty-changeset` · or `sam pipeline init --bootstrap`"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Serverless IaC + local testing", "SAM"],
+      ["Serverless types not recognised", "Add Transform"],
+      ["CAPABILITY_AUTO_EXPAND error", "Add it (+ CAPABILITY_IAM)"],
+      ["Local CodeUri in pipeline", "sam package first"],
+      ["invalid ELF header / native deps", "sam build --use-container"],
+      ["Test API routes locally", "sam local start-api"],
+      ["SDK tests against local functions", "sam local start-lambda"],
+      ["Sample S3 event", "sam local generate-event"],
+      ["Local OK, AccessDenied in AWS", "Fix function Policies"],
+      ["sam local needs ...", "Docker"],
+      ["Lambda canary + auto rollback", "AutoPublishAlias + DeploymentPreference + Alarms"],
+      ["No gradual shift happens", "Missing AutoPublishAlias"],
+      ["Hook deployment times out", "PutLifecycleEventHookExecutionStatus"],
+      ["Repeated function settings", "Globals"],
+      ["Least privilege, no IAM JSON", "Policy templates / Connectors"],
+      ["S3 event on other-stack bucket", "Bucket must be in same template"],
+      ["Per-env deploy settings", "samconfig.toml + --config-env"],
+      ["CI fails on no changes", "--no-fail-on-empty-changeset"],
+      ["Seconds-fast dev updates", "sam sync --watch (dev)"],
+      ["Generate 2-stage pipeline", "sam pipeline init --bootstrap"],
+      ["Sort key / GSI", "AWS::DynamoDB::Table"],
+      ["Reusable app across teams", "SAR + Serverless::Application"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

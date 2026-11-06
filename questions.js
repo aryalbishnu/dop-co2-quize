@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -8235,7 +8235,364 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Convert CFN → CDK = cdk migrate; manage existing resource = cdk import (fromXxx only references)."
+  },
+  // ───────────────────────────── Domain 2: AWS SAM ─────────────────────────────
+  {
+    id: "sam-01", domain: "d2", topic: "AWS SAM",
+    q: "A team is building a serverless application with Lambda functions, an API Gateway API and a DynamoDB table. They want concise infrastructure as code, the ability to test functions and API routes on their laptops before deploying, and deployments through AWS CloudFormation. Which approach meets these requirements with the LEAST effort?",
+    options: [
+      { t: "Use AWS SAM templates and the SAM CLI (sam local for testing, sam deploy for CloudFormation deployments).",
+        why: "Correct. SAM provides short serverless resource types, local testing with sam local, and deploys through CloudFormation." },
+      { t: "Write plain CloudFormation templates and test by deploying to a dev account each time.",
+        why: "Longer templates and no local testing." },
+      { t: "Use the AWS CLI to create the functions and API directly.",
+        why: "No infrastructure as code or CloudFormation." },
+      { t: "Use AWS Elastic Beanstalk.",
+        why: "Beanstalk runs applications on EC2 or containers, not Lambda-based serverless apps." }
+    ],
+    answer: [0],
+    tip: "Serverless + short IaC + local testing + CloudFormation = SAM."
+  },
+  {
+    id: "sam-02", domain: "d2", topic: "AWS SAM",
+    q: "An engineer deploys a template containing AWS::Serverless::Function resources through the CloudFormation console, and the stack creation fails because CloudFormation doesn't recognise the resource type. What is MOST likely missing from the template?",
+    options: [
+      { t: "Transform: AWS::Serverless-2016-10-31",
+        why: "Correct. The SAM transform tells CloudFormation to expand AWS::Serverless::* resources into standard resources." },
+      { t: "A Globals section.",
+        why: "Globals are optional." },
+      { t: "AWSTemplateFormatVersion.",
+        why: "Optional, and not what makes SAM types work." },
+      { t: "A Metadata section.",
+        why: "Metadata isn't required for SAM resources." }
+    ],
+    answer: [0],
+    tip: "SAM template = Transform: AWS::Serverless-2016-10-31 (required)."
+  },
+  {
+    id: "sam-03", domain: "d2", topic: "AWS SAM",
+    q: "A CodePipeline pipeline deploys a SAM template with a CloudFormation deploy action. The action fails with 'Requires capabilities : [CAPABILITY_AUTO_EXPAND]'. What should the engineer do?",
+    options: [
+      { t: "Add CAPABILITY_AUTO_EXPAND (and CAPABILITY_IAM for the generated roles) to the action's capabilities.",
+        why: "Correct. Templates with transforms or nested applications need CAPABILITY_AUTO_EXPAND." },
+      { t: "Remove the Transform line.",
+        why: "Then the SAM resources can't be processed." },
+      { t: "Grant the pipeline role cloudformation:* permissions.",
+        why: "This is a capability acknowledgement, not a permission problem." },
+      { t: "Switch to sam sync.",
+        why: "sam sync is for development, not pipeline deployments." }
+    ],
+    answer: [0],
+    tip: "CAPABILITY_AUTO_EXPAND error = add it (+ CAPABILITY_IAM)."
+  },
+  {
+    id: "sam-04", domain: "d2", topic: "AWS SAM",
+    q: "A pipeline's CloudFormation action deploys template.yaml directly from the source repository. The SAM function uses CodeUri: src/handler/. The deployment fails because CloudFormation can't find the code. What should be added to the pipeline?",
+    options: [
+      { t: "A CodeBuild step that runs sam build and sam package (or aws cloudformation package) to upload the code to S3 and produce a packaged template, then deploy the packaged template.",
+        why: "Correct. Packaging uploads local artifacts to S3 and rewrites CodeUri to S3 URIs that CloudFormation can use." },
+      { t: "Change CodeUri to an absolute local path.",
+        why: "CloudFormation can't read any local file system path." },
+      { t: "Zip the repository and attach it to the CloudFormation action.",
+        why: "CloudFormation still needs S3 URIs in the template." },
+      { t: "Use InlineCode for all functions.",
+        why: "Inline code is limited in size and doesn't support dependencies." }
+    ],
+    answer: [0],
+    tip: "Local CodeUri → package first (sam package / aws cloudformation package)."
+  },
+  {
+    id: "sam-05", domain: "d2", topic: "AWS SAM",
+    q: "Developers build a Python SAM application on macOS. The function depends on a library with compiled C extensions. After deployment, the function fails with an 'invalid ELF header' import error. What should they change?",
+    options: [
+      { t: "Run sam build --use-container so dependencies are built in a Lambda-compatible Amazon Linux container.",
+        why: "Correct. Native dependencies must be compiled for the Lambda runtime environment." },
+      { t: "Increase the function memory.",
+        why: "Memory doesn't fix binary incompatibility." },
+      { t: "Use sam sync instead of sam deploy.",
+        why: "sam sync uploads the same incompatible build." },
+      { t: "Switch the function architecture to x86_64.",
+        why: "The binary was built for macOS, not Linux, so changing architecture doesn't help." }
+    ],
+    answer: [0],
+    tip: "Native deps fail in Lambda = sam build --use-container."
+  },
+  {
+    id: "sam-06", domain: "d2", topic: "AWS SAM",
+    q: "A developer wants to test API routes defined in a SAM template locally with curl, iterating on the Lambda code without redeploying. Which command should they use?",
+    options: [
+      { t: "sam local start-api",
+        why: "Correct. It starts a local API Gateway emulator (default port 3000) that routes requests to the functions." },
+      { t: "sam local start-lambda",
+        why: "That emulates the Lambda Invoke API, not HTTP routes." },
+      { t: "sam deploy --guided",
+        why: "That deploys to AWS." },
+      { t: "sam logs --tail",
+        why: "That reads CloudWatch Logs from deployed functions." }
+    ],
+    answer: [0],
+    tip: "Local HTTP API routes = sam local start-api (port 3000)."
+  },
+  {
+    id: "sam-07", domain: "d2", topic: "AWS SAM",
+    q: "A team has automated integration tests that use the AWS SDK to invoke Lambda functions. They want to run these tests against local versions of the functions defined in their SAM template, without deploying. What should they do?",
+    options: [
+      { t: "Run sam local start-lambda and configure the SDK client endpoint to http://127.0.0.1:3001.",
+        why: "Correct. start-lambda emulates the Lambda Invoke endpoint for SDK and CLI calls." },
+      { t: "Run sam local start-api and call the functions through HTTP.",
+        why: "The tests use the Lambda Invoke API, not HTTP routes." },
+      { t: "Run sam local invoke for each test manually.",
+        why: "Not suitable for automated SDK-based tests." },
+      { t: "Use sam remote invoke.",
+        why: "That invokes deployed functions in AWS." }
+    ],
+    answer: [0],
+    tip: "SDK / automated tests against local functions = sam local start-lambda (port 3001)."
+  },
+  {
+    id: "sam-08", domain: "d2", topic: "AWS SAM",
+    q: "A developer needs to test a Lambda function that processes S3 object-created events, using sam local invoke. What is the FASTEST way to get a realistic event payload?",
+    options: [
+      { t: "Run sam local generate-event s3 put and pass the output to sam local invoke -e.",
+        why: "Correct. generate-event creates sample payloads for many event sources." },
+      { t: "Deploy the function and copy an event from CloudWatch Logs.",
+        why: "Slow and requires deployment." },
+      { t: "Write the JSON event by hand from the documentation.",
+        why: "Possible but slower and error-prone." },
+      { t: "Use sam local start-api.",
+        why: "That's for API Gateway requests, not S3 events." }
+    ],
+    answer: [0],
+    tip: "Sample event payloads = sam local generate-event."
+  },
+  {
+    id: "sam-09", domain: "d2", topic: "AWS SAM",
+    q: "A function works when run with sam local invoke on a developer's laptop, but after deployment it fails with AccessDeniedException when writing to a DynamoDB table. What is the MOST likely cause?",
+    options: [
+      { t: "sam local runs with the developer's own credentials; the deployed function's IAM role doesn't have permission. Add a policy such as DynamoDBCrudPolicy to the function's Policies.",
+        why: "Correct. Local testing doesn't enforce the function's execution role." },
+      { t: "The table doesn't exist locally.",
+        why: "Local runs call the real table, so the table isn't the issue." },
+      { t: "Docker blocked the network call.",
+        why: "The local call succeeded, so Docker isn't the problem." },
+      { t: "The function needs more memory.",
+        why: "AccessDenied is a permissions error." }
+    ],
+    answer: [0],
+    tip: "Works locally, AccessDenied in AWS = local uses your credentials; fix function Policies."
+  },
+  {
+    id: "sam-10", domain: "d2", topic: "AWS SAM",
+    q: "A developer runs sam local invoke on a new laptop and receives an error that running AWS SAM projects locally requires Docker. What should they do?",
+    options: [
+      { t: "Install and start Docker (or a compatible container runtime).",
+        why: "Correct. sam local runs functions inside containers that emulate the Lambda runtime." },
+      { t: "Run sam build --use-container first.",
+        why: "That also requires Docker." },
+      { t: "Configure AWS credentials.",
+        why: "Credentials don't replace the container runtime." },
+      { t: "Deploy the function first.",
+        why: "Local testing is meant to avoid deploying." }
+    ],
+    answer: [0],
+    tip: "sam local needs Docker."
+  },
+  {
+    id: "sam-11", domain: "d2", topic: "AWS SAM",
+    q: "A company wants new versions of a Lambda function deployed with SAM to receive 10% of traffic for 10 minutes before the rest, and to roll back automatically if a CloudWatch error alarm goes into ALARM. Which template configuration achieves this with the LEAST effort?",
+    options: [
+      { t: "Set AutoPublishAlias: live and DeploymentPreference with Type: Canary10Percent10Minutes and Alarms listing the error alarm.",
+        why: "Correct. SAM creates the version, alias and CodeDeploy resources, and alarms trigger automatic rollback." },
+      { t: "Manually define AWS::CodeDeploy::Application and DeploymentGroup resources and a separate CodeDeploy pipeline action.",
+        why: "Works, but much more effort than DeploymentPreference." },
+      { t: "Use weighted Route 53 records between two functions.",
+        why: "Lambda traffic shifting is done with aliases, not DNS." },
+      { t: "Use sam sync with a 10% option.",
+        why: "sam sync has no traffic shifting." }
+    ],
+    answer: [0],
+    tip: "Lambda canary in SAM = AutoPublishAlias + DeploymentPreference + Alarms."
+  },
+  {
+    id: "sam-12", domain: "d2", topic: "AWS SAM",
+    q: "An engineer adds DeploymentPreference: { Type: Linear10PercentEvery1Minute } to a SAM function, but the deployment doesn't shift traffic gradually. What is MOST likely missing?",
+    options: [
+      { t: "AutoPublishAlias on the function.",
+        why: "Correct. DeploymentPreference needs an alias, which AutoPublishAlias creates and updates." },
+      { t: "A Globals section.",
+        why: "Globals are optional." },
+      { t: "An API Gateway event.",
+        why: "Traffic shifting doesn't depend on the event source." },
+      { t: "CAPABILITY_NAMED_IAM.",
+        why: "Capabilities affect whether the stack deploys, not the traffic shifting." }
+    ],
+    answer: [0],
+    tip: "DeploymentPreference requires AutoPublishAlias."
+  },
+  {
+    id: "sam-13", domain: "d2", topic: "AWS SAM",
+    q: "A SAM function uses DeploymentPreference with a PreTraffic hook function. Every deployment waits for a long time and then fails, even though the hook's tests pass. What is the MOST likely cause?",
+    options: [
+      { t: "The hook function doesn't call codedeploy:PutLifecycleEventHookExecutionStatus to report Succeeded.",
+        why: "Correct. CodeDeploy waits for the hook to report its status and fails the deployment when it times out." },
+      { t: "PreTraffic hooks aren't supported for Lambda.",
+        why: "They are supported." },
+      { t: "The alarm list is empty.",
+        why: "Alarms are optional." },
+      { t: "The function uses arm64.",
+        why: "Architecture doesn't affect hooks." }
+    ],
+    answer: [0],
+    tip: "Hooks must call PutLifecycleEventHookExecutionStatus."
+  },
+  {
+    id: "sam-14", domain: "d2", topic: "AWS SAM",
+    q: "A SAM template has 25 Lambda functions that all use the same runtime, timeout, memory size, tracing setting and environment variable for the table name. The team wants to remove the repetition. What should they use?",
+    options: [
+      { t: "The Globals section with a Function block.",
+        why: "Correct. Globals define shared properties for all functions; individual functions can override them." },
+      { t: "A nested stack per function.",
+        why: "Adds complexity without removing the repetition." },
+      { t: "CloudFormation Mappings.",
+        why: "Mappings provide lookup values, but each function would still repeat the properties." },
+      { t: "A Lambda layer.",
+        why: "Layers share code and libraries, not configuration properties." }
+    ],
+    answer: [0],
+    tip: "Repeated function properties = Globals."
+  },
+  {
+    id: "sam-15", domain: "d2", topic: "AWS SAM",
+    q: "A SAM function reads from one S3 bucket and writes to one DynamoDB table. The security team wants least-privilege permissions without developers writing IAM policy JSON. Which options meet this requirement? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Use SAM policy templates such as S3ReadPolicy and DynamoDBCrudPolicy in the function's Policies, scoped to the bucket and table.",
+        why: "Correct. Policy templates generate scoped IAM statements." },
+      { t: "Use AWS::Serverless::Connector resources between the function and the bucket and table.",
+        why: "Correct. Connectors generate the required permissions between resources." },
+      { t: "Attach AdministratorAccess to the function role.",
+        why: "Not least privilege." },
+      { t: "Attach AmazonS3FullAccess and AmazonDynamoDBFullAccess.",
+        why: "Too broad." },
+      { t: "Give the function no role and use the developer's credentials.",
+        why: "Every Lambda function needs an execution role." }
+    ],
+    answer: [0, 1],
+    tip: "Least privilege without IAM JSON = SAM policy templates / Connectors."
+  },
+  {
+    id: "sam-16", domain: "d2", topic: "AWS SAM",
+    q: "A SAM function has an S3 event that references a bucket created in a different CloudFormation stack. sam deploy fails with an error about the event source. What is the cause?",
+    options: [
+      { t: "The SAM S3 event type requires the bucket to be defined in the same template.",
+        why: "Correct. For buckets in other stacks, configure the notification separately (for example with EventBridge or a custom resource)." },
+      { t: "S3 can't trigger Lambda functions.",
+        why: "It can." },
+      { t: "The function needs a VPC configuration.",
+        why: "Unrelated to S3 events." },
+      { t: "The bucket must have versioning enabled.",
+        why: "Not required for event notifications." }
+    ],
+    answer: [0],
+    tip: "SAM S3 event = bucket in the same template."
+  },
+  {
+    id: "sam-17", domain: "d2", topic: "AWS SAM",
+    q: "A team deploys the same SAM application to dev and prod with different stack names, parameter values and change set confirmation settings. They want repeatable deployments from the command line without typing the options each time. What should they use?",
+    options: [
+      { t: "samconfig.toml with separate [default] and [prod] environments, deploying prod with sam deploy --config-env prod.",
+        why: "Correct. samconfig.toml stores per-environment deploy settings." },
+      { t: "Two copies of template.yaml.",
+        why: "Duplicates the template and causes drift between environments." },
+      { t: "Environment variables in Globals.",
+        why: "Those configure the functions, not the deployment options." },
+      { t: "A shell script with hardcoded secrets.",
+        why: "Insecure and harder to maintain." }
+    ],
+    answer: [0],
+    tip: "Per-environment deploy settings = samconfig.toml + --config-env."
+  },
+  {
+    id: "sam-18", domain: "d2", topic: "AWS SAM",
+    q: "A CodeBuild job runs sam deploy on every commit. When a commit doesn't change the infrastructure or code, the job fails because the change set contains no changes. How should the team fix this?",
+    options: [
+      { t: "Add --no-fail-on-empty-changeset to the sam deploy command.",
+        why: "Correct. The command then succeeds when there's nothing to deploy." },
+      { t: "Add --no-execute-changeset.",
+        why: "That stops all deployments from executing." },
+      { t: "Use sam sync in CI.",
+        why: "sam sync is for development." },
+      { t: "Delete and recreate the stack every time.",
+        why: "Disruptive and unnecessary." }
+    ],
+    answer: [0],
+    tip: "CI fails on empty change set = --no-fail-on-empty-changeset."
+  },
+  {
+    id: "sam-19", domain: "d2", topic: "AWS SAM",
+    q: "Developers find that every code change to their development SAM stack takes several minutes to deploy through CloudFormation. They want code changes to appear in their dev environment within seconds while they work. What should they use, and where?",
+    options: [
+      { t: "sam sync --watch, only in development environments, because it updates code directly and bypasses CloudFormation for code changes.",
+        why: "Correct. SAM Accelerate gives fast feedback but causes drift, so it isn't for production." },
+      { t: "sam sync --watch in production as well.",
+        why: "Bypassing CloudFormation in production causes drift and skips change sets." },
+      { t: "sam deploy --no-confirm-changeset.",
+        why: "Still a full CloudFormation deployment." },
+      { t: "sam local start-api against production.",
+        why: "start-api runs locally; it doesn't update deployed resources." }
+    ],
+    answer: [0],
+    tip: "Fast dev iteration = sam sync --watch (dev only)."
+  },
+  {
+    id: "sam-20", domain: "d2", topic: "AWS SAM",
+    q: "A team wants a CI/CD pipeline for their SAM application with separate dev and prod stages, each with its own IAM roles and artifact buckets, with the LEAST setup effort. What should they do?",
+    options: [
+      { t: "Run sam pipeline init --bootstrap to generate the pipeline configuration and create per-stage roles, artifact buckets and ECR repositories.",
+        why: "Correct. SAM pipelines generate CI/CD config (CodePipeline, GitHub Actions, GitLab, Jenkins, Bitbucket) and bootstrap the resources for each stage." },
+      { t: "Build the pipeline manually in the CodePipeline console.",
+        why: "Works, but more effort." },
+      { t: "Use sam sync from a cron job.",
+        why: "Not a pipeline, and sam sync is for development." },
+      { t: "Use CDK Pipelines without CDK code.",
+        why: "CDK Pipelines needs a CDK app." }
+    ],
+    answer: [0],
+    tip: "Ready-made multi-stage SAM pipeline = sam pipeline init --bootstrap."
+  },
+  {
+    id: "sam-21", domain: "d2", topic: "AWS SAM",
+    q: "A SAM application needs a DynamoDB table with a partition key, a sort key and a global secondary index. A developer tried AWS::Serverless::SimpleTable but can't configure the sort key. What should they do?",
+    options: [
+      { t: "Use an AWS::DynamoDB::Table resource in the same SAM template.",
+        why: "Correct. SimpleTable supports only a single primary key; SAM templates can include any CloudFormation resource." },
+      { t: "Create two SimpleTables.",
+        why: "That doesn't create a composite key or GSI." },
+      { t: "Use a Lambda layer.",
+        why: "Layers are for code." },
+      { t: "Create the table manually in the console.",
+        why: "Not infrastructure as code." }
+    ],
+    answer: [0],
+    tip: "Sort key / GSI = AWS::DynamoDB::Table instead of SimpleTable."
+  },
+  {
+    id: "sam-22", domain: "d2", topic: "AWS SAM",
+    q: "A central platform team built a reusable serverless authentication application. Other teams in the organization should be able to include it in their own SAM templates at a pinned version. What is the BEST approach?",
+    options: [
+      { t: "Publish it to the AWS Serverless Application Repository, share it with the organization, and reference it with AWS::Serverless::Application using ApplicationId and SemanticVersion.",
+        why: "Correct. SAR apps are deployed as nested stacks at a specific version (requires CAPABILITY_AUTO_EXPAND)." },
+      { t: "Email the template to each team.",
+        why: "No versioning or central management." },
+      { t: "Copy the code into every repository.",
+        why: "Duplicates code and makes updates hard." },
+      { t: "Use a StackSet to deploy the auth app into every account.",
+        why: "That pushes it everywhere; the teams want to include it in their own apps." }
+    ],
+    answer: [0],
+    tip: "Reusable serverless app across teams = SAR + AWS::Serverless::Application."
   }
 ];
+
 
 
