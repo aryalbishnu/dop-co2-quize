@@ -33,5 +33,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["AWS SAM"], title: "Week 3 notes - AWS SAM: templates, sam build / deploy, local testing (traps, lab, check yourself)", file: "pdfs/Week3_AWS_SAM.pdf" },
   { domain: "d2", topics: ["Systems Manager"], title: "Week 4 notes - AWS Systems Manager: Run Command, State Manager, Patch Manager, Inventory, Session Manager, Parameter Store, Automation, Distributor, Fleet Manager (traps, lab, check yourself)", file: "pdfs/Week4_Systems_Manager.pdf" },
   { domain: "d2", topics: ["AppConfig"], title: "Week 4 notes - AWS AppConfig: feature flags, deployment strategies, validators (traps, lab, check yourself)", file: "pdfs/Week4_AppConfig.pdf" },
-  { domain: "d2", topics: ["AWS Organizations"], title: "Week 4 notes - AWS Organizations: OUs, SCPs, consolidated billing, delegated administrators (traps, lab, check yourself)", file: "pdfs/Week4_AWS_Organizations.pdf" }
+  { domain: "d2", topics: ["AWS Organizations"], title: "Week 4 notes - AWS Organizations: OUs, SCPs, consolidated billing, delegated administrators (traps, lab, check yourself)", file: "pdfs/Week4_AWS_Organizations.pdf" },
+  { domain: "d2", topics: ["Control Tower"], title: "Week 4 notes - AWS Control Tower: landing zone, controls, Account Factory, AFT, customizations (traps, lab, check yourself)", file: "pdfs/Week4_Control_Tower.pdf" }
 ];

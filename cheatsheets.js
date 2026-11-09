@@ -1924,6 +1924,79 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Control Tower",
+  sections: [
+    { h: "Landing zone", items: [
+      "**Orchestrates** Organizations, Identity Center, CloudTrail, Config, Service Catalog, StackSets, S3, Security Hub · **CT itself is free**",
+      "**Home Region fixed** · governed Regions (add later) · **Region deny control** for ungoverned Regions",
+      "**Security OU**: **Log Archive** (central CloudTrail + Config logs) + **Audit** (security roles, SNS, aggregator, delegated admin) · optional **Sandbox OU**",
+      "Org trail · Config in all governed accounts / Regions · Identity Center (or self-managed) · KMS optional",
+      "**Update landing zone → re-register OUs / update accounts** · APIs + `AWS::ControlTower::LandingZone`",
+      "**Don't edit** `AWSControlTower*` stacks, `aws-guardrails-*` SCPs, `AWSControlTowerExecution`"
+    ]},
+    { h: "Controls", table: [
+      ["Behaviour", "Implementation", "When"],
+      ["**Preventive**", "**SCP** (RCP)", "Blocks API call"],
+      ["**Detective**", "**Config rule** (Security Hub)", "Reports after (**no auto-fix**)"],
+      ["**Proactive**", "**CloudFormation Hooks**", "Before CFN provisions"]
+    ]},
+    { h: "Control facts", items: [
+      "Guidance: **Mandatory** (always on, **can't disable**) · Strongly recommended · Elective",
+      "Enabled **per registered OU** · `EnableControl` API · `AWS::ControlTower::EnabledControl`",
+      "Detective results on dashboard + Audit · auto-fix = **Config remediation / SSM Automation / Lambda**",
+      "Data residency controls · Security Hub **service-managed standard: AWS Control Tower**"
+    ]},
+    { h: "Governing OUs and accounts", items: [
+      "**Register OU** = baseline for all accounts in an existing OU",
+      "**Enroll account** needs **`AWSControlTowerExecution`** role · fails on existing **Config recorder** / blocking SCPs",
+      "**Drift**: account moved / removed, SCP edited, OU deleted, trusted access off → **update / re-enroll / re-register / repair**",
+      "Make changes **through Control Tower**, not Organizations directly"
+    ]},
+    { h: "Account vending and customization", table: [
+      ["Option", "Use"],
+      ["**Account Factory**", "Service Catalog product · **`ProvisionProduct`** · self-service · **VPC network config**"],
+      ["**AFC blueprints**", "Service Catalog products (CFN / Terraform) in hub account · **simplest, console**"],
+      ["**AFT**", "**Terraform GitOps** · dedicated AFT account · 4 repos · **`aft-invoke-customizations`**"],
+      ["**CfCT**", "**manifest.yaml** · CloudFormation via **StackSets** + **SCPs / RCPs** · CodePipeline · runs on **CreateManagedAccount**"],
+      ["**LZA**", "Large regulated, config-driven environments"],
+      ["**Lifecycle events**", "**CreateManagedAccount** → EventBridge (mgmt, home Region) → Lambda / SSM"]
+    ]},
+    { h: "AFT repos", items: [
+      "**aft-account-request** (account definitions)",
+      "**aft-global-customizations** (every account)",
+      "**aft-account-customizations** (per-account folders)",
+      "**aft-account-provisioning-customizations** (Step Functions before customizations, ITSM / CMDB)",
+      "Options: delete default VPCs, CloudTrail data events, Enterprise Support"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Quick best-practice multi-account", "Control Tower"],
+      ["Where are logs / security team?", "Log Archive / Audit"],
+      ["Change home Region", "Not possible"],
+      ["Block unused Regions", "Region deny control"],
+      ["Block / report / before CFN", "Preventive / detective / proactive"],
+      ["Proactive implementation", "CloudFormation Hooks"],
+      ["Can't disable control", "Mandatory"],
+      ["Detective didn't fix", "Add Config remediation"],
+      ["Existing OU under CT", "Register OU"],
+      ["Enroll fails", "AWSControlTowerExecution / Config recorder"],
+      ["After landing zone update", "Re-register OUs"],
+      ["Account moved in Organizations", "Drift → update / re-enroll"],
+      ["Edited aws-guardrails SCP", "Re-register / repair"],
+      ["Self-service accounts + API", "Account Factory ProvisionProduct"],
+      ["Standard VPC in new accounts", "Account Factory network config"],
+      ["Terraform GitOps vending", "AFT"],
+      ["Re-run AFT customizations", "aft-invoke-customizations"],
+      ["CFN + SCPs auto for new accounts", "CfCT"],
+      ["Simplest console customization", "AFC blueprints"],
+      ["Automation after account created", "CreateManagedAccount event"],
+      ["GuardDuty not enabled", "Audit as delegated admin + auto-enable"],
+      ["Controls as code", "EnableControl / AWS::ControlTower::EnabledControl"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

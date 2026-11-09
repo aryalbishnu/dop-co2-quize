@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -9659,8 +9659,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Test SCPs in Policy Staging OU; logs in Log Archive (Security OU)."
+  },
+  // ───────────────────────────── Domain 2: Control Tower ─────────────────────────────
+  {
+    id: "ctw-01", domain: "d2", topic: "Control Tower",
+    q: "A company is starting its AWS journey and needs a multi-account environment that follows AWS best practices: centralized logging, an audit account for the security team, SSO, preventive and detective guardrails, and a way to vend new accounts. The team wants to do this as quickly as possible with minimal custom code. What should they use?",
+    options: [
+      { t: "Set up an AWS Control Tower landing zone.",
+        why: "Correct. Control Tower automates the multi-account baseline: Log Archive and Audit accounts, org CloudTrail, Config, Identity Center, controls and Account Factory." },
+      { t: "Create AWS Organizations manually and write StackSets for every baseline item.",
+        why: "Possible, but much more custom work than Control Tower." },
+      { t: "Use a single account with IAM roles per team.",
+        why: "Doesn't meet the multi-account requirement." },
+      { t: "Use AWS Service Catalog only.",
+        why: "Service Catalog provides products but not the landing zone, logging and controls." }
+    ],
+    answer: [0],
+    tip: "Quick best-practice multi-account setup = Control Tower landing zone."
+  },
+  {
+    id: "ctw-02", domain: "d2", topic: "Control Tower",
+    q: "After setting up a Control Tower landing zone, where are the organization's CloudTrail logs and AWS Config logs stored, and which account is intended for the security team's cross-account access and notifications?",
+    options: [
+      { t: "Logs are stored in S3 buckets in the Log Archive account; the Audit account provides security team roles, aggregated SNS notifications and the Config aggregator.",
+        why: "Correct. These are the two shared accounts in the Security OU." },
+      { t: "Logs are stored in the management account; the Audit account stores backups.",
+        why: "Logs go to the Log Archive account, and the management account should hold no workloads or data." },
+      { t: "Logs are stored in each member account; the Log Archive account runs GuardDuty.",
+        why: "Logs are centralized, and security tooling belongs in the Audit account." },
+      { t: "Logs are stored in the Audit account; the Log Archive account holds SSO users.",
+        why: "Reversed roles." }
+    ],
+    answer: [0],
+    tip: "Log Archive = logs; Audit = security team, SNS, aggregator."
+  },
+  {
+    id: "ctw-03", domain: "d2", topic: "Control Tower",
+    q: "A company set up Control Tower with us-east-1 as the home Region. It now wants eu-west-1 as the home Region. What is true?",
+    options: [
+      { t: "The home Region can't be changed after setup; eu-west-1 can be added as a governed Region instead.",
+        why: "Correct. The home Region is fixed at setup; additional governed Regions can be added." },
+      { t: "Change the home Region in the landing zone settings.",
+        why: "Not supported." },
+      { t: "Update the landing zone manifest with the new home Region.",
+        why: "The home Region can't be changed through updates." },
+      { t: "Re-register all OUs in eu-west-1.",
+        why: "Doesn't change the home Region." }
+    ],
+    answer: [0],
+    tip: "Home Region is fixed; add governed Regions."
+  },
+  {
+    id: "ctw-04", domain: "d2", topic: "Control Tower",
+    q: "A company governed by Control Tower must ensure that no resources are created in Regions other than its two governed Regions, except for global services. What is the simplest solution?",
+    options: [
+      { t: "Enable the Control Tower Region deny control (landing zone setting or per OU).",
+        why: "Correct. It denies API calls in ungoverned Regions while exempting global services." },
+      { t: "Write a detective Config rule for each Region.",
+        why: "Detective only, and Config wouldn't run in ungoverned Regions." },
+      { t: "Remove the Regions from the account settings manually in each account.",
+        why: "Default Regions can't be disabled, and this doesn't scale." },
+      { t: "Use a tag policy.",
+        why: "Tag policies don't control Regions." }
+    ],
+    answer: [0],
+    tip: "Block ungoverned Regions = Region deny control."
+  },
+  {
+    id: "ctw-05", domain: "d2", topic: "Control Tower",
+    q: "A security team wants three things in Control Tower-governed accounts: block changes to CloudTrail, report S3 buckets that already allow public read, and stop CloudFormation stacks that would create unencrypted S3 buckets before the buckets exist. Which control behaviours match these needs, in order?",
+    options: [
+      { t: "Preventive, detective, proactive.",
+        why: "Correct. Preventive controls use SCPs, detective controls use Config rules, proactive controls use CloudFormation Hooks." },
+      { t: "Detective, preventive, proactive.",
+        why: "Blocking changes is preventive; reporting existing buckets is detective." },
+      { t: "Proactive, detective, preventive.",
+        why: "Proactive applies to CloudFormation provisioning checks." },
+      { t: "Preventive for all three.",
+        why: "SCPs can't report existing non-compliance or inspect CloudFormation templates." }
+    ],
+    answer: [0],
+    tip: "Block = preventive (SCP); report = detective (Config); before CFN creates = proactive (Hooks)."
+  },
+  {
+    id: "ctw-06", domain: "d2", topic: "Control Tower",
+    q: "How are Control Tower proactive controls implemented?",
+    options: [
+      { t: "As AWS CloudFormation Hooks that evaluate resources before CloudFormation provisions them.",
+        why: "Correct. Non-compliant resources make the stack operation fail (or warn)." },
+      { t: "As service control policies.",
+        why: "SCPs implement preventive controls." },
+      { t: "As AWS Config rules.",
+        why: "Config rules implement detective controls." },
+      { t: "As GuardDuty findings.",
+        why: "GuardDuty is threat detection, not a control type." }
+    ],
+    answer: [0],
+    tip: "Proactive controls = CloudFormation Hooks."
+  },
+  {
+    id: "ctw-07", domain: "d2", topic: "Control Tower",
+    q: "An administrator tries to disable a Control Tower control that prevents changes to the log archive bucket policy, but the option isn't available. Why?",
+    options: [
+      { t: "It's a mandatory control, which is always enabled on registered OUs and can't be disabled.",
+        why: "Correct. Mandatory controls protect the landing zone itself." },
+      { t: "Controls can only be disabled from the Audit account.",
+        why: "Controls are managed from the management account." },
+      { t: "The control must first be detached from the management account.",
+        why: "Controls aren't attached to the management account." },
+      { t: "Disabling requires AWS Support.",
+        why: "Mandatory controls can't be disabled at all." }
+    ],
+    answer: [0],
+    tip: "Mandatory controls can't be disabled."
+  },
+  {
+    id: "ctw-08", domain: "d2", topic: "Control Tower",
+    q: "A detective control in Control Tower reports several non-compliant EBS volumes that aren't encrypted. The security team expected Control Tower to fix them automatically. What should the DevOps engineer do?",
+    options: [
+      { t: "Explain that detective controls only report non-compliance, and add AWS Config remediation (for example with SSM Automation) or an EventBridge-driven Lambda to fix resources.",
+        why: "Correct. Detective controls don't remediate by themselves." },
+      { t: "Change the control to mandatory.",
+        why: "Guidance level doesn't add remediation." },
+      { t: "Re-register the OU.",
+        why: "Re-registering doesn't fix resources." },
+      { t: "Enable the Region deny control.",
+        why: "Unrelated to encryption." }
+    ],
+    answer: [0],
+    tip: "Detective controls only report; add remediation."
+  },
+  {
+    id: "ctw-09", domain: "d2", topic: "Control Tower",
+    q: "A company wants to bring 40 existing accounts that are already in an OU named Legacy under Control Tower governance with the least effort. What should it do?",
+    options: [
+      { t: "Register the Legacy OU in Control Tower, which applies the baseline and mandatory controls to all accounts in it (after a precheck).",
+        why: "Correct. Registering an OU extends governance to all its accounts." },
+      { t: "Close the accounts and recreate them with Account Factory.",
+        why: "Disruptive and unnecessary." },
+      { t: "Deploy StackSets to the OU manually.",
+        why: "Doesn't make them governed by Control Tower." },
+      { t: "Move the accounts into the Security OU.",
+        why: "The Security OU is for Log Archive and Audit." }
+    ],
+    answer: [0],
+    tip: "Existing OU under CT = register OU."
+  },
+  {
+    id: "ctw-10", domain: "d2", topic: "Control Tower",
+    q: "Enrolling an existing account into Control Tower fails. The account was invited into the organization last year and has an AWS Config recorder that the application team set up. What are the MOST likely causes? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "The account doesn't have the AWSControlTowerExecution role trusted by the management account.",
+        why: "Correct. Enrollment requires this role in the account." },
+      { t: "The existing AWS Config recorder / delivery channel conflicts with the one Control Tower needs to create.",
+        why: "Correct. Existing Config resources must be removed or handled before enrollment." },
+      { t: "The account isn't in the home Region.",
+        why: "Accounts aren't in a Region." },
+      { t: "The account has too many IAM users.",
+        why: "Not an enrollment prerequisite." },
+      { t: "GuardDuty isn't enabled.",
+        why: "Control Tower doesn't require GuardDuty." }
+    ],
+    answer: [0, 1],
+    tip: "Enroll fails = missing AWSControlTowerExecution / existing Config recorder (or blocking SCPs)."
+  },
+  {
+    id: "ctw-11", domain: "d2", topic: "Control Tower",
+    q: "AWS released a new Control Tower landing zone version. After the administrator updates the landing zone, what should be done so that existing accounts receive the updated baseline?",
+    options: [
+      { t: "Re-register the OUs (or update the enrolled accounts) so the new baseline is applied.",
+        why: "Correct. Updating the landing zone doesn't automatically update every account's baseline." },
+      { t: "Nothing; all accounts are updated instantly.",
+        why: "OUs and accounts need re-registration / update." },
+      { t: "Delete and recreate the landing zone.",
+        why: "Not required." },
+      { t: "Move all accounts to the root.",
+        why: "That causes drift." }
+    ],
+    answer: [0],
+    tip: "After landing zone update = re-register OUs / update accounts."
+  },
+  {
+    id: "ctw-12", domain: "d2", topic: "Control Tower",
+    q: "An engineer moved an enrolled account to a different OU directly in the AWS Organizations console. Control Tower now reports drift. What is the correct way to resolve and prevent this?",
+    options: [
+      { t: "Move the account back (or into a registered OU) and update / re-enroll it through Account Factory; make future OU and account changes through Control Tower.",
+        why: "Correct. Changes made outside Control Tower cause drift, which is fixed by updating, re-enrolling or repairing." },
+      { t: "Ignore the drift; it resolves itself.",
+        why: "Drift remains until fixed." },
+      { t: "Delete the landing zone and set it up again.",
+        why: "Excessive." },
+      { t: "Disable the mandatory controls.",
+        why: "Mandatory controls can't be disabled, and this doesn't address drift." }
+    ],
+    answer: [0],
+    tip: "Drift from Organizations changes = fix via CT (update / re-enroll / repair)."
+  },
+  {
+    id: "ctw-13", domain: "d2", topic: "Control Tower",
+    q: "Someone edited one of the aws-guardrails-* SCPs created by Control Tower, and the dashboard shows SCP drift. What should the administrator do?",
+    options: [
+      { t: "Re-register the affected OU (or re-enable the control / repair the landing zone) so Control Tower restores its managed SCP, and avoid editing Control Tower-managed resources.",
+        why: "Correct. Control Tower restores its managed configuration." },
+      { t: "Edit the SCP back manually and leave the drift.",
+        why: "Control Tower still needs to reconcile its resources." },
+      { t: "Attach a new SCP that duplicates the old one.",
+        why: "Doesn't fix the drifted managed SCP." },
+      { t: "Disable SCPs in the organization.",
+        why: "Breaks all preventive controls." }
+    ],
+    answer: [0],
+    tip: "Edited CT SCP = drift; re-register / repair; don't edit CT resources."
+  },
+  {
+    id: "ctw-14", domain: "d2", topic: "Control Tower",
+    q: "A company governed by Control Tower wants business units to request new AWS accounts themselves, with every account automatically placed in the right OU with the standard baseline. Account creation must also be automatable from an internal portal through an API. What should they use?",
+    options: [
+      { t: "Control Tower Account Factory, which is a Service Catalog product; grant business users access in Service Catalog and use the ProvisionProduct API from the portal.",
+        why: "Correct. Account Factory provides governed account vending with self-service and API automation." },
+      { t: "Organizations CreateAccount API directly from the portal.",
+        why: "Accounts wouldn't be enrolled with the Control Tower baseline automatically." },
+      { t: "CloudFormation StackSets.",
+        why: "StackSets deploy stacks into existing accounts; they don't create accounts." },
+      { t: "AWS RAM.",
+        why: "RAM shares resources." }
+    ],
+    answer: [0],
+    tip: "Self-service governed accounts + API = Account Factory (Service Catalog ProvisionProduct)."
+  },
+  {
+    id: "ctw-15", domain: "d2", topic: "Control Tower",
+    q: "Every account created through Control Tower Account Factory must get a VPC with a specific CIDR range and two private subnets, and no default VPC. What is the simplest way to achieve this?",
+    options: [
+      { t: "Configure the Account Factory network configuration (VPC creation, CIDR, subnets, Regions).",
+        why: "Correct. Account Factory has built-in VPC settings for new accounts." },
+      { t: "Ask account owners to create the VPC manually.",
+        why: "Not automated." },
+      { t: "Use an SCP to create the VPC.",
+        why: "SCPs can't create resources." },
+      { t: "Use AWS Config to create the VPC.",
+        why: "Config evaluates resources; it doesn't provision them." }
+    ],
+    answer: [0],
+    tip: "Standard VPC in new accounts = Account Factory network configuration."
+  },
+  {
+    id: "ctw-16", domain: "d2", topic: "Control Tower",
+    q: "A platform team manages all infrastructure with Terraform and Git. They want to request new Control Tower accounts by committing code, and automatically apply Terraform customizations to all accounts and to specific accounts. What should they deploy?",
+    options: [
+      { t: "Account Factory for Terraform (AFT) in a dedicated AFT management account, using the account request, global customizations and account customizations repositories.",
+        why: "Correct. AFT provides Terraform GitOps account vending and customizations on top of Control Tower." },
+      { t: "Customizations for Control Tower (CfCT).",
+        why: "CfCT uses CloudFormation and SCPs, not Terraform." },
+      { t: "Service Catalog portfolios with CloudFormation products.",
+        why: "Not Terraform GitOps vending." },
+      { t: "CloudFormation StackSets with auto-deployment.",
+        why: "Doesn't create accounts or use Terraform." }
+    ],
+    answer: [0],
+    tip: "Terraform GitOps account vending = AFT."
+  },
+  {
+    id: "ctw-17", domain: "d2", topic: "Control Tower",
+    q: "A team using AFT changed its global customizations and needs to re-apply them to all existing accounts without creating new accounts. How should they do this?",
+    options: [
+      { t: "Run the aft-invoke-customizations Step Functions state machine, targeting all accounts (or selected OUs / accounts).",
+        why: "Correct. This re-runs customizations on existing accounts." },
+      { t: "Delete and recreate the accounts.",
+        why: "Destructive." },
+      { t: "Re-register the OUs in Control Tower.",
+        why: "Re-registers the Control Tower baseline, not AFT Terraform customizations." },
+      { t: "Update the landing zone.",
+        why: "Unrelated to AFT customizations." }
+    ],
+    answer: [0],
+    tip: "Re-apply AFT customizations = aft-invoke-customizations."
+  },
+  {
+    id: "ctw-18", domain: "d2", topic: "Control Tower",
+    q: "A company uses CloudFormation for baseline resources and wants these templates, plus several custom SCPs, managed as code in a repository and automatically deployed to target OUs. Every new account created by Account Factory must receive them without manual steps. What should they use?",
+    options: [
+      { t: "Customizations for AWS Control Tower (CfCT), with a manifest.yaml defining StackSet and SCP resources and their target OUs; CfCT runs on the CreateManagedAccount lifecycle event.",
+        why: "Correct. CfCT deploys CloudFormation (via StackSets) and SCPs through a pipeline and automatically for new accounts." },
+      { t: "AFT.",
+        why: "AFT is Terraform-based." },
+      { t: "AWS Config conformance packs.",
+        why: "Conformance packs evaluate compliance; they don't deploy baseline resources and SCPs." },
+      { t: "Manually run StackSets after each account is created.",
+        why: "Not automated." }
+    ],
+    answer: [0],
+    tip: "CloudFormation + SCPs as code, auto for new accounts = CfCT."
+  },
+  {
+    id: "ctw-19", domain: "d2", topic: "Control Tower",
+    q: "A small team wants the simplest way to apply a standard CloudFormation template (for example a budget and an IAM role) to accounts when they're created or updated through the Account Factory console, without building a pipeline. What should they use?",
+    options: [
+      { t: "Account Factory Customization (AFC) blueprints - Service Catalog products in a hub account selected when provisioning or updating accounts.",
+        why: "Correct. AFC is the built-in, console-driven customization option." },
+      { t: "AFT.",
+        why: "AFT requires a dedicated account, Terraform and Git pipelines." },
+      { t: "CfCT.",
+        why: "CfCT needs a pipeline and manifest." },
+      { t: "Landing Zone Accelerator.",
+        why: "Designed for larger, config-driven environments." }
+    ],
+    answer: [0],
+    tip: "Simplest console customization = AFC blueprints."
+  },
+  {
+    id: "ctw-20", domain: "d2", topic: "Control Tower",
+    q: "After Control Tower finishes creating and enrolling a new account, the company wants to automatically register the account in its CMDB and create a budget. Which event should trigger the automation?",
+    options: [
+      { t: "The Control Tower CreateManagedAccount lifecycle event, through an EventBridge rule in the management account's home Region.",
+        why: "Correct. This event fires after the account is fully provisioned and enrolled." },
+      { t: "The Organizations CreateAccount event.",
+        why: "It fires before the Control Tower baseline is in place." },
+      { t: "A CloudWatch alarm on account count.",
+        why: "Not event-driven and imprecise." },
+      { t: "The EnableGuardrail event.",
+        why: "That's for controls." }
+    ],
+    answer: [0],
+    tip: "After CT account creation = CreateManagedAccount lifecycle event."
+  },
+  {
+    id: "ctw-21", domain: "d2", topic: "Control Tower",
+    q: "The security team assumed Control Tower would enable Amazon GuardDuty in all accounts, but GuardDuty isn't enabled. What should the DevOps engineer do?",
+    options: [
+      { t: "Designate the Audit account as the GuardDuty delegated administrator and enable auto-enable for all organization accounts.",
+        why: "Correct. Control Tower doesn't enable GuardDuty; the Audit account is the recommended delegated admin." },
+      { t: "Enable a mandatory control for GuardDuty.",
+        why: "There isn't one that enables GuardDuty." },
+      { t: "Re-register all OUs.",
+        why: "Doesn't enable GuardDuty." },
+      { t: "Enable GuardDuty only in the management account.",
+        why: "Doesn't cover member accounts." }
+    ],
+    answer: [0],
+    tip: "CT doesn't enable GuardDuty; Audit account as delegated admin + auto-enable."
+  },
+  {
+    id: "ctw-22", domain: "d2", topic: "Control Tower",
+    q: "A company wants to enable a specific Control Tower control on several OUs as part of its infrastructure-as-code pipeline instead of clicking in the console. Which approach supports this?",
+    options: [
+      { t: "Use the Control Tower EnableControl API (control ARN + target OU ARN) or the CloudFormation resource AWS::ControlTower::EnabledControl.",
+        why: "Correct. Controls can be managed programmatically and as IaC." },
+      { t: "Create an SCP with the same name in Organizations.",
+        why: "Not a Control Tower-managed control, and it may cause drift." },
+      { t: "Use AWS Config conformance packs.",
+        why: "Not Control Tower controls." },
+      { t: "It's not possible; controls are console-only.",
+        why: "APIs and CloudFormation support exist." }
+    ],
+    answer: [0],
+    tip: "Controls as code = EnableControl API / AWS::ControlTower::EnabledControl."
   }
 ];
+
 
 
 
