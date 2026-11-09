@@ -1848,6 +1848,82 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AWS Organizations",
+  sections: [
+    { h: "Structure", items: [
+      "**Management account**: pays, creates / invites accounts, registers delegated admins · **SCPs / RCPs don't apply** → **no workloads**",
+      "**Root → OUs** (nested up to **5**) → accounts (one OU each) · policies **inherited** · moving an account applies new policies immediately",
+      "**All features** needed for policies · billing-only → all features needs **approval from every invited member**",
+      "**Created** accounts get **OrganizationAccountAccessRole** · **invited** ones don't (create manually)",
+      "**Up to 5 SCPs per target**, 5,120 chars · **centralized root access** (`sts:AssumeRoot`)"
+    ]},
+    { h: "Policy types", table: [
+      ["Policy", "Controls"],
+      ["**SCP**", "Max permissions for **member principals** (incl. root)"],
+      ["**RCP**", "Max permissions on **resources** for **any caller** (data perimeter)"],
+      ["**Declarative**", "EC2 baseline (public AMI / snapshot, IMDSv2, VPC BPA) - survives new APIs"],
+      ["**Tag policy**", "Standardise / enforce tag values - **not mandatory**"],
+      ["**Backup**", "AWS Backup plans org-wide"],
+      ["AI opt-out / chat apps", "AI content use / Q in chat apps"]
+    ]},
+    { h: "SCP rules", items: [
+      "**Never grant** · apply to member IAM users / roles **incl. root** · **not** management account, **not** service-linked roles, **not** external principals",
+      "**Explicit deny anywhere wins** · Allow needed at **every level** (root, OUs, account)",
+      "Default **FullAWSAccess** · **deny-list** (keep FullAWSAccess + Denies) vs **allow-list** (remove FullAWSAccess, Allow at every level)",
+      "Error says 'explicit deny in a service control policy' · test in **Policy Staging OU** · attach to OUs"
+    ]},
+    { h: "SCP patterns", items: [
+      "Deny **LeaveOrganization**, CloudTrail Stop / Delete, GuardDuty / Config / Security Hub disable",
+      "**Region**: Deny + **NotAction (iam, sts, organizations, route53, cloudfront, support...)** + `aws:RequestedRegion` + **`ArnNotLike aws:PrincipalARN`** admin exception",
+      "Protect `platform-*` roles except pipeline role",
+      "Require tags (**`aws:RequestTag` Null**), encryption, **IMDSv2** (`ec2:MetadataHttpTokens`), deny IAM users / access keys, instance types",
+      "Suspended OU = deny `*`"
+    ]},
+    { h: "Org condition keys", items: [
+      "**`aws:PrincipalOrgID`** in resource policies → whole org, no account IDs, new accounts included",
+      "`aws:PrincipalOrgPaths` (OU path) · `aws:ResourceOrgID` (resource in org) · `aws:SourceOrgID` (service principals)",
+      "**SCP = what my principals can do · RCP = who can touch my resources**"
+    ]},
+    { h: "Consolidated billing", items: [
+      "One bill · **combined usage → volume discounts** · **RI / Savings Plans sharing** (turn off per account)",
+      "**One free tier per org**",
+      "Cost Explorer, **Budgets**, **CUR / Data Exports**, **Cost Categories**, **cost allocation tags (activate in management account)**, Anomaly Detection"
+    ]},
+    { h: "Trusted access and delegated admin", items: [
+      "Trusted access = service works org-wide: **org CloudTrail** (members can't change), **Config aggregator / org rules / conformance packs**, GuardDuty / Security Hub / Macie / Inspector **auto-enable**, Firewall Manager, Identity Center, Access Analyzer, **StackSets**, Control Tower, Backup, **RAM (no invites)**, Service Catalog, SSM, Health",
+      "**Delegated admin** = member account administers a service (Security Tooling, Infrastructure) → **least use of management account**",
+      "Limits vary (GuardDuty / Security Hub 1, StackSets 5) · **Organizations delegation policy** for SCP management",
+      "Org events → **CloudTrail + EventBridge in us-east-1**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Prevent action in all member accounts", "SCP deny"],
+      ["Management account not blocked", "SCPs don't apply there"],
+      ["Allowed in IAM, explicit deny SCP", "SCP somewhere in path"],
+      ["Child OU FullAWSAccess still limited", "Parent allow-list limits"],
+      ["Region lock breaks IAM / CloudFront", "NotAction global services"],
+      ["Billing-only org wants SCPs", "All features + member approval"],
+      ["Invited account, role switch fails", "Create OrganizationAccountAccessRole"],
+      ["Mandatory tag + allowed values", "SCP aws:RequestTag + tag policy"],
+      ["All org accounts read bucket", "aws:PrincipalOrgID"],
+      ["Block outside access despite bad policies", "RCP"],
+      ["EC2 baseline vs new APIs", "Declarative policy"],
+      ["Share discounts, one bill", "Consolidated billing + central SP / RI"],
+      ["Keep RIs in one account", "Turn off RI / SP sharing"],
+      ["Chargeback by team", "Cost allocation tags (mgmt) + Cost Categories"],
+      ["Org security without mgmt account", "Delegated admin + auto-enable"],
+      ["Manage SCPs from member account", "Organizations delegation policy"],
+      ["Trail members can't stop", "Organization trail"],
+      ["React to new account", "EventBridge us-east-1 CreateAccountResult"],
+      ["Share subnets with OU, no invites", "RAM + Organizations sharing"],
+      ["Remove member root credentials", "Centralized root access"],
+      ["Protect baseline roles", "SCP deny + ArnNotLike pipeline role"],
+      ["Test SCPs / store logs", "Policy Staging OU / Log Archive"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -9303,8 +9303,365 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Evidently retiring → AppConfig feature flags (incl. multi-variant)."
+  },
+  // ───────────────────────────── Domain 2: AWS Organizations ─────────────────────────────
+  {
+    id: "org-01", domain: "d2", topic: "AWS Organizations",
+    q: "A company uses AWS Organizations with all features enabled. The security team must ensure that no IAM user or role in any member account, including administrators and the root user, can stop CloudTrail logging, delete GuardDuty detectors or leave the organization. What is the MOST effective solution?",
+    options: [
+      { t: "Create an SCP that denies cloudtrail:StopLogging, cloudtrail:DeleteTrail, guardduty:DeleteDetector and organizations:LeaveOrganization, and attach it to the root (or the top-level OUs).",
+        why: "Correct. SCPs set the maximum permissions for all principals in member accounts, including administrators and the root user." },
+      { t: "Add an explicit deny to the IAM policies of every administrator in each account.",
+        why: "Local admins could remove it, and it doesn't cover the root user or new roles." },
+      { t: "Enable AWS Config rules to detect the actions.",
+        why: "Config is detective; it doesn't prevent the actions." },
+      { t: "Attach the SCP to the management account.",
+        why: "SCPs don't apply to the management account, and the requirement is for member accounts." }
+    ],
+    answer: [0],
+    tip: "Prevent actions in all member accounts (incl. admins / root) = SCP deny."
+  },
+  {
+    id: "org-02", domain: "d2", topic: "AWS Organizations",
+    q: "An SCP attached to the root denies s3:DeleteBucket. An administrator in the management account successfully deletes a bucket. Why?",
+    options: [
+      { t: "SCPs don't affect users or roles in the management account.",
+        why: "Correct. The management account isn't restricted by SCPs, which is why it should hold no workloads and minimal users." },
+      { t: "The administrator used the root user.",
+        why: "Even IAM principals in the management account aren't restricted by SCPs." },
+      { t: "SCPs take 24 hours to apply.",
+        why: "SCPs take effect quickly." },
+      { t: "The bucket had a bucket policy allowing deletion.",
+        why: "A resource policy can't override an SCP deny in a member account; here the SCP simply doesn't apply." }
+    ],
+    answer: [0],
+    tip: "SCPs never apply to the management account."
+  },
+  {
+    id: "org-03", domain: "d2", topic: "AWS Organizations",
+    q: "A developer in a member account has an IAM policy allowing ec2:* but receives AccessDenied when launching instances. The error mentions an explicit deny in a service control policy. Which statement explains how SCPs are evaluated?",
+    options: [
+      { t: "An explicit deny in any SCP attached to the root, any parent OU or the account blocks the action, and an action must be allowed by SCPs at every level of the path.",
+        why: "Correct. Effective permissions are the intersection of SCPs at every level and IAM permissions." },
+      { t: "Only the SCP attached directly to the account is evaluated.",
+        why: "SCPs at the root and every parent OU are also evaluated." },
+      { t: "IAM allow statements override SCP denies.",
+        why: "An explicit deny always wins." },
+      { t: "SCPs only apply to the root user.",
+        why: "They apply to all IAM principals in member accounts." }
+    ],
+    answer: [0],
+    tip: "SCPs: explicit deny anywhere wins; allow needed at every level."
+  },
+  {
+    id: "org-04", domain: "d2", topic: "AWS Organizations",
+    q: "A team attaches an SCP to an OU that allows only S3 and CloudWatch actions, then detaches the FullAWSAccess policy from that OU. Later they move an account into a child OU that has FullAWSAccess attached. Users in the account can still use only S3 and CloudWatch. Why?",
+    options: [
+      { t: "An action must be allowed by SCPs at every level of the path; the parent OU allows only S3 and CloudWatch, which limits all accounts below it.",
+        why: "Correct. With the allow-list strategy, each level's allows intersect." },
+      { t: "The child OU's FullAWSAccess overrides the parent.",
+        why: "Lower levels can't add permissions removed above them." },
+      { t: "The account needs to be re-invited.",
+        why: "Moving accounts applies policies immediately." },
+      { t: "SCPs are cached for 7 days.",
+        why: "Not true." }
+    ],
+    answer: [0],
+    tip: "Allow-list: allow required at every level; parent limits children."
+  },
+  {
+    id: "org-05", domain: "d2", topic: "AWS Organizations",
+    q: "A company must restrict all workloads to us-east-1 and eu-west-1 using an SCP. After applying a simple Deny on all actions outside those Regions, users report that IAM, CloudFront and Route 53 operations fail, and the central deployment role can't manage global resources. How should the SCP be written?",
+    options: [
+      { t: "Deny with NotAction listing global services (iam, sts, organizations, cloudfront, route53, support, etc.), a condition on aws:RequestedRegion not in the allowed list, and an ArnNotLike aws:PrincipalARN exception for the deployment role.",
+        why: "Correct. Global services must be exempted, and the admin role can be excluded by principal ARN." },
+      { t: "Allow only the two Regions with a tag policy.",
+        why: "Tag policies don't control Regions." },
+      { t: "Use AWS Config to delete resources in other Regions.",
+        why: "Detective and reactive, not preventive." },
+      { t: "Attach the Region SCP to the management account only.",
+        why: "SCPs don't apply to the management account." }
+    ],
+    answer: [0],
+    tip: "Region SCP = NotAction for global services + aws:RequestedRegion + principal exception."
+  },
+  {
+    id: "org-06", domain: "d2", topic: "AWS Organizations",
+    q: "A company has used AWS Organizations with only consolidated billing for years and has 30 invited accounts. The security team now wants to use SCPs. What must happen first?",
+    options: [
+      { t: "Enable all features in the organization; every invited member account must approve the change.",
+        why: "Correct. SCPs need all features, and invited accounts must accept the request." },
+      { t: "Create a new organization and move accounts manually.",
+        why: "Not required; you can enable all features in place." },
+      { t: "Enable trusted access for IAM.",
+        why: "Trusted access doesn't enable SCPs." },
+      { t: "Nothing; SCPs work with consolidated billing only.",
+        why: "Billing-only organizations can't use policies." }
+    ],
+    answer: [0],
+    tip: "SCPs require all features; invited members must approve."
+  },
+  {
+    id: "org-07", domain: "d2", topic: "AWS Organizations",
+    q: "An administrator wants to manage an existing AWS account that was invited into the organization by switching roles from the management account, as they do for accounts created through Organizations. Role switching fails. What is the cause?",
+    options: [
+      { t: "OrganizationAccountAccessRole is created automatically only for accounts created through Organizations; for invited accounts, the role must be created manually with a trust policy for the management account.",
+        why: "Correct. Invited accounts don't get the role by default." },
+      { t: "Invited accounts can't be managed from the management account.",
+        why: "They can, once a suitable role exists." },
+      { t: "An SCP blocks sts:AssumeRole.",
+        why: "Possible in theory, but the classic cause is the missing role." },
+      { t: "Trusted access must be enabled for IAM.",
+        why: "Not required for role switching." }
+    ],
+    answer: [0],
+    tip: "Invited accounts lack OrganizationAccountAccessRole; create it."
+  },
+  {
+    id: "org-08", domain: "d2", topic: "AWS Organizations",
+    q: "Finance requires every EC2 instance in workload accounts to have a CostCenter tag with a value of 100, 200 or 300. Instances launched without the tag must be blocked, and values must be standardised. Which combination meets these requirements? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "An SCP that denies ec2:RunInstances when aws:RequestTag/CostCenter is null.",
+        why: "Correct. The SCP makes the tag mandatory at launch." },
+      { t: "A tag policy that defines CostCenter with allowed values 100, 200, 300 and enforcement for EC2 instances.",
+        why: "Correct. Tag policies standardise and enforce allowed values." },
+      { t: "A tag policy alone, because it requires the tag to be present.",
+        why: "Tag policies don't make tags mandatory." },
+      { t: "An AI services opt-out policy.",
+        why: "Unrelated." },
+      { t: "A backup policy.",
+        why: "Backup policies define AWS Backup plans." }
+    ],
+    answer: [0, 1],
+    tip: "Mandatory tag = SCP aws:RequestTag; standard values = tag policy."
+  },
+  {
+    id: "org-09", domain: "d2", topic: "AWS Organizations",
+    q: "A central S3 bucket holds build artifacts that every account in the organization must be able to read, including accounts created in the future. The team doesn't want to maintain a list of account IDs. How should the bucket policy be written?",
+    options: [
+      { t: "Allow s3:GetObject for Principal * with a condition StringEquals aws:PrincipalOrgID set to the organization ID.",
+        why: "Correct. aws:PrincipalOrgID matches any principal in the organization, including new accounts." },
+      { t: "List every account ID as a principal and update it monthly.",
+        why: "High maintenance, and new accounts are missed." },
+      { t: "Make the bucket public.",
+        why: "Insecure." },
+      { t: "Attach an SCP allowing s3:GetObject on the bucket.",
+        why: "SCPs don't grant access." }
+    ],
+    answer: [0],
+    tip: "All org accounts, no ID list = aws:PrincipalOrgID."
+  },
+  {
+    id: "org-10", domain: "d2", topic: "AWS Organizations",
+    q: "The security team wants to ensure that S3 buckets and KMS keys in member accounts can never be accessed by principals outside the organization, even if a developer writes an overly permissive bucket or key policy. What should they use?",
+    options: [
+      { t: "A resource control policy (RCP) that denies access when aws:PrincipalOrgID doesn't match the organization (excluding AWS service principals as needed).",
+        why: "Correct. RCPs set maximum permissions on resources for any caller - a data perimeter." },
+      { t: "An SCP denying s3:* for external principals.",
+        why: "SCPs apply to principals in your member accounts, not to external callers." },
+      { t: "A tag policy.",
+        why: "Tag policies don't control access." },
+      { t: "IAM Access Analyzer only.",
+        why: "It finds external access but doesn't prevent it." }
+    ],
+    answer: [0],
+    tip: "Block outside-org access to resources = RCP (data perimeter)."
+  },
+  {
+    id: "org-11", domain: "d2", topic: "AWS Organizations",
+    q: "A company wants to enforce that EC2 instances and AMIs in all accounts follow a baseline (for example, no public AMI sharing and IMDSv2 by default), and the setting must remain enforced even when AWS adds new APIs. What should it use?",
+    options: [
+      { t: "An AWS Organizations declarative policy for EC2.",
+        why: "Correct. Declarative policies enforce service configuration baselines independently of individual API calls." },
+      { t: "An SCP denying specific API calls.",
+        why: "SCPs work per API action; new APIs might not be covered." },
+      { t: "AWS Config rules with remediation.",
+        why: "Detective, and reacts after the change." },
+      { t: "A backup policy.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "EC2 baseline surviving new APIs = declarative policy."
+  },
+  {
+    id: "org-12", domain: "d2", topic: "AWS Organizations",
+    q: "A company with 15 accounts runs steady EC2 workloads in several of them. Finance wants to reduce compute cost with the least operational effort and receive one bill. What should they do?",
+    options: [
+      { t: "Use consolidated billing in AWS Organizations and purchase Savings Plans (or RIs) centrally; the discounts apply to matching usage across accounts.",
+        why: "Correct. RI and Savings Plans benefits are shared across accounts in the organization by default." },
+      { t: "Buy Savings Plans separately in each account and pay each bill.",
+        why: "More effort and less discount sharing." },
+      { t: "Use the free tier in every account.",
+        why: "The organization gets only one free tier." },
+      { t: "Move all workloads into the management account.",
+        why: "Against best practice." }
+    ],
+    answer: [0],
+    tip: "Shared discounts + one bill = consolidated billing + central Savings Plans / RIs."
+  },
+  {
+    id: "org-13", domain: "d2", topic: "AWS Organizations",
+    q: "A business unit purchased Reserved Instances in its own account and doesn't want other accounts in the organization to consume its RI discounts. What should be done?",
+    options: [
+      { t: "In the management account's billing preferences, turn off RI and Savings Plans discount sharing for that account.",
+        why: "Correct. Sharing can be disabled per account." },
+      { t: "Remove the account from the organization.",
+        why: "Unnecessary." },
+      { t: "Attach an SCP that denies ec2:RunInstances in other accounts.",
+        why: "Blocks workloads instead of controlling billing." },
+      { t: "Move the RIs to a different Region.",
+        why: "Doesn't control sharing." }
+    ],
+    answer: [0],
+    tip: "Keep RIs for one account = turn off RI / SP sharing for it."
+  },
+  {
+    id: "org-14", domain: "d2", topic: "AWS Organizations",
+    q: "Finance needs to see costs per application team across all accounts and charge them back monthly. Teams tag resources with Team. What should the DevOps engineer configure?",
+    options: [
+      { t: "Activate Team as a cost allocation tag in the management account, define Cost Categories as needed, and use Cost Explorer / Cost and Usage Report (Data Exports) for the chargeback.",
+        why: "Correct. Cost allocation tags are activated in the management (payer) account." },
+      { t: "Activate the tag in each member account separately.",
+        why: "Cost allocation tags are activated in the management account." },
+      { t: "Use an SCP to report costs.",
+        why: "SCPs control permissions, not reporting." },
+      { t: "Enable AWS Config aggregators.",
+        why: "Config tracks configuration, not costs." }
+    ],
+    answer: [0],
+    tip: "Chargeback = cost allocation tags (management account) + Cost Categories + CUR."
+  },
+  {
+    id: "org-15", domain: "d2", topic: "AWS Organizations",
+    q: "A company wants GuardDuty and Security Hub enabled in every account, including new accounts, with findings centrally managed. Following best practice, the security team should not work in the management account. What should they do?",
+    options: [
+      { t: "From the management account, register the Security Tooling account as the delegated administrator for GuardDuty and Security Hub, then enable auto-enable for new organization accounts from that account.",
+        why: "Correct. Delegated administrators run org-wide security services without using the management account." },
+      { t: "Manage GuardDuty from the management account.",
+        why: "Works, but against best practice." },
+      { t: "Enable GuardDuty manually in each account.",
+        why: "Doesn't scale and misses new accounts." },
+      { t: "Use an SCP to enable GuardDuty.",
+        why: "SCPs can't enable services." }
+    ],
+    answer: [0],
+    tip: "Org-wide security without the management account = delegated admin + auto-enable."
+  },
+  {
+    id: "org-16", domain: "d2", topic: "AWS Organizations",
+    q: "The platform team wants to create, update and attach SCPs and tag policies from a member 'governance' account instead of signing in to the management account. What should be configured?",
+    options: [
+      { t: "A resource-based delegation policy in AWS Organizations (put-resource-policy) that delegates policy management to the governance account.",
+        why: "Correct. Organizations supports delegated administration of policies through a resource-based policy." },
+      { t: "Register the governance account as delegated admin for GuardDuty.",
+        why: "That delegates GuardDuty, not Organizations policies." },
+      { t: "Give the governance account an IAM user in the management account.",
+        why: "Still uses the management account." },
+      { t: "Use StackSets to deploy SCPs.",
+        why: "SCPs are Organizations policies; this doesn't remove the need for delegation." }
+    ],
+    answer: [0],
+    tip: "Manage SCPs from a member account = Organizations delegation policy."
+  },
+  {
+    id: "org-17", domain: "d2", topic: "AWS Organizations",
+    q: "Auditors require a single CloudTrail trail that captures API activity from all current and future accounts and that member account administrators can't stop or delete. What should the DevOps engineer configure?",
+    options: [
+      { t: "An organization trail created in the management account (or by a delegated admin), logging to a central S3 bucket in the Log Archive account.",
+        why: "Correct. Organization trails cover all accounts, and member accounts can't modify them." },
+      { t: "A trail in each account created by a StackSet.",
+        why: "Local admins could change them unless protected; an org trail is simpler." },
+      { t: "Enable CloudTrail Insights only.",
+        why: "Insights detects unusual activity; it doesn't create the org-wide trail." },
+      { t: "Use VPC Flow Logs.",
+        why: "Network traffic, not API activity." }
+    ],
+    answer: [0],
+    tip: "All accounts, members can't disable = organization trail."
+  },
+  {
+    id: "org-18", domain: "d2", topic: "AWS Organizations",
+    q: "A company wants to automatically run a baseline workflow (create IAM roles, enable logging, notify the team) whenever a new account is created in its organization. What is a correct event-driven approach?",
+    options: [
+      { t: "Create an Amazon EventBridge rule in us-east-1 that matches the Organizations CreateAccountResult event (from CloudTrail) and invokes a Lambda function or Step Functions workflow.",
+        why: "Correct. Organizations events are delivered in us-east-1 and can trigger automation (StackSets auto-deployment or Control Tower are alternatives)." },
+      { t: "Poll ListAccounts every hour from every Region.",
+        why: "Polling is less efficient, and Organizations is a global service in us-east-1." },
+      { t: "Create EventBridge rules in each member account.",
+        why: "The events are in the management account in us-east-1." },
+      { t: "Use an SCP to trigger the workflow.",
+        why: "SCPs don't trigger actions." }
+    ],
+    answer: [0],
+    tip: "React to new accounts = EventBridge (us-east-1) on CreateAccountResult."
+  },
+  {
+    id: "org-19", domain: "d2", topic: "AWS Organizations",
+    q: "The network team wants to share VPC subnets from the Network account with all accounts in the Workloads OU without each account accepting an invitation. What should they use?",
+    options: [
+      { t: "AWS Resource Access Manager with sharing with AWS Organizations enabled, sharing the subnets with the Workloads OU.",
+        why: "Correct. With Organizations sharing enabled, RAM shares to OUs without invitations." },
+      { t: "VPC peering from every account.",
+        why: "Peering connects VPCs; it doesn't share subnets." },
+      { t: "An SCP allowing ec2:CreateSubnet.",
+        why: "SCPs don't share resources." },
+      { t: "CloudFormation StackSets to create identical subnets.",
+        why: "That creates separate subnets instead of sharing." }
+    ],
+    answer: [0],
+    tip: "Share subnets / TGW with an OU, no invites = RAM + Organizations sharing."
+  },
+  {
+    id: "org-20", domain: "d2", topic: "AWS Organizations",
+    q: "A security team wants to remove root user passwords and access keys from all member accounts, while still being able to perform the few tasks that require root (such as unlocking a misconfigured S3 bucket policy). What should they use?",
+    options: [
+      { t: "Centralized root access management in AWS Organizations, with privileged root sessions via sts:AssumeRoot from the management account or a delegated admin.",
+        why: "Correct. This removes member root credentials and allows short-lived root-only tasks." },
+      { t: "An SCP denying all root user actions with no exceptions.",
+        why: "Then root-only recovery tasks can't be performed." },
+      { t: "Share the root passwords in Secrets Manager.",
+        why: "Credentials still exist." },
+      { t: "Delete the member accounts.",
+        why: "Not reasonable." }
+    ],
+    answer: [0],
+    tip: "No member root credentials + occasional root tasks = centralized root access."
+  },
+  {
+    id: "org-21", domain: "d2", topic: "AWS Organizations",
+    q: "Platform engineers deploy baseline IAM roles named platform-* in every account through a pipeline role. Local account administrators sometimes modify or delete these roles. How can the company prevent this while still allowing the pipeline to manage them?",
+    options: [
+      { t: "An SCP that denies iam:DeleteRole, iam:PutRolePolicy, iam:AttachRolePolicy and iam:UpdateAssumeRolePolicy on arn:aws:iam::*:role/platform-* unless aws:PrincipalARN matches the pipeline role (ArnNotLike condition).",
+        why: "Correct. The SCP protects the roles from everyone except the pipeline role." },
+      { t: "A permissions boundary on the platform roles.",
+        why: "Boundaries limit what the roles can do, not who can modify them." },
+      { t: "A tag policy on the roles.",
+        why: "Tag policies don't prevent IAM changes." },
+      { t: "AWS Config rule to detect role changes.",
+        why: "Detective only." }
+    ],
+    answer: [0],
+    tip: "Protect baseline resources from local admins = SCP deny + principal exception."
+  },
+  {
+    id: "org-22", domain: "d2", topic: "AWS Organizations",
+    q: "Following AWS multi-account best practices, where should a company test new SCPs before applying them to production OUs, and where should centralized logs be stored?",
+    options: [
+      { t: "Test SCPs in a dedicated Policy Staging OU (or sandbox accounts) and store logs in a Log Archive account in the Security OU.",
+        why: "Correct. This matches the AWS recommended OU structure." },
+      { t: "Test SCPs directly on the root and store logs in the management account.",
+        why: "Risky for every account, and the management account should hold no workloads or data." },
+      { t: "Test SCPs on the management account.",
+        why: "SCPs don't apply there, so testing would show nothing." },
+      { t: "Store logs in each workload account.",
+        why: "Logs should be centralized and protected from workload admins." }
+    ],
+    answer: [0],
+    tip: "Test SCPs in Policy Staging OU; logs in Log Archive (Security OU)."
   }
 ];
+
 
 
 
