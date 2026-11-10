@@ -2070,6 +2070,80 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AWS Config",
+  sections: [
+    { h: "Setup and recording", items: [
+      "**Recorder** = configuration items (CIs) for all / selected types · **regional** → enable in every Region",
+      "**Global resources (IAM) in one Region only** · **daily recording / exclusions** to cut cost",
+      "**Delivery channel**: S3 (history ~6h, snapshots) + SNS (noisy) · role `AWSServiceRoleForConfig` · retention default 7 years",
+      "**Timeline** = what it looked like · CI links to **CloudTrail** event (who) · **advanced queries** (SQL SELECT)",
+      "Cost = per CI recorded + per rule evaluation"
+    ]},
+    { h: "Rules", table: [
+      ["Type", "Use"],
+      ["**Managed**", "First choice · parameters (`restricted-ssh`, `required-tags`, `encrypted-volumes`, `approved-amis-by-id`, `cloudtrail-enabled`, `access-keys-rotated`)"],
+      ["**Custom Lambda**", "Complex logic / external data · `PutEvaluations` · **invoke permission for config.amazonaws.com**"],
+      ["**Custom Guard**", "Simple attribute checks, **no Lambda**"],
+      ["Service-linked", "From Security Hub / Control Tower · can't edit"]
+    ]},
+    { h: "Triggers and modes", items: [
+      "**Change-triggered** (scope: type / tag / ID) · **periodic** 1 / 3 / 6 / 12 / 24 h (key age, CloudTrail on)",
+      "**Detective** (default, after change) · **proactive** (`StartResourceEvaluation`, Hooks, CT proactive)",
+      "**Rules don't prevent** → SCP / proactive controls",
+      "Results: COMPLIANT / NON_COMPLIANT / NOT_APPLICABLE / INSUFFICIENT_DATA · `StartConfigRulesEvaluation` re-run"
+    ]},
+    { h: "Remediation (SSM Automation)", items: [
+      "Runbook per rule · **manual** or **automatic** · param **`RESOURCE_ID`**",
+      "**`AutomationAssumeRole`** (trust ssm.amazonaws.com + permissions) = #1 failure cause",
+      "Max attempts + retry seconds · rate control · **remediation exceptions**",
+      "`AWSConfigRemediation-EnableS3BucketEncryption`, **`AWS-DisablePublicAccessForSecurityGroup`**, `-RemoveUnrestrictedSourceIngressRules`, `AWS-PublishSNSNotification`",
+      "Custom / filtered → **EventBridge `Config Rules Compliance Change` (NON_COMPLIANT)** → Lambda / SSM / SNS"
+    ]},
+    { h: "Conformance packs and org deployment", items: [
+      "**YAML bundle of rules + remediation**, managed as one unit · samples PCI, HIPAA, **CIS**, NIST · compliance score",
+      "**Organization conformance pack** / **organization Config rule** → all accounts, **members can't change**",
+      "From management account or **Config delegated admin** (`config.amazonaws.com`, `config-multiaccountsetup.amazonaws.com`)",
+      "**Needs recorder running** in targets"
+    ]},
+    { h: "Aggregators", items: [
+      "**Read-only** multi-account / Region view · **doesn't deploy or remediate**",
+      "Individual accounts → **authorization per account** · **Organization** source → no authorization, **new accounts automatic**",
+      "Advanced queries across org · usually **Audit** account (Control Tower)",
+      "No data = Config not enabled / authorization missing"
+    ]},
+    { h: "Integrations", items: [
+      "**Security Hub controls = Config rules** (Config required) · **CT detective controls = Config rules** · Firewall Manager needs Config",
+      "SSM: runbooks, Inventory CI, patch compliance rule · CFN drift rule, Hooks, `AWS::Config::*`",
+      "Audit Manager evidence · EventBridge events · CloudTrail links"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["What it looked like / who changed", "Config timeline / CloudTrail"],
+      ["No results in other Regions", "Recorder per Region"],
+      ["Duplicate IAM CIs", "Global resources one Region"],
+      ["Config too expensive", "Daily recording / exclusions"],
+      ["Open SSH detection", "Managed restricted-ssh"],
+      ["Check against external API", "Custom Lambda rule"],
+      ["Simple check, no Lambda", "Guard rule"],
+      ["Lambda rule never invoked", "Invoke permission"],
+      ["Daily key-age check", "Periodic trigger"],
+      ["Auto-fix buckets", "Automatic remediation + SSM"],
+      ["Remediation AccessDenied", "AutomationAssumeRole"],
+      ["Skip one bucket", "Remediation exception"],
+      ["Email only on NON_COMPLIANT", "EventBridge filter"],
+      ["PCI rules all accounts, protected", "Org conformance pack"],
+      ["Pack fails in accounts", "Recorder not enabled"],
+      ["Central view incl. new accounts", "Org aggregator"],
+      ["Aggregator enforce / fix?", "No, read-only"],
+      ["Aggregator missing account", "Authorization / Config off"],
+      ["SQL query all accounts", "Advanced query on aggregator"],
+      ["Check before deploy", "Proactive evaluation / Hooks"],
+      ["Security Hub no findings", "Enable Config"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

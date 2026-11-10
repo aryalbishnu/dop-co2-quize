@@ -35,5 +35,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["AppConfig"], title: "Week 4 notes - AWS AppConfig: feature flags, deployment strategies, validators (traps, lab, check yourself)", file: "pdfs/Week4_AppConfig.pdf" },
   { domain: "d2", topics: ["AWS Organizations"], title: "Week 4 notes - AWS Organizations: OUs, SCPs, consolidated billing, delegated administrators (traps, lab, check yourself)", file: "pdfs/Week4_AWS_Organizations.pdf" },
   { domain: "d2", topics: ["Control Tower"], title: "Week 4 notes - AWS Control Tower: landing zone, controls, Account Factory, AFT, customizations (traps, lab, check yourself)", file: "pdfs/Week4_Control_Tower.pdf" },
-  { domain: "d2", topics: ["Service Catalog"], title: "Week 4 notes - AWS Service Catalog: portfolios, products, launch constraints, TagOptions (traps, lab, check yourself)", file: "pdfs/Week4_Service_Catalog.pdf" }
+  { domain: "d2", topics: ["Service Catalog"], title: "Week 4 notes - AWS Service Catalog: portfolios, products, launch constraints, TagOptions (traps, lab, check yourself)", file: "pdfs/Week4_Service_Catalog.pdf" },
+  { domain: "d2", topics: ["AWS Config"], title: "Week 4 notes - AWS Config: rules, conformance packs, aggregators, remediation via SSM (traps, lab, check yourself)", file: "pdfs/Week4_AWS_Config.pdf" }
 ];

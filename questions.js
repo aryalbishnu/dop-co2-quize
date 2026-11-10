@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -10371,8 +10371,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Products written in CDK = aws-servicecatalog ProductStack."
+  },
+  // ───────────────────────────── Domain 2: AWS Config ─────────────────────────────
+  {
+    id: "cfg-01", domain: "d2", topic: "AWS Config",
+    q: "After a security incident, an auditor asks what a specific security group's inbound rules looked like three weeks ago, and which API call changed them. Which combination provides this information?",
+    options: [
+      { t: "AWS Config configuration timeline for the security group (past configuration items) linked to the AWS CloudTrail event that made the change.",
+        why: "Correct. Config records configuration history, and each configuration item links to the CloudTrail event that caused it." },
+      { t: "VPC Flow Logs.",
+        why: "Flow Logs show traffic, not configuration history." },
+      { t: "CloudWatch metrics for the security group.",
+        why: "Security groups don't publish configuration metrics." },
+      { t: "Trusted Advisor.",
+        why: "Trusted Advisor gives current best-practice checks, not history." }
+    ],
+    answer: [0],
+    tip: "What did it look like = Config timeline; who changed it = CloudTrail."
+  },
+  {
+    id: "cfg-02", domain: "d2", topic: "AWS Config",
+    q: "A company enabled AWS Config in us-east-1 and wants compliance results for resources in eu-west-1 and ap-southeast-2 as well. No findings appear for those Regions. Why?",
+    options: [
+      { t: "AWS Config is a regional service; a configuration recorder (and rules) must be enabled in each Region.",
+        why: "Correct. Enable Config per Region, for example with StackSets, Quick Setup or Control Tower." },
+      { t: "Config only supports us-east-1.",
+        why: "Config is available in many Regions." },
+      { t: "The S3 delivery bucket must be in each Region.",
+        why: "A single bucket can receive data from multiple Regions; the recorder is missing." },
+      { t: "Global resource recording is disabled.",
+        why: "Global resources are IAM; this doesn't explain missing Regional resources." }
+    ],
+    answer: [0],
+    tip: "Config is regional: recorder in every Region."
+  },
+  {
+    id: "cfg-03", domain: "d2", topic: "AWS Config",
+    q: "A company enabled AWS Config in five Regions with global resource recording turned on everywhere. Costs are higher than expected, and IAM configuration items appear five times. What should be changed?",
+    options: [
+      { t: "Record global resources (IAM) in only one Region.",
+        why: "Correct. Recording global resources in every Region duplicates configuration items and cost." },
+      { t: "Disable Config in four Regions.",
+        why: "Loses Regional resource coverage." },
+      { t: "Switch to a single delivery channel.",
+        why: "Doesn't stop duplicate recording." },
+      { t: "Delete the IAM resources.",
+        why: "Not reasonable." }
+    ],
+    answer: [0],
+    tip: "Global resources in one Region only."
+  },
+  {
+    id: "cfg-04", domain: "d2", topic: "AWS Config",
+    q: "An account runs thousands of short-lived resources of a few types that change constantly, making AWS Config recording expensive. The compliance team only needs a daily view of these resource types. What is the BEST way to reduce cost?",
+    options: [
+      { t: "Configure daily (periodic) recording frequency for those resource types, or exclude them from recording if not needed.",
+        why: "Correct. Periodic recording records at most one configuration item per day per resource." },
+      { t: "Disable AWS Config entirely.",
+        why: "Loses compliance coverage." },
+      { t: "Increase the S3 retention.",
+        why: "Increases storage, doesn't reduce recording cost." },
+      { t: "Use a single Config rule.",
+        why: "Rules don't reduce configuration item charges." }
+    ],
+    answer: [0],
+    tip: "Reduce Config cost = daily recording / exclusions."
+  },
+  {
+    id: "cfg-05", domain: "d2", topic: "AWS Config",
+    q: "A security team wants to know whether any security group allows inbound SSH from 0.0.0.0/0, with the least effort. Which approach is BEST?",
+    options: [
+      { t: "Enable the AWS managed Config rule restricted-ssh (incoming SSH disabled).",
+        why: "Correct. A managed rule exists for this check." },
+      { t: "Write a custom Lambda Config rule.",
+        why: "More effort when a managed rule already exists." },
+      { t: "Create an SCP that denies AuthorizeSecurityGroupIngress.",
+        why: "Prevention, not detection of existing groups, and too broad." },
+      { t: "Review security groups manually each week.",
+        why: "Not automated." }
+    ],
+    answer: [0],
+    tip: "Use a managed rule first (restricted-ssh)."
+  },
+  {
+    id: "cfg-06", domain: "d2", topic: "AWS Config",
+    q: "A company must check that every EC2 instance has an Owner tag whose value exists in the company's internal employee directory API. Which Config rule type is required?",
+    options: [
+      { t: "A custom Lambda rule that looks up the tag value in the directory and reports results with PutEvaluations.",
+        why: "Correct. External lookups need custom code in a Lambda rule." },
+      { t: "The managed required-tags rule only.",
+        why: "It checks tag presence / values but can't call an external directory." },
+      { t: "A custom Guard policy rule.",
+        why: "Guard checks resource attributes; it can't call external APIs." },
+      { t: "A conformance pack sample template.",
+        why: "Samples don't include this custom logic." }
+    ],
+    answer: [0],
+    tip: "External data / complex logic = custom Lambda rule."
+  },
+  {
+    id: "cfg-07", domain: "d2", topic: "AWS Config",
+    q: "A team wants a simple custom Config rule that marks EC2 instances non-compliant unless their instance type starts with t3, without writing or maintaining a Lambda function. What should they use?",
+    options: [
+      { t: "A custom policy rule written in CloudFormation Guard.",
+        why: "Correct. Guard rules evaluate configuration attributes without Lambda." },
+      { t: "A custom Lambda rule.",
+        why: "Requires maintaining Lambda." },
+      { t: "An SCP.",
+        why: "Prevents, doesn't report compliance." },
+      { t: "An aggregator.",
+        why: "Aggregators only view data." }
+    ],
+    answer: [0],
+    tip: "Simple custom check without Lambda = Guard custom policy rule."
+  },
+  {
+    id: "cfg-08", domain: "d2", topic: "AWS Config",
+    q: "A custom Lambda-backed Config rule was created, but it never evaluates resources and the Lambda function shows no invocations. What is the MOST likely cause?",
+    options: [
+      { t: "The Lambda function's resource-based policy doesn't allow config.amazonaws.com to invoke it.",
+        why: "Correct. Config must have permission to invoke the function." },
+      { t: "The rule needs to be in a conformance pack.",
+        why: "Not required." },
+      { t: "The Lambda function needs ssm:StartAutomationExecution.",
+        why: "Unrelated to being invoked." },
+      { t: "Config rules can't use Lambda.",
+        why: "Custom Lambda rules are supported." }
+    ],
+    answer: [0],
+    tip: "Lambda rule not invoked = missing invoke permission for Config."
+  },
+  {
+    id: "cfg-09", domain: "d2", topic: "AWS Config",
+    q: "A rule must check once a day that IAM access keys aren't older than 90 days, even if no IAM configuration changes occur. Which trigger type should the rule use?",
+    options: [
+      { t: "Periodic trigger (24 hours).",
+        why: "Correct. Periodic rules evaluate on a schedule regardless of configuration changes." },
+      { t: "Configuration change trigger scoped to IAM users.",
+        why: "Key age changes over time without a configuration change." },
+      { t: "Proactive evaluation.",
+        why: "Proactive checks are before deployment." },
+      { t: "An aggregator.",
+        why: "Aggregators don't evaluate." }
+    ],
+    answer: [0],
+    tip: "Time-based checks = periodic trigger."
+  },
+  {
+    id: "cfg-10", domain: "d2", topic: "AWS Config",
+    q: "A company wants every S3 bucket that becomes non-compliant with the s3-bucket-server-side-encryption-enabled rule to be fixed automatically within minutes, without custom code. What should the DevOps engineer configure?",
+    options: [
+      { t: "Automatic remediation on the rule using the AWSConfigRemediation-EnableS3BucketEncryption SSM Automation document, passing RESOURCE_ID as the bucket name and an AutomationAssumeRole with the required S3 permissions.",
+        why: "Correct. Config remediation runs SSM Automation automatically for non-compliant resources." },
+      { t: "An aggregator in the Audit account.",
+        why: "Aggregators are read-only." },
+      { t: "A notification constraint.",
+        why: "That's Service Catalog." },
+      { t: "Manually encrypt buckets each week.",
+        why: "Not automatic." }
+    ],
+    answer: [0],
+    tip: "Auto-fix = Config automatic remediation + SSM Automation + AutomationAssumeRole."
+  },
+  {
+    id: "cfg-11", domain: "d2", topic: "AWS Config",
+    q: "Automatic remediation is configured for the restricted-ssh rule with AWS-DisablePublicAccessForSecurityGroup, but security groups stay non-compliant and the SSM Automation executions fail with AccessDenied. What should be fixed?",
+    options: [
+      { t: "The AutomationAssumeRole - it must trust ssm.amazonaws.com and have permissions such as ec2:RevokeSecurityGroupIngress and ec2:DescribeSecurityGroups.",
+        why: "Correct. The remediation runbook runs with this role." },
+      { t: "The Config service-linked role must be deleted.",
+        why: "Not related." },
+      { t: "The rule must use a periodic trigger.",
+        why: "Trigger type doesn't fix AccessDenied." },
+      { t: "Enable an aggregator.",
+        why: "Aggregators don't remediate." }
+    ],
+    answer: [0],
+    tip: "Remediation AccessDenied = AutomationAssumeRole."
+  },
+  {
+    id: "cfg-12", domain: "d2", topic: "AWS Config",
+    q: "A marketing website bucket is intentionally public and keeps getting changed back by automatic remediation of the s3-bucket-public-read-prohibited rule. How should the team stop remediation for only this bucket?",
+    options: [
+      { t: "Add a remediation exception for that bucket (or exclude it from the rule's scope).",
+        why: "Correct. Remediation exceptions exclude specific resources." },
+      { t: "Delete the rule.",
+        why: "Removes protection for all buckets." },
+      { t: "Disable AWS Config.",
+        why: "Excessive." },
+      { t: "Increase the retry attempts.",
+        why: "Makes remediation more aggressive." }
+    ],
+    answer: [0],
+    tip: "Skip one resource = remediation exception."
+  },
+  {
+    id: "cfg-13", domain: "d2", topic: "AWS Config",
+    q: "The security team subscribed to the Config delivery channel SNS topic but receives too many emails about every configuration change. They only want an email when the restricted-ssh rule finds a non-compliant resource. What should they do?",
+    options: [
+      { t: "Create an EventBridge rule matching 'Config Rules Compliance Change' events for restricted-ssh with newEvaluationResult.complianceType NON_COMPLIANT, targeting an SNS topic.",
+        why: "Correct. EventBridge filtering sends only the relevant events." },
+      { t: "Increase the delivery frequency to 24 hours.",
+        why: "Still sends all event types." },
+      { t: "Disable the delivery channel.",
+        why: "Breaks configuration history delivery." },
+      { t: "Use an aggregator.",
+        why: "Aggregators don't send notifications." }
+    ],
+    answer: [0],
+    tip: "Notify only on non-compliance = EventBridge filter (not delivery channel SNS)."
+  },
+  {
+    id: "cfg-14", domain: "d2", topic: "AWS Config",
+    q: "A company with 80 accounts in AWS Organizations must deploy the same PCI DSS set of Config rules and remediation actions to every account, and member account administrators must not be able to delete them. The security team works from a delegated administrator account. What should they use?",
+    options: [
+      { t: "An organization conformance pack based on the Operational Best Practices for PCI DSS template, deployed from the Config delegated administrator account.",
+        why: "Correct. Organization conformance packs deploy rules + remediation to all accounts, and members can't modify them." },
+      { t: "An aggregator.",
+        why: "Read-only view; doesn't deploy rules." },
+      { t: "Ask each account to add rules manually.",
+        why: "Not consistent or protected." },
+      { t: "A Service Catalog product.",
+        why: "Self-service, not enforced compliance." }
+    ],
+    answer: [0],
+    tip: "Rule set to all accounts, protected = organization conformance pack."
+  },
+  {
+    id: "cfg-15", domain: "d2", topic: "AWS Config",
+    q: "An organization conformance pack fails to deploy to several member accounts. What is a common cause?",
+    options: [
+      { t: "AWS Config (the configuration recorder) isn't enabled in those accounts or Regions.",
+        why: "Correct. Conformance packs need a running recorder in each target account / Region." },
+      { t: "The accounts have too many S3 buckets.",
+        why: "Not a deployment prerequisite." },
+      { t: "Aggregators aren't configured.",
+        why: "Aggregators aren't required for deployment." },
+      { t: "The accounts don't use IAM Identity Center.",
+        why: "Not related." }
+    ],
+    answer: [0],
+    tip: "Conformance pack / rules need Config recorder enabled."
+  },
+  {
+    id: "cfg-16", domain: "d2", topic: "AWS Config",
+    q: "The CISO wants a single place to see the compliance status of all Config rules across 50 accounts and 4 Regions, including accounts created in the future, without asking each account to authorize data sharing. What should be configured?",
+    options: [
+      { t: "An AWS Config aggregator with the AWS Organization as the source, created in the Audit (delegated administrator) account.",
+        why: "Correct. Organization aggregators include all accounts automatically without per-account authorization." },
+      { t: "An aggregator with individual account sources.",
+        why: "Requires authorization from each account and manual updates for new accounts." },
+      { t: "A conformance pack.",
+        why: "Deploys rules; doesn't aggregate." },
+      { t: "CloudTrail Lake.",
+        why: "API events, not compliance." }
+    ],
+    answer: [0],
+    tip: "Central view incl. new accounts = organization aggregator."
+  },
+  {
+    id: "cfg-17", domain: "d2", topic: "AWS Config",
+    q: "A team expects an AWS Config aggregator to automatically enforce rules and remediate non-compliant resources in all source accounts. What is true?",
+    options: [
+      { t: "Aggregators are read-only; they collect and display configuration and compliance data but don't deploy rules or remediate - use organization rules / conformance packs and remediation for that.",
+        why: "Correct. Aggregation is visibility only." },
+      { t: "Aggregators deploy rules to source accounts automatically.",
+        why: "They don't." },
+      { t: "Aggregators remediate using SSM.",
+        why: "Remediation is configured on rules, not aggregators." },
+      { t: "Aggregators replace the configuration recorder.",
+        why: "Recorders are still required in sources." }
+    ],
+    answer: [0],
+    tip: "Aggregator = read-only."
+  },
+  {
+    id: "cfg-18", domain: "d2", topic: "AWS Config",
+    q: "An aggregator in the security account uses individual account sources. One newly added source account shows no data. Config is enabled in that account. What is missing?",
+    options: [
+      { t: "The source account hasn't authorized the aggregator account (aggregation authorization).",
+        why: "Correct. Individual-account aggregators need authorization from each source." },
+      { t: "The account needs a conformance pack.",
+        why: "Not required for aggregation." },
+      { t: "The aggregator must be deleted and recreated.",
+        why: "Not needed." },
+      { t: "The account must be in the same Region.",
+        why: "Aggregators support multiple Regions." }
+    ],
+    answer: [0],
+    tip: "Individual-source aggregator = authorization per account."
+  },
+  {
+    id: "cfg-19", domain: "d2", topic: "AWS Config",
+    q: "The security team needs to list every EBS volume that isn't encrypted across all accounts and Regions in the organization, using a SQL-like query. What should they use?",
+    options: [
+      { t: "AWS Config advanced query run against the organization aggregator.",
+        why: "Correct. Advanced queries support SQL-like SELECT over aggregated current configuration." },
+      { t: "Amazon Athena on CloudTrail logs.",
+        why: "CloudTrail shows API calls, not current configuration." },
+      { t: "Trusted Advisor.",
+        why: "Not a cross-account configuration query tool." },
+      { t: "Cost Explorer.",
+        why: "Cost data only." }
+    ],
+    answer: [0],
+    tip: "Org-wide config query = advanced query on aggregator."
+  },
+  {
+    id: "cfg-20", domain: "d2", topic: "AWS Config",
+    q: "A CI/CD pipeline should check whether a planned resource configuration complies with certain AWS Config managed rules before the resource is deployed. Which feature supports this?",
+    options: [
+      { t: "Config proactive evaluation (StartResourceEvaluation) for rules that support proactive mode, or CloudFormation Hooks / Control Tower proactive controls.",
+        why: "Correct. Proactive mode evaluates configurations before deployment." },
+      { t: "Detective rules with a periodic trigger.",
+        why: "Detective rules evaluate after deployment." },
+      { t: "Configuration snapshots.",
+        why: "Snapshots record existing resources." },
+      { t: "Aggregators.",
+        why: "Read-only view." }
+    ],
+    answer: [0],
+    tip: "Check before deploy = proactive evaluation / Hooks."
+  },
+  {
+    id: "cfg-21", domain: "d2", topic: "AWS Config",
+    q: "A company enabled AWS Security Hub in a new account, but no security control findings are generated. What is the MOST likely cause?",
+    options: [
+      { t: "AWS Config isn't enabled in the account / Region; Security Hub controls are implemented as service-linked Config rules.",
+        why: "Correct. Security Hub depends on Config for control evaluations." },
+      { t: "GuardDuty isn't enabled.",
+        why: "GuardDuty findings are separate from control checks." },
+      { t: "CloudTrail is disabled.",
+        why: "Not the dependency for control evaluations." },
+      { t: "Security Hub only works in us-east-1.",
+        why: "It's regional and widely available." }
+    ],
+    answer: [0],
+    tip: "Security Hub controls need Config enabled."
+  },
+  {
+    id: "cfg-22", domain: "d2", topic: "AWS Config",
+    q: "Which statements correctly describe AWS Config rules? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "In detective mode, Config rules report compliance after resources are created or changed; they don't block the change.",
+        why: "Correct. Prevention requires SCPs or proactive controls." },
+      { t: "Rules deployed through an organization conformance pack or organization Config rule can't be modified or deleted by member accounts.",
+        why: "Correct. Organization-level deployments are protected from members." },
+      { t: "Config rules automatically remediate every non-compliant resource without configuration.",
+        why: "Remediation must be configured." },
+      { t: "A single Config recorder covers all Regions.",
+        why: "Recorders are per Region." },
+      { t: "Aggregators deploy rules to source accounts.",
+        why: "Aggregators are read-only." }
+    ],
+    answer: [0, 1],
+    tip: "Rules detect (don't block); org-deployed rules are protected from members."
   }
 ];
+
 
 
 
