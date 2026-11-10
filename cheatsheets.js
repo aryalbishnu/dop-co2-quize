@@ -1997,6 +1997,79 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Service Catalog",
+  sections: [
+    { h: "Core model", items: [
+      "**Admins curate** IaC as **products** in **portfolios** · **end users self-service launch** · SC provisions with a **launch role**",
+      "**Product** = CloudFormation / Terraform / External with **versions** (active / inactive, DEFAULT / DEPRECATED)",
+      "**Portfolio** = products + **access (IAM users / groups / roles / principal names)** + constraints + TagOptions + sharing · product can be in many portfolios",
+      "**Provisioned product** = CFN stack `SC-<acct>-pp-...` · update / terminate",
+      "IAM: `AWSServiceCatalogAdminFullAccess` · **`AWSServiceCatalogEndUserFullAccess`** (no service permissions needed)"
+    ]},
+    { h: "Constraints (per product per portfolio)", table: [
+      ["Constraint", "Use"],
+      ["**Launch**", "**Role SC assumes** → users need only SC permissions · trust **`servicecatalog.amazonaws.com`** · **one per product per portfolio** · **`LocalRoleName`** for shared"],
+      ["**Template**", "**Rules** restrict parameter values (instance types)"],
+      ["**Notification**", "**SNS** stack events"],
+      ["**StackSet**", "Many accounts / Regions"],
+      ["**Tag update**", "Allow / deny tag edits after launch"]
+    ]},
+    { h: "Launch role checklist", items: [
+      "Trust **`servicecatalog.amazonaws.com`**",
+      "Permissions: **CloudFormation + every service in template** + **`s3:GetObject`** on template + **`iam:PassRole`** if needed",
+      "Admin creating constraint needs **`iam:PassRole`**",
+      "No launch constraint → **user's own credentials** used"
+    ]},
+    { h: "TagOptions", items: [
+      "Library of key / values on **portfolios** or **products**",
+      "Multiple values → **user picks from list** (no free text) · **single value → auto-applied**",
+      "Tags propagate to resources · deactivate · share with portfolio",
+      "AutoTags `aws:servicecatalog:*` (portfolio, product, provisioned product, principal, version)",
+      "**SC launches only** → mandatory everywhere = **SCP `aws:RequestTag`** · standardise org-wide = tag policy"
+    ]},
+    { h: "Sharing", items: [
+      "**Account-to-account** → recipient **imports**; **can't edit products**, can add **principals + constraints**; hub updates propagate",
+      "**Organizations** → org / OU / account, **no import**, trusted access, **delegated admin**",
+      "**Share TagOptions** · **share principals** (principal names / wildcards, SSO roles)",
+      "**Hub and spoke** = Organizations share + shared principals + **LocalRoleName** launch role (deployed by StackSets)"
+    ]},
+    { h: "Operations and integration", items: [
+      "**Service actions** = SSM documents on provisioned products (restart, AMI) without EC2 permissions",
+      "**Repo sync (CodeConnections)** → version per commit · **CodePipeline SC deploy action** · CDK **ProductStack**",
+      "**Plans** = change set preview · **`ImportAsProvisionedProduct`** · owner change · Budgets",
+      "Terraform: reference engine / HCP Terraform + launch role · `CopyProduct` · AppRegistry",
+      "**Account Factory + AFC blueprints are SC products** · ServiceNow / Jira connectors",
+      "**SC = self-service pull** · **StackSets / CfCT = push to all accounts**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Self-service, no service permissions", "Product + portfolio + launch constraint"],
+      ["AccessDenied with launch constraint", "Launch role permissions"],
+      ["SC can't assume role", "Trust servicecatalog.amazonaws.com"],
+      ["Admin can't add launch constraint", "iam:PassRole"],
+      ["One constraint for all spokes", "LocalRoleName"],
+      ["Only t3.micro / t3.small", "Template constraint"],
+      ["Email on launch / failure", "Notification constraint"],
+      ["One launch, many accounts", "StackSet constraint"],
+      ["Approved tag values, no free text", "TagOptions"],
+      ["Users change tags after launch", "Tag update constraint"],
+      ["Mandatory tag on every path", "SCP aws:RequestTag"],
+      ["Share to OU, no import, not mgmt", "Organizations share + delegated admin"],
+      ["Spoke edits product", "Not allowed"],
+      ["SSO devs see portfolio automatically", "Share principals"],
+      ["Restart / AMI without EC2", "Service actions"],
+      ["Version per Git commit", "Repo sync / CodePipeline SC action"],
+      ["Block old version launches", "Deprecated / inactive"],
+      ["Preview update", "Provisioned product plan"],
+      ["Existing stacks into SC", "ImportAsProvisionedProduct"],
+      ["Baseline into every account", "StackSets / CfCT"],
+      ["Account Factory", "SC product"],
+      ["Products in CDK", "ProductStack"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -10015,8 +10015,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Controls as code = EnableControl API / AWS::ControlTower::EnabledControl."
+  },
+  // ───────────────────────────── Domain 2: Service Catalog ─────────────────────────────
+  {
+    id: "scat-01", domain: "d2", topic: "Service Catalog",
+    q: "A company wants developers to launch a pre-approved, standardized EC2 web server stack on demand. Developers must not have IAM permissions to EC2, IAM or CloudFormation directly, and the security team wants to control exactly what can be deployed. What should a DevOps engineer implement?",
+    options: [
+      { t: "Create an AWS Service Catalog product from the CloudFormation template, add it to a portfolio that developers can access, and add a launch constraint with an IAM role that has the required permissions.",
+        why: "Correct. The launch role provisions the resources, so developers only need Service Catalog end-user permissions." },
+      { t: "Give developers AdministratorAccess and a documented template.",
+        why: "Violates least privilege and doesn't control what is deployed." },
+      { t: "Share the template in S3 and give developers CloudFormation full access.",
+        why: "Developers would need permissions for all underlying resources." },
+      { t: "Use CloudFormation StackSets to push the stack to every account.",
+        why: "StackSets push centrally; the requirement is on-demand self-service." }
+    ],
+    answer: [0],
+    tip: "Self-service approved stacks without service permissions = Service Catalog + launch constraint."
+  },
+  {
+    id: "scat-02", domain: "d2", topic: "Service Catalog",
+    q: "A developer with only AWSServiceCatalogEndUserFullAccess launches a product and the provisioning fails with an AccessDenied error for ec2:RunInstances. The product has a launch constraint. What is the MOST likely cause?",
+    options: [
+      { t: "The launch role in the launch constraint lacks ec2:RunInstances (or other permissions the template needs).",
+        why: "Correct. Service Catalog provisions with the launch role, so it must have all permissions required by the template." },
+      { t: "The developer needs ec2:RunInstances.",
+        why: "With a launch constraint, the end user doesn't need permissions to underlying services." },
+      { t: "TagOptions are missing.",
+        why: "TagOptions don't cause AccessDenied for RunInstances." },
+      { t: "The portfolio isn't shared with AWS Organizations.",
+        why: "Sharing isn't needed for a same-account launch." }
+    ],
+    answer: [0],
+    tip: "AccessDenied with launch constraint = launch role permissions."
+  },
+  {
+    id: "scat-03", domain: "d2", topic: "Service Catalog",
+    q: "An administrator creates an IAM role for a Service Catalog launch constraint, but launching products fails because Service Catalog can't assume the role. What is wrong?",
+    options: [
+      { t: "The role's trust policy must allow servicecatalog.amazonaws.com to assume it.",
+        why: "Correct. Service Catalog must be a trusted principal of the launch role." },
+      { t: "The role must trust cloudformation.amazonaws.com only.",
+        why: "Service Catalog assumes the launch role." },
+      { t: "The role must be created in the management account.",
+        why: "The launch role is in the account where products are provisioned." },
+      { t: "The role must have a permissions boundary.",
+        why: "Not required for assumption." }
+    ],
+    answer: [0],
+    tip: "Launch role trust = servicecatalog.amazonaws.com."
+  },
+  {
+    id: "scat-04", domain: "d2", topic: "Service Catalog",
+    q: "A catalog administrator tries to add a launch constraint to a product but receives an error that they aren't authorized to perform iam:PassRole. What should be done?",
+    options: [
+      { t: "Grant the administrator iam:PassRole permission for the launch role.",
+        why: "Correct. Creating a launch constraint passes the role to Service Catalog." },
+      { t: "Grant end users iam:PassRole.",
+        why: "The admin creating the constraint needs PassRole." },
+      { t: "Remove the role's trust policy.",
+        why: "Breaks the launch constraint." },
+      { t: "Use a template constraint instead.",
+        why: "Template constraints restrict parameters; they don't replace launch roles." }
+    ],
+    answer: [0],
+    tip: "Creating a launch constraint needs iam:PassRole for the admin."
+  },
+  {
+    id: "scat-05", domain: "d2", topic: "Service Catalog",
+    q: "A company shares a Service Catalog portfolio from a hub account to 60 spoke accounts. Each spoke account has an IAM role named SCLaunchRole. The company wants a single launch constraint that works in every spoke account. What should it configure?",
+    options: [
+      { t: "A launch constraint that uses LocalRoleName SCLaunchRole, which resolves to the role with that name in each account where the product is launched.",
+        why: "Correct. LocalRoleName makes launch constraints work across shared portfolios." },
+      { t: "A launch constraint with the hub account's role ARN.",
+        why: "Products launch in spoke accounts and need a local role." },
+      { t: "Sixty separate launch constraints in the hub.",
+        why: "Only one launch constraint per product per portfolio, and it doesn't scale." },
+      { t: "No launch constraint; give developers admin access.",
+        why: "Against least privilege." }
+    ],
+    answer: [0],
+    tip: "Shared portfolios + launch role = LocalRoleName."
+  },
+  {
+    id: "scat-06", domain: "d2", topic: "Service Catalog",
+    q: "Developers launching a Service Catalog EC2 product must only be able to choose t3.micro or t3.small instance types. What is the BEST way to enforce this?",
+    options: [
+      { t: "Add a template constraint to the product in the portfolio with a rule that allows only t3.micro and t3.small for the InstanceType parameter.",
+        why: "Correct. Template constraints restrict parameter values at launch." },
+      { t: "Add a notification constraint.",
+        why: "Notifications don't restrict parameters." },
+      { t: "Use an SCP to deny all other instance types for the developers.",
+        why: "Works org-wide but is broader than needed; the Service Catalog-native answer is a template constraint." },
+      { t: "Tell developers in the product description.",
+        why: "Not enforced." }
+    ],
+    answer: [0],
+    tip: "Limit parameter values = template constraint."
+  },
+  {
+    id: "scat-07", domain: "d2", topic: "Service Catalog",
+    q: "The operations team wants to be notified through email whenever any product in a portfolio is launched, updated or fails to provision. What should they configure?",
+    options: [
+      { t: "A notification constraint that sends the provisioning stack events to an SNS topic with an email subscription.",
+        why: "Correct. Notification constraints publish stack events to SNS." },
+      { t: "A template constraint.",
+        why: "Restricts parameters." },
+      { t: "A tag update constraint.",
+        why: "Controls tag edits." },
+      { t: "AWS Budgets on the portfolio.",
+        why: "Budgets track cost, not provisioning events." }
+    ],
+    answer: [0],
+    tip: "Notify on provisioning = notification constraint (SNS)."
+  },
+  {
+    id: "scat-08", domain: "d2", topic: "Service Catalog",
+    q: "A platform team wants a single Service Catalog launch to deploy a monitoring baseline product into several accounts and Regions at once. Which constraint supports this?",
+    options: [
+      { t: "A StackSet constraint that specifies target accounts, Regions and permissions.",
+        why: "Correct. StackSet constraints provision a product as a CloudFormation StackSet." },
+      { t: "A launch constraint.",
+        why: "Launch constraints set the role, not multi-account deployment." },
+      { t: "A notification constraint.",
+        why: "Only for events." },
+      { t: "TagOptions.",
+        why: "Tagging only." }
+    ],
+    answer: [0],
+    tip: "One launch → many accounts / Regions = StackSet constraint."
+  },
+  {
+    id: "scat-09", domain: "d2", topic: "Service Catalog",
+    q: "Finance requires every resource launched through Service Catalog to carry a CostCenter tag with one of the approved values 100, 200 or 300, and an Env tag that is always 'dev' for the developer portfolio. Users must not type free-text tag values. What should the administrator configure?",
+    options: [
+      { t: "Create TagOptions CostCenter=100/200/300 and Env=dev in the TagOption library and associate them with the portfolio; users pick a CostCenter and Env=dev is applied automatically.",
+        why: "Correct. Multiple values force a choice from the list, and a single value is applied automatically." },
+      { t: "Ask users to add tags in the product parameters.",
+        why: "Free text, not standardized." },
+      { t: "Use a notification constraint.",
+        why: "Unrelated to tags." },
+      { t: "Use AWS Config to tag resources afterwards.",
+        why: "Reactive, and not part of the launch." }
+    ],
+    answer: [0],
+    tip: "Standard tag values on SC launches = TagOptions (pick from list; single value auto)."
+  },
+  {
+    id: "scat-10", domain: "d2", topic: "Service Catalog",
+    q: "After launching products with the correct tags, some users change the tags on their provisioned products, breaking cost reports. How can the administrator prevent this in Service Catalog?",
+    options: [
+      { t: "Add a tag update (RESOURCE_UPDATE) constraint that doesn't allow tag updates on provisioned products.",
+        why: "Correct. This constraint controls whether users can update tags after launch." },
+      { t: "Remove the TagOptions.",
+        why: "Removes the standard tags entirely." },
+      { t: "Deprecate the product version.",
+        why: "Doesn't control tag edits." },
+      { t: "Use a template constraint.",
+        why: "Restricts parameters, not tag updates." }
+    ],
+    answer: [0],
+    tip: "Stop tag edits after launch = tag update constraint."
+  },
+  {
+    id: "scat-11", domain: "d2", topic: "Service Catalog",
+    q: "A company wants the CostCenter tag to be mandatory on all EC2 instances created in its workload accounts, whether they're launched through Service Catalog, the console, the CLI or other pipelines. What should it use?",
+    options: [
+      { t: "An SCP that denies ec2:RunInstances when aws:RequestTag/CostCenter is null (optionally plus a tag policy for allowed values).",
+        why: "Correct. TagOptions only apply to Service Catalog launches; an SCP enforces every creation path." },
+      { t: "TagOptions on all portfolios.",
+        why: "Only affects Service Catalog launches." },
+      { t: "A notification constraint.",
+        why: "Doesn't enforce tags." },
+      { t: "A template constraint.",
+        why: "Only for Service Catalog products." }
+    ],
+    answer: [0],
+    tip: "Mandatory tags on every path = SCP aws:RequestTag (TagOptions = SC launches only)."
+  },
+  {
+    id: "scat-12", domain: "d2", topic: "Service Catalog",
+    q: "A company with AWS Organizations wants a central Shared Services account to manage Service Catalog portfolios and share them with all accounts in the Workloads OU, without each account having to accept an import. The management account shouldn't be used for this. What should it do?",
+    options: [
+      { t: "Enable Service Catalog trusted access with Organizations, register the Shared Services account as a Service Catalog delegated administrator, and share the portfolio with the Workloads OU.",
+        why: "Correct. Organizations sharing reaches OUs without manual imports, and delegated admin avoids using the management account." },
+      { t: "Share the portfolio with each account ID and ask each account to import it.",
+        why: "Manual and doesn't scale." },
+      { t: "Copy the products into each account.",
+        why: "Duplicates products and loses central versioning." },
+      { t: "Use RAM to share the portfolio.",
+        why: "Service Catalog uses its own portfolio sharing." }
+    ],
+    answer: [0],
+    tip: "Share to OU, no imports, not management account = Organizations sharing + delegated admin."
+  },
+  {
+    id: "scat-13", domain: "d2", topic: "Service Catalog",
+    q: "A spoke account imported a portfolio shared from the hub account. The spoke administrator wants to change a CloudFormation template in one of the products. What can the spoke administrator do?",
+    options: [
+      { t: "Nothing to the product itself - imported products can't be edited by the recipient; they can add their own principals and constraints to the imported portfolio.",
+        why: "Correct. Product changes are made in the hub and propagate automatically." },
+      { t: "Edit the template directly in the imported product.",
+        why: "Recipients can't modify shared products." },
+      { t: "Delete the hub's product versions.",
+        why: "Not allowed." },
+      { t: "Change the hub's launch constraint.",
+        why: "The recipient controls only its local configuration." }
+    ],
+    answer: [0],
+    tip: "Imported portfolio: can't edit products; can add principals and constraints."
+  },
+  {
+    id: "scat-14", domain: "d2", topic: "Service Catalog",
+    q: "In a hub-and-spoke Service Catalog setup, developers in every spoke account use an IAM Identity Center permission set role named AWSReservedSSO_Developer_<suffix>. The hub team wants these developers to see the shared portfolio automatically without per-account configuration. What should they use?",
+    options: [
+      { t: "Share principals with the portfolio share and associate the portfolio with a principal name pattern (for example role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Developer_*).",
+        why: "Correct. Principal name sharing grants access to matching roles in recipient accounts." },
+      { t: "Add each developer's IAM user ARN in the hub.",
+        why: "Doesn't scale and ARNs differ per account." },
+      { t: "Use a template constraint.",
+        why: "Restricts parameters, not access." },
+      { t: "Share TagOptions only.",
+        why: "TagOptions don't grant access." }
+    ],
+    answer: [0],
+    tip: "Automatic access in spokes = share principals (principal names / wildcards)."
+  },
+  {
+    id: "scat-15", domain: "d2", topic: "Service Catalog",
+    q: "Developers launched EC2 instances through a Service Catalog product. They occasionally need to restart or create an AMI backup of their instances, but they must not have EC2 console or API permissions. What should the administrator provide?",
+    options: [
+      { t: "Service actions based on SSM Automation documents (such as AWS-RestartEC2Instance and AWS-CreateImage) associated with the product version.",
+        why: "Correct. End users run service actions on their provisioned products without direct EC2 permissions." },
+      { t: "Give developers ec2:RebootInstances and ec2:CreateImage.",
+        why: "Violates the requirement." },
+      { t: "A notification constraint.",
+        why: "Notifications don't perform actions." },
+      { t: "A new product version for each restart.",
+        why: "Impractical." }
+    ],
+    answer: [0],
+    tip: "Day-2 operations without service permissions = service actions (SSM)."
+  },
+  {
+    id: "scat-16", domain: "d2", topic: "Service Catalog",
+    q: "The platform team stores Service Catalog product templates in GitHub. They want a new product version created automatically each time a change is merged to the main branch, with minimal custom code. What should they use?",
+    options: [
+      { t: "Service Catalog product repository sync through AWS CodeConnections (or a CodePipeline Service Catalog deploy action).",
+        why: "Correct. Repo sync creates a new version on each commit; the pipeline action is an alternative." },
+      { t: "A cron Lambda that copies templates to S3 daily.",
+        why: "Custom code and delayed." },
+      { t: "Manually upload each version.",
+        why: "Not automated." },
+      { t: "StackSets with auto-deployment.",
+        why: "Doesn't create Service Catalog versions." }
+    ],
+    answer: [0],
+    tip: "New version per Git commit = repo sync (CodeConnections) / CodePipeline SC action."
+  },
+  {
+    id: "scat-17", domain: "d2", topic: "Service Catalog",
+    q: "Version v1 of a Service Catalog product has a known issue. The administrator wants to stop new launches of v1 while existing provisioned products keep working and can be updated to v2. What should they do?",
+    options: [
+      { t: "Mark v1 as deprecated (or inactive) and keep v2 as the default active version.",
+        why: "Correct. Deprecated / inactive versions can't be used for new launches, but existing provisioned products remain." },
+      { t: "Delete v1, which terminates existing provisioned products.",
+        why: "Deleting versions doesn't safely handle existing products and is unnecessary." },
+      { t: "Remove the product from the portfolio.",
+        why: "Removes access to v2 as well." },
+      { t: "Add a notification constraint.",
+        why: "Doesn't block launches." }
+    ],
+    answer: [0],
+    tip: "Block old version launches, keep existing = deprecated / inactive."
+  },
+  {
+    id: "scat-18", domain: "d2", topic: "Service Catalog",
+    q: "Before updating a provisioned product to a new version, a user wants to see exactly which resources will be changed or replaced. What Service Catalog feature should they use?",
+    options: [
+      { t: "A provisioned product plan (CreateProvisionedProductPlan), which creates a change set to review before executing.",
+        why: "Correct. Plans preview changes like a CloudFormation change set." },
+      { t: "A template constraint.",
+        why: "Restricts parameters." },
+      { t: "Service actions.",
+        why: "Run operations, not previews." },
+      { t: "AppRegistry.",
+        why: "Application metadata, not change previews." }
+    ],
+    answer: [0],
+    tip: "Preview SC update = provisioned product plan."
+  },
+  {
+    id: "scat-19", domain: "d2", topic: "Service Catalog",
+    q: "A company has dozens of existing CloudFormation stacks created from approved templates before it adopted Service Catalog. It wants these stacks managed as Service Catalog provisioned products without recreating resources. What should it do?",
+    options: [
+      { t: "Use ImportAsProvisionedProduct to import the existing stacks as provisioned products of the matching product versions.",
+        why: "Correct. Existing stacks can be brought under Service Catalog management." },
+      { t: "Delete the stacks and relaunch from Service Catalog.",
+        why: "Disruptive." },
+      { t: "Use CloudFormation drift detection.",
+        why: "Detects drift; doesn't import." },
+      { t: "Use StackSets import.",
+        why: "That imports into StackSets, not Service Catalog." }
+    ],
+    answer: [0],
+    tip: "Existing stacks → Service Catalog = ImportAsProvisionedProduct."
+  },
+  {
+    id: "scat-20", domain: "d2", topic: "Service Catalog",
+    q: "A company must deploy the same security baseline stack automatically into every account in its organization, including new accounts, with no action required from account owners. A team member suggests Service Catalog. What is the BEST choice?",
+    options: [
+      { t: "CloudFormation StackSets with service-managed permissions and automatic deployment (or CfCT in Control Tower), because Service Catalog is a self-service pull model.",
+        why: "Correct. Pushing a mandatory baseline to all accounts is StackSets' job; Service Catalog is for users launching products on demand." },
+      { t: "Service Catalog portfolio shared to all accounts.",
+        why: "Account owners would still have to launch the product." },
+      { t: "AWS Budgets.",
+        why: "Unrelated." },
+      { t: "Service actions.",
+        why: "Run operations on provisioned products only." }
+    ],
+    answer: [0],
+    tip: "Push to every account = StackSets / CfCT; self-service pull = Service Catalog."
+  },
+  {
+    id: "scat-21", domain: "d2", topic: "Service Catalog",
+    q: "Which statements about AWS Service Catalog and AWS Control Tower are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Control Tower Account Factory is provided as a Service Catalog product, so accounts can be provisioned with the ProvisionProduct API.",
+        why: "Correct. Account Factory is a Service Catalog product." },
+      { t: "Account Factory Customization (AFC) blueprints are Service Catalog products stored in a hub account.",
+        why: "Correct. Blueprints are Service Catalog products." },
+      { t: "Service Catalog replaces Control Tower controls.",
+        why: "Controls are SCPs, Config rules and Hooks." },
+      { t: "Service Catalog creates the landing zone.",
+        why: "Control Tower creates the landing zone." },
+      { t: "TagOptions enforce tags across all accounts for every API call.",
+        why: "TagOptions apply only to Service Catalog launches." }
+    ],
+    answer: [0, 1],
+    tip: "Account Factory and AFC blueprints are Service Catalog products."
+  },
+  {
+    id: "scat-22", domain: "d2", topic: "Service Catalog",
+    q: "A platform team defines its Service Catalog products in AWS CDK and wants to write the product infrastructure itself in CDK code rather than separate CloudFormation templates, and publish the portfolio as code. Which approach fits?",
+    options: [
+      { t: "Use the aws-servicecatalog CDK constructs with ProductStack to define products in CDK, plus Portfolio and constraint constructs, deployed through a pipeline.",
+        why: "Correct. ProductStack lets CDK code become a Service Catalog product." },
+      { t: "Export CDK output manually and upload it in the console each time.",
+        why: "Manual." },
+      { t: "Use SAM local to publish products.",
+        why: "SAM local is for local Lambda testing." },
+      { t: "It isn't possible to use CDK with Service Catalog.",
+        why: "CDK supports Service Catalog." }
+    ],
+    answer: [0],
+    tip: "Products written in CDK = aws-servicecatalog ProductStack."
   }
 ];
+
 
 
 
