@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -11445,8 +11445,253 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Participants can't use owner's default SG; create your own."
+  },
+  // ───────────────────────────── Domain 2: Domain 2 Extras ─────────────────────────────
+  {
+    id: "d2x-01", domain: "d2", topic: "Domain 2 Extras",
+    q: "A company is designing a new configuration management solution for 400 EC2 instances. It wants to keep using its existing Chef recipes and Ansible playbooks and continuously enforce the desired configuration, including on new instances. Which AWS approach should a DevOps engineer recommend?",
+    options: [
+      { t: "AWS Systems Manager State Manager associations that run the AWS-ApplyChefRecipes and AWS-ApplyAnsiblePlaybooks documents on targeted instances on a schedule.",
+        why: "Correct. State Manager enforces desired state with Chef / Ansible documents, including on new tagged instances." },
+      { t: "AWS OpsWorks Stacks with Chef layers.",
+        why: "OpsWorks reached end of life and isn't suitable for new designs." },
+      { t: "AWS OpsWorks for Puppet Enterprise.",
+        why: "Also end of life." },
+      { t: "Run the recipes once with EC2 user data.",
+        why: "Runs only at launch and doesn't enforce state continuously." }
+    ],
+    answer: [0],
+    tip: "New config management with Chef / Ansible = SSM State Manager (OpsWorks is EOL)."
+  },
+  {
+    id: "d2x-02", domain: "d2", topic: "Domain 2 Extras",
+    q: "A legacy application still described in an OpsWorks Stacks design must update its configuration file on every instance whenever an instance comes online or goes offline (for example, to refresh the list of application servers). Which OpsWorks lifecycle event handles this?",
+    options: [
+      { t: "Configure - it runs on all instances in the stack when an instance enters or leaves the online state.",
+        why: "Correct. Configure is the event for stack-wide configuration updates." },
+      { t: "Setup.",
+        why: "Runs once when an instance finishes booting." },
+      { t: "Deploy.",
+        why: "Runs when you deploy an app." },
+      { t: "Shutdown.",
+        why: "Runs on the instance being stopped only." }
+    ],
+    answer: [0],
+    tip: "OpsWorks event on all instances when one joins / leaves = Configure."
+  },
+  {
+    id: "d2x-03", domain: "d2", topic: "Domain 2 Extras",
+    q: "A team wants to stop all development EC2 instances every weekday at 20:00 in the Europe/Berlin time zone, with retries if the call fails, and without writing or maintaining any code. What is the simplest solution?",
+    options: [
+      { t: "An EventBridge Scheduler schedule with a cron expression and time zone, using a universal target that calls ec2:StopInstances, with a retry policy and DLQ.",
+        why: "Correct. Universal targets call AWS APIs directly without Lambda." },
+      { t: "A Lambda function triggered by a cron job on an EC2 instance.",
+        why: "Requires code and a server." },
+      { t: "An AWS Config rule.",
+        why: "Config evaluates compliance; it doesn't schedule stops." },
+      { t: "A CloudFormation custom resource.",
+        why: "Runs only during stack operations." }
+    ],
+    answer: [0],
+    tip: "Scheduled API call, no code = EventBridge Scheduler universal target."
+  },
+  {
+    id: "d2x-04", domain: "d2", topic: "Domain 2 Extras",
+    q: "A nightly automation job snapshots volumes in every account, copies snapshots to another Region and waits for each copy to finish. The whole job takes about 2 hours, and failed steps must be retried. The current Lambda-based implementation keeps timing out. What should the DevOps engineer use?",
+    options: [
+      { t: "An AWS Step Functions Standard workflow (Map over accounts, SDK integrations, Retry / Catch), triggered by EventBridge Scheduler.",
+        why: "Correct. Step Functions handles long-running, multi-step workflows with retries; Lambda has a 15-minute limit." },
+      { t: "Increase the Lambda timeout to 3 hours.",
+        why: "Lambda's maximum timeout is 15 minutes." },
+      { t: "Use an Express workflow.",
+        why: "Express workflows run up to 5 minutes." },
+      { t: "Run the job with SSM Run Command on a single instance.",
+        why: "Possible but adds a server and manual error handling." }
+    ],
+    answer: [0],
+    tip: "Long, multi-step, retries = Step Functions Standard (Lambda max 15 min)."
+  },
+  {
+    id: "d2x-05", domain: "d2", topic: "Domain 2 Extras",
+    q: "Which statement correctly compares Step Functions Standard and Express workflows?",
+    options: [
+      { t: "Standard workflows can run up to 1 year with exactly-once execution and full history; Express workflows run up to 5 minutes for high-volume, at-least-once processing.",
+        why: "Correct. Choose Standard for long, auditable workflows and Express for short, high-volume events." },
+      { t: "Express workflows can run up to 1 year.",
+        why: "Express is limited to 5 minutes." },
+      { t: "Standard workflows can't call AWS services directly.",
+        why: "Both support service integrations." },
+      { t: "They're identical except for pricing.",
+        why: "Duration, semantics and history differ." }
+    ],
+    answer: [0],
+    tip: "Standard = long, exactly-once, history; Express = 5 min, high volume."
+  },
+  {
+    id: "d2x-06", domain: "d2", topic: "Domain 2 Extras",
+    q: "An automated workflow that decommissions old environments must pause and wait until a manager approves by clicking a link in an email, then continue. Which options support this? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "A Step Functions task using the .waitForTaskToken callback pattern, resumed with SendTaskSuccess after approval.",
+        why: "Correct. The callback pattern pauses until the token is returned." },
+      { t: "An SSM Automation runbook with an aws:approve step.",
+        why: "Correct. aws:approve pauses the runbook for approvers." },
+      { t: "A Lambda function that sleeps until the manager replies.",
+        why: "Lambda times out after 15 minutes and wastes compute." },
+      { t: "An EventBridge Scheduler one-time schedule.",
+        why: "Schedules don't wait for approvals." },
+      { t: "A CloudFormation stack policy.",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "Human approval in automation = Step Functions .waitForTaskToken / SSM aws:approve."
+  },
+  {
+    id: "d2x-07", domain: "d2", topic: "Domain 2 Extras",
+    q: "A central automation account runs a Lambda function that must collect EC2 inventory from all 60 member accounts. The security team prohibits long-term access keys. How should the function access the member accounts?",
+    options: [
+      { t: "Create a role in each member account that trusts the automation account's Lambda execution role; the function calls sts:AssumeRole for each account (account list from Organizations ListAccounts).",
+        why: "Correct. Cross-account role assumption with temporary credentials is the secure pattern." },
+      { t: "Store IAM user access keys for each account in Secrets Manager.",
+        why: "Uses long-term keys." },
+      { t: "Share the EC2 instances with RAM.",
+        why: "EC2 instances aren't shared with RAM, and that's not inventory access." },
+      { t: "Use the management account root user.",
+        why: "Highly insecure." }
+    ],
+    answer: [0],
+    tip: "Cross-account automation = AssumeRole into target-account roles."
+  },
+  {
+    id: "d2x-08", domain: "d2", topic: "Domain 2 Extras",
+    q: "A Lambda function that tags thousands of resources with the AWS SDK fails intermittently with ThrottlingException and only processes the first page of results. What should be fixed? (Choose the BEST answer.)",
+    options: [
+      { t: "Implement pagination for list calls and retries with exponential backoff (SDK retry configuration), and limit concurrency to stay within API quotas.",
+        why: "Correct. Pagination returns all results and backoff handles throttling." },
+      { t: "Increase the function memory only.",
+        why: "Doesn't fix pagination or throttling." },
+      { t: "Remove error handling so the function finishes faster.",
+        why: "Makes failures worse." },
+      { t: "Run the function in a VPC.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "SDK automation: paginate + exponential backoff + concurrency control."
+  },
+  {
+    id: "d2x-09", domain: "d2", topic: "Domain 2 Extras",
+    q: "A compliance job must check the encryption settings of millions of objects across several S3 buckets in parallel and record failures without stopping the whole job. Which Step Functions feature is designed for this?",
+    options: [
+      { t: "Distributed Map state, with error handling (tolerated failure thresholds / Catch).",
+        why: "Correct. Distributed Map runs large-scale parallel processing over S3 objects and other datasets." },
+      { t: "A single Lambda function looping over all objects.",
+        why: "Would exceed the 15-minute limit." },
+      { t: "An Express workflow with a Pass state.",
+        why: "Doesn't parallelize millions of items." },
+      { t: "EventBridge Scheduler.",
+        why: "Schedules jobs; doesn't parallelize processing." }
+    ],
+    answer: [0],
+    tip: "Millions of items in parallel = Step Functions Distributed Map."
+  },
+  {
+    id: "d2x-10", domain: "d2", topic: "Domain 2 Extras",
+    q: "A Step Functions workflow must start an AWS CodeBuild project and only continue after the build finishes, without writing polling code. Which integration pattern should be used?",
+    options: [
+      { t: "The .sync (run a job) service integration pattern.",
+        why: "Correct. .sync starts the job and waits for it to complete." },
+      { t: "Request-response pattern with a Wait state loop.",
+        why: "Requires manual polling logic." },
+      { t: ".waitForTaskToken.",
+        why: "For callbacks from external systems or humans." },
+      { t: "An EventBridge rule.",
+        why: "Not a Step Functions pattern for waiting within the workflow." }
+    ],
+    answer: [0],
+    tip: "Start a job and wait = .sync integration."
+  },
+  {
+    id: "d2x-11", domain: "d2", topic: "Domain 2 Extras",
+    q: "A small team keeps a CloudFormation template in GitHub and wants the stack updated automatically whenever a change is merged to the main branch. They don't want to build or maintain a pipeline and don't need test or approval stages. What is the simplest solution?",
+    options: [
+      { t: "CloudFormation Git sync, linking the stack to the repository branch through CodeConnections with a deployment file (template path, parameters, tags).",
+        why: "Correct. Git sync updates the stack on each push without a pipeline." },
+      { t: "CodePipeline with source, build and deploy stages.",
+        why: "Works, but more to build and maintain than required." },
+      { t: "A cron job that runs aws cloudformation deploy every hour.",
+        why: "Custom and delayed." },
+      { t: "AWS Service Catalog repo sync.",
+        why: "Creates product versions, not stack updates." }
+    ],
+    answer: [0],
+    tip: "Stack updates on Git push, no pipeline = CloudFormation Git sync."
+  },
+  {
+    id: "d2x-12", domain: "d2", topic: "Domain 2 Extras",
+    q: "A team uses CloudFormation Git sync but now needs unit tests, a cfn-lint step and a manual approval before production stacks are updated. What should they do?",
+    options: [
+      { t: "Move to a CodePipeline pipeline (source, build / test with cfn-lint, manual approval, CloudFormation deploy), because Git sync has no build, test or approval stages.",
+        why: "Correct. Git sync is for simple direct deployments." },
+      { t: "Add approval settings to the Git sync deployment file.",
+        why: "Git sync doesn't support approval stages." },
+      { t: "Enable termination protection.",
+        why: "Doesn't add tests or approvals." },
+      { t: "Use a stack policy.",
+        why: "Protects resources, doesn't add pipeline stages." }
+    ],
+    answer: [0],
+    tip: "Need tests / approvals = CodePipeline, not Git sync."
+  },
+  {
+    id: "d2x-13", domain: "d2", topic: "Domain 2 Extras",
+    q: "Over the years, engineers created dozens of resources manually in the console. The company now wants these resources managed by CloudFormation without deleting and recreating them. What is the MOST efficient approach?",
+    options: [
+      { t: "Use the CloudFormation IaC generator to scan the account, select the resources, generate a template, and import the resources into a stack.",
+        why: "Correct. IaC generator creates templates from existing resources, which can then be imported." },
+      { t: "Write templates by hand and deploy them, deleting the old resources.",
+        why: "Recreates resources and risks data loss." },
+      { t: "Run drift detection.",
+        why: "Drift detection compares existing stacks; it doesn't create templates." },
+      { t: "Use StackSets.",
+        why: "Deploys new stacks; doesn't adopt existing resources." }
+    ],
+    answer: [0],
+    tip: "ClickOps resources into IaC = IaC generator + import."
+  },
+  {
+    id: "d2x-14", domain: "d2", topic: "Domain 2 Extras",
+    q: "A team prefers AWS CDK and wants to generate a CDK application from resources that already exist in an account (found by a scan), as a starting point for managing them as code. Which command supports this?",
+    options: [
+      { t: "cdk migrate --from-scan",
+        why: "Correct. It uses the IaC generator scan to create a CDK app from existing resources." },
+      { t: "cdk synth --import",
+        why: "Not a real option." },
+      { t: "cdk bootstrap --scan",
+        why: "Bootstrap prepares the environment." },
+      { t: "cdk diff --all",
+        why: "Compares stacks; doesn't generate apps." }
+    ],
+    answer: [0],
+    tip: "CDK app from existing resources = cdk migrate --from-scan."
+  },
+  {
+    id: "d2x-15", domain: "d2", topic: "Domain 2 Extras",
+    q: "Match the requirement to the BEST automation tool: 'restart a service on 300 instances at 10% concurrency with an approval step first, using an operational runbook'. Which should be used?",
+    options: [
+      { t: "An SSM Automation runbook (aws:approve, then aws:runCommand with rate control).",
+        why: "Correct. SSM Automation combines approvals, rate control and instance commands for operational runbooks." },
+      { t: "EventBridge Scheduler only.",
+        why: "Schedules calls; no approvals or rate-controlled commands." },
+      { t: "CloudFormation Git sync.",
+        why: "Deploys stacks." },
+      { t: "IaC generator.",
+        why: "Creates templates from resources." }
+    ],
+    answer: [0],
+    tip: "Ops runbook with approval + rate control = SSM Automation."
   }
 ];
+
 
 
 

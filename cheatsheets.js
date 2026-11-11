@@ -2280,6 +2280,60 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Domain 2 Extras",
+  sections: [
+    { h: "OpsWorks (end of life)", items: [
+      "Managed **Chef / Puppet**: OpsWorks Stacks, Chef Automate, Puppet Enterprise - **all end of life (2024)**",
+      "Stacks: layers + lifecycle **Setup, Configure, Deploy, Undeploy, Shutdown** · **Configure runs on all instances when one joins / leaves**",
+      "New designs → **Systems Manager State Manager** + `AWS-ApplyChefRecipes` / `AWS-ApplyAnsiblePlaybooks`, Application Manager"
+    ]},
+    { h: "Pick the automation tool", table: [
+      ["Need", "Tool"],
+      ["Schedule (cron / rate / one-time, time zone)", "**EventBridge Scheduler**"],
+      ["Scheduled API call, no code", "Scheduler **universal target** (e.g. ec2:StopInstances)"],
+      ["React to an event", "EventBridge rule"],
+      ["Short SDK code (< 15 min)", "**Lambda**"],
+      ["Long / multi-step / retries / parallel / approval", "**Step Functions**"],
+      ["Ops runbook, approvals, rate control", "**SSM Automation**"],
+      ["Commands on instances", "SSM Run Command / State Manager"]
+    ]},
+    { h: "Lambda + SDK practices", items: [
+      "**Execution role** (no keys) · cross-account **`sts:AssumeRole`** into target roles (ExternalId for third parties) · accounts via **Organizations ListAccounts**",
+      "**15-minute** limit · **pagination** · **exponential backoff** on throttling · quotas · concurrency",
+      "**Idempotent** · on-failure destinations / DLQ · Secrets Manager / Parameter Store for secrets"
+    ]},
+    { h: "Step Functions", items: [
+      "**Standard** (1 year, exactly-once, history) vs **Express** (5 min, high volume, at-least-once)",
+      "**SDK integrations** (200+ services, no Lambda) · **`.sync`** (start job and wait) · **`.waitForTaskToken`** (callback / human approval)",
+      "**Distributed Map** (millions of items) · **Retry / Catch** · triggered by Scheduler / EventBridge"
+    ]},
+    { h: "CloudFormation Git sync and IaC generator", items: [
+      "**Git sync**: stack linked to repo branch (CodeConnections) + deployment file (template path, parameters, tags) → **updates on push**, PR comments · **no test / approval stages** (use CodePipeline)",
+      "**IaC generator**: **scan** account → select resources → **generate template** → **import** into stack · **`cdk migrate --from-scan`**",
+      "Related: resource import, `cdk import`, drift detection after import"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["New Chef / Ansible config management", "SSM State Manager (not OpsWorks)"],
+      ["OpsWorks event on join / leave", "Configure"],
+      ["Stop dev instances nightly, no code", "Scheduler universal target"],
+      ["2-hour automation job", "Step Functions Standard"],
+      ["Short high-volume events", "Express workflow"],
+      ["Approval in workflow", ".waitForTaskToken / aws:approve"],
+      ["Automation across accounts", "AssumeRole into each account"],
+      ["Throttling / first page only", "Backoff + pagination"],
+      ["Millions of S3 objects", "Distributed Map"],
+      ["Start CodeBuild and wait", ".sync"],
+      ["Stack on Git push, no pipeline", "CloudFormation Git sync"],
+      ["Need tests + approval", "CodePipeline"],
+      ["ClickOps resources into IaC", "IaC generator + import"],
+      ["CDK app from existing resources", "cdk migrate --from-scan"],
+      ["Runbook + approval + rate control", "SSM Automation"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
@@ -2341,7 +2395,8 @@ window.CHEATSHEETS.push({
       ["**Service Catalog**", "Portfolio + product + launch constraint · template constraint · TagOptions · hub and spoke"],
       ["**Config**", "Regional recorder · managed / Lambda / Guard rules · SSM remediation · conformance packs · read-only aggregator"],
       ["**Tagging**", "aws:RequestTag requires · tag policy standardises (not required) · cost allocation tags in mgmt · ABAC"],
-      ["**RAM**", "Share subnets / TGW / Resolver rules / prefix lists · org sharing to OU · VPC sharing same org"]
+      ["**RAM**", "Share subnets / TGW / Resolver rules / prefix lists · org sharing to OU · VPC sharing same org"],
+      ["**Extras**", "OpsWorks EOL → SSM State Manager · Scheduler / Lambda / Step Functions / SSM Automation · CFN Git sync · IaC generator"]
     ]},
     { h: "Keywords: CloudFormation", table: [
       ["The question says", "Answer"],
@@ -2452,6 +2507,19 @@ window.CHEATSHEETS.push({
       ["Same CIDRs everywhere", "Shared prefix list"],
       ["Block external sharing", "SCP ram:RequestedAllowsExternalPrincipals"]
     ]},
+    { h: "Keywords: extras", table: [
+      ["The question says", "Answer"],
+      ["New Chef / Ansible config mgmt", "SSM State Manager (OpsWorks EOL)"],
+      ["OpsWorks event on join / leave", "Configure"],
+      ["Scheduled API call, no code", "Scheduler universal target"],
+      ["Job > 15 minutes", "Step Functions Standard"],
+      ["Approval in workflow", ".waitForTaskToken / aws:approve"],
+      ["Automation across accounts", "AssumeRole into each account"],
+      ["SDK throttling / first page only", "Backoff + pagination"],
+      ["Millions of S3 objects", "Distributed Map"],
+      ["Stack on Git push, no pipeline", "CloudFormation Git sync"],
+      ["ClickOps resources into IaC", "IaC generator + import / cdk migrate --from-scan"]
+    ]},
     { h: "Numbers to remember", items: [
       "CFN **500** resources · template **1 MB** via S3 · **200** params / outputs / mappings",
       "CreationPolicy / WaitCondition **12 h** max · custom resource **1 h** wait · cfn-hup **15 min**",
@@ -2459,6 +2527,7 @@ window.CHEATSHEETS.push({
       "SCPs **5** per target, **5,120** chars · OU depth **5** · tags **50** (128 / 256)",
       "Config required-tags **6** keys · periodic 1 / 3 / 6 / 12 / 24 h",
       "Parameter Store **4 KB** / **8 KB** · Run Command console **2,500** chars",
+      "Lambda **15 min** · Express **5 min** · Standard **1 year**",
       "AppConfig agent **:2772** · SAM local **:3000 / :3001** · RAM invitation **~7 days** · cost tags **24 h**"
     ]},
     { h: "Classic wrong answers", items: [
