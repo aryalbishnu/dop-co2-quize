@@ -2216,6 +2216,70 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "AWS RAM",
+  sections: [
+    { h: "Core model", items: [
+      "**Owner** shares **one resource** via a **resource share** = resources + principals + **managed permissions**",
+      "Principals: **account IDs**, **org** (`o-`), **OUs** (`ou-`), IAM roles / users (some types), service principals",
+      "Permissions: **AWS managed** default or **customer managed** (fewer actions, conditions, versioned) · one per type per share",
+      "**Consumer IAM still required** → effective = RAM permission AND IAM",
+      "`allowExternalPrincipals = false` → org only"
+    ]},
+    { h: "Org vs external", table: [
+      ["Mode", "Behaviour"],
+      ["**Org sharing enabled** (management account)", "**No invitations** · OU / org shares **include new accounts**"],
+      ["Not enabled", "Account IDs → **invitation** (expires ~7 days)"],
+      ["**External** accounts", "**Always invitation** · `allowExternalPrincipals = true`"],
+      ["**Org-only types**", "**VPC subnets**"]
+    ]},
+    { h: "Shareable vs not", items: [
+      "**RAM**: **subnets**, **Transit Gateway**, **Resolver rules**, DNS Firewall, Route 53 Profiles, **prefix lists**, Network Firewall, IPAM pools, Lattice, Cloud WAN, License Manager, Capacity Reservations, Dedicated Hosts, **Aurora clusters (clone)**, Image Builder, **Private CA**, advanced SSM parameters, Glue / Lake Formation",
+      "**Not RAM**: **S3, KMS, SNS, SQS, Lambda, ECR, Secrets Manager** → resource policies (`aws:PrincipalOrgID`)",
+      "**AMIs / snapshots** → launch / restore permissions · Service Catalog → portfolio sharing · StackSets = copies"
+    ]},
+    { h: "VPC sharing", items: [
+      "**Same org only** · **no default subnets** · **AZ IDs** (`use1-az1`) not names",
+      "**Owner**: VPC, subnets, **routes, NACLs**, IGW / NAT, endpoints, TGW attachments, flow logs · can't touch participant resources",
+      "**Participants**: own resources + **own SGs** · **no** route / NACL changes, **no re-share**, **no owner default SG**, can't see others' resources",
+      "Billing: participants pay their resources · **owner pays NAT / endpoints / TGW attachments**",
+      "Benefits: **fewer VPCs**, **IP conservation**, no peering between apps, **central network control + account isolation**"
+    ]},
+    { h: "Governance", items: [
+      "SCP deny `ram:CreateResourceShare` / `UpdateResourceShare` when **`ram:RequestedAllowsExternalPrincipals` = true**",
+      "Only network account shares: **`ram:RequestedResourceType`** + **`aws:PrincipalAccount`**",
+      "Detect: **IAM Access Analyzer** (zone of trust = org) · CloudTrail · EventBridge RAM events"
+    ]},
+    { h: "Patterns", items: [
+      "**Central networking**: share subnets, TGW, prefix lists, Resolver rules, Network Firewall, IPAM to OUs (new CT accounts automatic)",
+      "**Hybrid DNS**: outbound endpoint + forwarding rule in network account → share → associate with VPCs",
+      "**Aurora** cross-account clone · **Private CA** · **License Manager** · **Capacity Reservations** · Image Builder"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["App accounts launch into central VPC", "VPC sharing (RAM subnets)"],
+      ["No invitations, new accounts auto", "Enable org sharing + share to OU"],
+      ["External account can't see share", "Accept invitation"],
+      ["Share subnets with outside contractor", "Not possible (same org only)"],
+      ["Participant can't edit routes", "Owner only"],
+      ["Teams' 'us-east-1a' differ", "AZ IDs"],
+      ["Who pays NAT", "Owner"],
+      ["Consumer sees but can't use", "Consumer IAM"],
+      ["Read-only prefix list", "Customer managed permission"],
+      ["Same CIDRs in all SGs", "Shared prefix list"],
+      ["Org-wide on-prem DNS", "Share Resolver rules"],
+      ["Block external sharing", "SCP RequestedAllowsExternalPrincipals"],
+      ["Only network acct shares subnets", "SCP RequestedResourceType + PrincipalAccount"],
+      ["Detect external sharing", "IAM Access Analyzer"],
+      ["S3 org-wide read", "Bucket policy aws:PrincipalOrgID"],
+      ["New accounts attach to TGW", "Share TGW to OU"],
+      ["Prod Aurora copy in test acct", "RAM share + clone"],
+      ["Enable org sharing", "Management account"],
+      ["Default SG fails for participant", "Create own SG"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

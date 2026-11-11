@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -11086,8 +11086,368 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "ECS tasks untagged = propagateTags + managed tags."
+  },
+  // ───────────────────────────── Domain 2: AWS RAM ─────────────────────────────
+  {
+    id: "ram-01", domain: "d2", topic: "AWS RAM",
+    q: "A company has a central networking account that manages VPCs, route tables, NAT gateways and Transit Gateway attachments. Application teams in separate accounts within the same organization need to launch EC2 instances and RDS databases into these VPCs, while the networking team keeps full control of routing. The company wants to avoid creating and peering a VPC in every account. What should a DevOps engineer do?",
+    options: [
+      { t: "Use AWS RAM to share the VPC subnets from the networking account with the application accounts (VPC sharing).",
+        why: "Correct. Participants launch their own resources into shared subnets while the owner controls VPC-level resources." },
+      { t: "Create a VPC in each account and use VPC peering between all of them.",
+        why: "More VPCs and peering connections to manage, and routing isn't centrally controlled." },
+      { t: "Share the VPC with AWS Service Catalog.",
+        why: "Service Catalog provisions products; it doesn't share subnets." },
+      { t: "Use CloudFormation StackSets to create identical VPCs in each account.",
+        why: "Creates copies, not shared subnets." }
+    ],
+    answer: [0],
+    tip: "Central network, app accounts launch into it = VPC sharing with RAM."
+  },
+  {
+    id: "ram-02", domain: "d2", topic: "AWS RAM",
+    q: "A company wants to share resources with all accounts in its Workloads OU so that new accounts added to the OU get access automatically and no invitations need to be accepted. What must be done?",
+    options: [
+      { t: "Enable sharing with AWS Organizations in AWS RAM from the management account, then share the resources with the Workloads OU as the principal.",
+        why: "Correct. With org sharing enabled, OU shares need no invitations and include new accounts automatically." },
+      { t: "Share with each account ID and ask each account to accept the invitation.",
+        why: "Manual, and new accounts aren't included automatically." },
+      { t: "Enable trusted access for Service Catalog.",
+        why: "Unrelated to RAM." },
+      { t: "Create a StackSet with auto-deployment.",
+        why: "Deploys copies; it doesn't share resources." }
+    ],
+    answer: [0],
+    tip: "No invitations + new accounts automatic = enable org sharing, share to OU."
+  },
+  {
+    id: "ram-03", domain: "d2", topic: "AWS RAM",
+    q: "A partner company outside the organization needs access to a shared resource. The share was created with allow external principals enabled and the partner's account ID added, but the partner can't see the resource. What is the MOST likely reason?",
+    options: [
+      { t: "The partner account hasn't accepted the resource share invitation (invitations to external accounts must be accepted before they expire).",
+        why: "Correct. External sharing always uses invitations." },
+      { t: "External sharing isn't supported by RAM.",
+        why: "Many resource types support external sharing." },
+      { t: "The partner must be in the same Region as the management account.",
+        why: "Not the reason." },
+      { t: "The share must be created from the management account.",
+        why: "Any owning account can create shares." }
+    ],
+    answer: [0],
+    tip: "External share not visible = invitation not accepted."
+  },
+  {
+    id: "ram-04", domain: "d2", topic: "AWS RAM",
+    q: "A company wants to share VPC subnets with an account belonging to a third-party contractor that isn't part of its AWS Organization. What is true?",
+    options: [
+      { t: "VPC subnet sharing is only supported with accounts in the same organization, so the contractor would need to join the organization or use another connectivity option (for example PrivateLink or VPN).",
+        why: "Correct. VPC sharing requires the same organization." },
+      { t: "It works with an invitation like other resource types.",
+        why: "Subnets can't be shared outside the organization." },
+      { t: "Share the default VPC subnets instead.",
+        why: "Default subnets can't be shared at all." },
+      { t: "Use a customer managed permission.",
+        why: "Doesn't change the organization requirement." }
+    ],
+    answer: [0],
+    tip: "VPC sharing = same organization only."
+  },
+  {
+    id: "ram-05", domain: "d2", topic: "AWS RAM",
+    q: "In a shared VPC, an application team in a participant account tries to add a route to a route table and modify a network ACL, but both actions fail. Why?",
+    options: [
+      { t: "Only the VPC owner account can manage VPC-level resources such as route tables, NACLs, subnets, gateways and endpoints.",
+        why: "Correct. Participants manage only their own resources and security groups." },
+      { t: "An SCP blocks all EC2 actions.",
+        why: "Possible in theory, but the built-in VPC sharing model already prevents this." },
+      { t: "The participant must accept an invitation.",
+        why: "Unrelated to modifying VPC resources." },
+      { t: "Route tables can only be modified in us-east-1.",
+        why: "Not true." }
+    ],
+    answer: [0],
+    tip: "Shared VPC: routes / NACLs = owner only."
+  },
+  {
+    id: "ram-06", domain: "d2", topic: "AWS RAM",
+    q: "Which statements are true about participants in a shared VPC? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Participants launch, manage and pay for their own resources (for example EC2 instances and RDS databases) in the shared subnets.",
+        why: "Correct. Resource ownership and billing stay with the participant." },
+      { t: "Participants can create their own security groups in the shared VPC.",
+        why: "Correct. They can't use the owner's default security group." },
+      { t: "Participants can re-share the subnets with other accounts.",
+        why: "Re-sharing isn't allowed." },
+      { t: "Participants can view and modify other participants' resources.",
+        why: "Not allowed." },
+      { t: "Participants can delete the owner's NAT gateway.",
+        why: "VPC-level resources belong to the owner." }
+    ],
+    answer: [0, 1],
+    tip: "Participants: own resources + own SGs; no re-share, no others' resources."
+  },
+  {
+    id: "ram-07", domain: "d2", topic: "AWS RAM",
+    q: "A network engineer plans subnet placement for a shared VPC used by several accounts and asks each team to deploy into 'us-east-1a'. Teams report their resources end up in different physical Availability Zones. What should the engineer use instead?",
+    options: [
+      { t: "Availability Zone IDs (for example use1-az1), which identify the same physical AZ across accounts.",
+        why: "Correct. AZ names are mapped differently per account." },
+      { t: "Placement groups.",
+        why: "Placement groups control instance placement, not AZ mapping." },
+      { t: "Local Zones.",
+        why: "Different feature." },
+      { t: "A customer managed permission.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Cross-account AZ planning = AZ IDs."
+  },
+  {
+    id: "ram-08", domain: "d2", topic: "AWS RAM",
+    q: "In a VPC sharing setup, which account pays for the NAT gateway and interface VPC endpoints in the shared VPC, and which pays for EC2 instances launched by participants?",
+    options: [
+      { t: "The VPC owner pays for VPC-level resources such as NAT gateways and endpoints; participants pay for the resources they launch.",
+        why: "Correct. Billing follows resource ownership." },
+      { t: "Participants pay for everything.",
+        why: "VPC-level resources are owned and billed to the owner." },
+      { t: "The management account pays for everything regardless of consolidated billing.",
+        why: "Costs are attributed to the owning accounts (then consolidated)." },
+      { t: "RAM charges a sharing fee.",
+        why: "RAM has no extra charge." }
+    ],
+    answer: [0],
+    tip: "Owner pays NAT / endpoints; participants pay their resources."
+  },
+  {
+    id: "ram-09", domain: "d2", topic: "AWS RAM",
+    q: "A Transit Gateway is shared through RAM with an application account. The application account's administrators can see the TGW, but developers get AccessDenied when creating a TGW attachment. What should be done?",
+    options: [
+      { t: "Grant the developers the required IAM permissions (for example ec2:CreateTransitGatewayVpcAttachment) in the consumer account - RAM shares the resource with the account, but the consumer's IAM controls its own principals.",
+        why: "Correct. Effective access requires both the RAM permission and the consumer's IAM permissions." },
+      { t: "Re-share the TGW directly with each developer.",
+        why: "Not needed; consumer IAM is the issue." },
+      { t: "Enable external principals.",
+        why: "Unrelated to internal IAM." },
+      { t: "Delete and recreate the share.",
+        why: "Doesn't fix missing IAM permissions." }
+    ],
+    answer: [0],
+    tip: "Consumer can see but not use = consumer IAM permissions."
+  },
+  {
+    id: "ram-10", domain: "d2", topic: "AWS RAM",
+    q: "The networking team shares a managed prefix list of corporate CIDR ranges with all workload accounts. Consumers should be able to reference it in security groups and route tables but must not modify it. What should the networking team configure?",
+    options: [
+      { t: "A customer managed RAM permission that allows only read / describe actions on the prefix list, attached to the resource share.",
+        why: "Correct. Customer managed permissions restrict what consumers can do with shared resources." },
+      { t: "An SCP denying ec2:ModifyManagedPrefixList in all accounts.",
+        why: "Possible, but the RAM-native control is a customer managed permission." },
+      { t: "A tag policy.",
+        why: "Doesn't control actions." },
+      { t: "Share the prefix list externally.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Restrict consumer actions = customer managed permission."
+  },
+  {
+    id: "ram-11", domain: "d2", topic: "AWS RAM",
+    q: "Security groups in 50 accounts must allow traffic from the same set of on-premises CIDR ranges, which change a few times a year. The team wants to update the ranges in one place. What is the BEST solution?",
+    options: [
+      { t: "Create a managed prefix list in a central account, share it with RAM to the organization, and reference it in security group rules.",
+        why: "Correct. Updates to the shared prefix list apply wherever it's referenced." },
+      { t: "Update each security group manually.",
+        why: "Error-prone." },
+      { t: "Use a StackSet to rewrite security groups each time.",
+        why: "Works but more effort than a shared prefix list." },
+      { t: "Use AWS Firewall Manager only.",
+        why: "Possible for policies, but the straightforward reusable CIDR list is a shared prefix list." }
+    ],
+    answer: [0],
+    tip: "Same CIDRs everywhere, update once = shared prefix list."
+  },
+  {
+    id: "ram-12", domain: "d2", topic: "AWS RAM",
+    q: "All VPCs in 40 accounts must resolve the on-premises domain corp.example.com through the corporate DNS servers. The networking account already has a Route 53 Resolver outbound endpoint. What should be done?",
+    options: [
+      { t: "Create a Resolver forwarding rule for corp.example.com in the networking account, share it with AWS RAM to the organization or OUs, and associate the rule with each VPC.",
+        why: "Correct. Shared Resolver rules centralize hybrid DNS forwarding." },
+      { t: "Create an outbound endpoint in every account.",
+        why: "More cost and management." },
+      { t: "Create private hosted zones for corp.example.com in each account.",
+        why: "Doesn't forward to on-premises DNS." },
+      { t: "Use VPC peering to the networking VPC.",
+        why: "Peering alone doesn't forward DNS queries." }
+    ],
+    answer: [0],
+    tip: "Org-wide hybrid DNS forwarding = share Resolver rules via RAM."
+  },
+  {
+    id: "ram-13", domain: "d2", topic: "AWS RAM",
+    q: "The security team must ensure that no account in the organization can create a RAM resource share that allows principals outside the organization. What is the MOST effective control?",
+    options: [
+      { t: "An SCP that denies ram:CreateResourceShare and ram:UpdateResourceShare when ram:RequestedAllowsExternalPrincipals is true.",
+        why: "Correct. This prevents shares open to external principals." },
+      { t: "A tag policy.",
+        why: "Doesn't control sharing." },
+      { t: "AWS Config required-tags.",
+        why: "Unrelated." },
+      { t: "Ask teams to disable external sharing.",
+        why: "Not enforced." }
+    ],
+    answer: [0],
+    tip: "Block external sharing = SCP ram:RequestedAllowsExternalPrincipals."
+  },
+  {
+    id: "ram-14", domain: "d2", topic: "AWS RAM",
+    q: "A company wants only its networking account (111111111111) to be able to share subnets and Transit Gateways through RAM. Other accounts must not share these resource types. How can this be enforced?",
+    options: [
+      { t: "An SCP that denies ram:CreateResourceShare / ram:AssociateResourceShare when ram:RequestedResourceType is ec2:Subnet or ec2:TransitGateway and aws:PrincipalAccount isn't 111111111111.",
+        why: "Correct. RAM condition keys restrict which resource types can be shared and by whom." },
+      { t: "Disable RAM in all other accounts.",
+        why: "RAM can't simply be disabled per account; use an SCP." },
+      { t: "Use a customer managed permission.",
+        why: "Controls consumer actions, not who can create shares." },
+      { t: "Enable sharing with Organizations.",
+        why: "Enables org sharing; doesn't restrict who shares." }
+    ],
+    answer: [0],
+    tip: "Restrict who shares which types = SCP ram:RequestedResourceType + aws:PrincipalAccount."
+  },
+  {
+    id: "ram-15", domain: "d2", topic: "AWS RAM",
+    q: "The security team wants to find resources across the organization that are shared with accounts outside the organization. Which service helps detect this?",
+    options: [
+      { t: "IAM Access Analyzer with the organization as the zone of trust.",
+        why: "Correct. Access Analyzer reports resources shared outside the zone of trust." },
+      { t: "Cost Explorer.",
+        why: "Cost data only." },
+      { t: "AWS Trusted Advisor only.",
+        why: "Not the dedicated external access analysis tool." },
+      { t: "CloudWatch metrics.",
+        why: "Doesn't analyze sharing." }
+    ],
+    answer: [0],
+    tip: "Detect external sharing = IAM Access Analyzer."
+  },
+  {
+    id: "ram-16", domain: "d2", topic: "AWS RAM",
+    q: "Which of the following resources are shared using AWS RAM rather than resource-based policies or launch permissions? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "A Transit Gateway.",
+        why: "Correct. TGWs are shared with RAM." },
+      { t: "Route 53 Resolver forwarding rules.",
+        why: "Correct. Resolver rules are shared with RAM." },
+      { t: "An S3 bucket.",
+        why: "Shared with bucket policies." },
+      { t: "A KMS key.",
+        why: "Shared with key policies / grants." },
+      { t: "An AMI.",
+        why: "Shared with launch permissions." }
+    ],
+    answer: [0, 1],
+    tip: "RAM: TGW, subnets, Resolver rules, prefix lists... Not: S3, KMS, AMIs."
+  },
+  {
+    id: "ram-17", domain: "d2", topic: "AWS RAM",
+    q: "A company wants all accounts in its organization to read objects from a central artifacts S3 bucket. A team member suggests using AWS RAM. What should be used instead?",
+    options: [
+      { t: "An S3 bucket policy allowing s3:GetObject with the condition aws:PrincipalOrgID equal to the organization ID.",
+        why: "Correct. S3 buckets are shared with resource-based policies, not RAM." },
+      { t: "A RAM resource share for the bucket.",
+        why: "S3 buckets aren't shared through RAM." },
+      { t: "VPC sharing.",
+        why: "Unrelated to S3 object access." },
+      { t: "A customer managed RAM permission.",
+        why: "Not applicable to S3 buckets." }
+    ],
+    answer: [0],
+    tip: "S3 org-wide access = bucket policy with aws:PrincipalOrgID, not RAM."
+  },
+  {
+    id: "ram-18", domain: "d2", topic: "AWS RAM",
+    q: "A company wants every new workload account (created through Control Tower Account Factory into the Workloads OU) to automatically be able to attach its VPCs to the central Transit Gateway, without any manual sharing steps. What should be configured?",
+    options: [
+      { t: "Share the Transit Gateway via RAM with the Workloads OU (with sharing with Organizations enabled) so new accounts in the OU automatically get access.",
+        why: "Correct. OU-based shares include new accounts automatically." },
+      { t: "Add each new account ID to the share after creation.",
+        why: "Manual." },
+      { t: "Create a new TGW in each account.",
+        why: "Defeats the central hub design." },
+      { t: "Peer every new VPC with the networking VPC.",
+        why: "Doesn't use the TGW and doesn't scale." }
+    ],
+    answer: [0],
+    tip: "New accounts get shared TGW automatically = share to OU."
+  },
+  {
+    id: "ram-19", domain: "d2", topic: "AWS RAM",
+    q: "A test team needs a copy of a production Aurora cluster's data in a separate test account for performance testing, created quickly without a full snapshot restore. What can the production account do?",
+    options: [
+      { t: "Share the Aurora DB cluster with the test account using AWS RAM, and the test account creates a cross-account clone.",
+        why: "Correct. Aurora supports cross-account cloning through RAM sharing." },
+      { t: "Share the cluster with a bucket policy.",
+        why: "Not applicable." },
+      { t: "Use VPC sharing.",
+        why: "Doesn't copy data." },
+      { t: "Use Service Catalog.",
+        why: "Not for cloning databases." }
+    ],
+    answer: [0],
+    tip: "Aurora clone in another account = share cluster with RAM + clone."
+  },
+  {
+    id: "ram-20", domain: "d2", topic: "AWS RAM",
+    q: "Who can enable sharing with AWS Organizations in AWS RAM?",
+    options: [
+      { t: "The organization's management account (it enables trusted access for RAM).",
+        why: "Correct. Org sharing is enabled from the management account." },
+      { t: "Any member account.",
+        why: "Members can't enable organization-wide sharing." },
+      { t: "Only AWS Support.",
+        why: "Customers enable it themselves." },
+      { t: "The Log Archive account.",
+        why: "Not the right account." }
+    ],
+    answer: [0],
+    tip: "Enable RAM org sharing = management account."
+  },
+  {
+    id: "ram-21", domain: "d2", topic: "AWS RAM",
+    q: "A company is comparing VPC sharing with creating a separate VPC in each account connected by VPC peering. Which benefit is specific to VPC sharing?",
+    options: [
+      { t: "Fewer VPCs and IP address conservation, with no peering needed between applications in the same shared VPC, while each team keeps account-level isolation for IAM, billing and quotas.",
+        why: "Correct. This is the main value of VPC sharing." },
+      { t: "Participants can change central route tables freely.",
+        why: "Only the owner manages routing." },
+      { t: "Sharing works with any external account.",
+        why: "Same organization only." },
+      { t: "It removes the need for security groups.",
+        why: "Security groups are still used." }
+    ],
+    answer: [0],
+    tip: "VPC sharing value = fewer VPCs, IP conservation, central control + account isolation."
+  },
+  {
+    id: "ram-22", domain: "d2", topic: "AWS RAM",
+    q: "A participant account tries to launch an instance in a shared subnet using the shared VPC's default security group, and the launch fails. What should the participant do?",
+    options: [
+      { t: "Create its own security group in the shared VPC and use it, because participants can't use the owner's default security group.",
+        why: "Correct. The default security group belongs to the owner." },
+      { t: "Ask the owner to delete the default security group.",
+        why: "Default security groups can't be deleted and aren't the solution." },
+      { t: "Enable external principals.",
+        why: "Unrelated." },
+      { t: "Re-share the subnet.",
+        why: "Participants can't re-share." }
+    ],
+    answer: [0],
+    tip: "Participants can't use owner's default SG; create your own."
   }
 ];
+
 
 
 

@@ -37,5 +37,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["Control Tower"], title: "Week 4 notes - AWS Control Tower: landing zone, controls, Account Factory, AFT, customizations (traps, lab, check yourself)", file: "pdfs/Week4_Control_Tower.pdf" },
   { domain: "d2", topics: ["Service Catalog"], title: "Week 4 notes - AWS Service Catalog: portfolios, products, launch constraints, TagOptions (traps, lab, check yourself)", file: "pdfs/Week4_Service_Catalog.pdf" },
   { domain: "d2", topics: ["AWS Config"], title: "Week 4 notes - AWS Config: rules, conformance packs, aggregators, remediation via SSM (traps, lab, check yourself)", file: "pdfs/Week4_AWS_Config.pdf" },
-  { domain: "d2", topics: ["Tagging and Resource Groups"], title: "Week 4 notes - Tagging strategy, Tag policies, Resource Groups (traps, lab, check yourself)", file: "pdfs/Week4_Tagging_and_Resource_Groups.pdf" }
+  { domain: "d2", topics: ["Tagging and Resource Groups"], title: "Week 4 notes - Tagging strategy, Tag policies, Resource Groups (traps, lab, check yourself)", file: "pdfs/Week4_Tagging_and_Resource_Groups.pdf" },
+  { domain: "d2", topics: ["AWS RAM"], title: "Week 4 notes - AWS Resource Access Manager (RAM) (traps, lab, check yourself)", file: "pdfs/Week4_AWS_RAM.pdf" }
 ];
