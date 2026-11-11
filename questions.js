@@ -10,7 +10,7 @@ window.DOMAINS = [
   { id: "d1", name: "Domain 1: SDLC Automation", weight: 22,
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
-    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config"] },
+    topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
@@ -10727,8 +10727,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Rules detect (don't block); org-deployed rules are protected from members."
+  },
+  // ───────────────────────────── Domain 2: Tagging and Resource Groups ─────────────────────────────
+  {
+    id: "tgr-01", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A company requires that every EC2 instance and EBS volume created in its workload accounts has a CostCenter tag. Creation without the tag must be blocked in all accounts, regardless of who launches the resource. What should a DevOps engineer implement?",
+    options: [
+      { t: "An SCP attached to the workload OU that denies ec2:RunInstances and ec2:CreateVolume on instance and volume resources when aws:RequestTag/CostCenter is null.",
+        why: "Correct. A Null condition on aws:RequestTag blocks creation without the tag for all principals in member accounts." },
+      { t: "An Organizations tag policy for CostCenter with enforced_for ec2:instance.",
+        why: "Tag policies standardize values but don't require the tag to be present." },
+      { t: "The AWS Config required-tags rule.",
+        why: "Config detects missing tags after creation; it doesn't block creation." },
+      { t: "Cost allocation tags activated in the management account.",
+        why: "Activation affects billing reports only." }
+    ],
+    answer: [0],
+    tip: "Tag must exist at creation = SCP / IAM aws:RequestTag with Null."
+  },
+  {
+    id: "tgr-02", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A company wants the CostCenter tag key to always use the exact capitalization 'CostCenter' and only the values 100, 200 and 300 across all accounts in its organization. For EC2 instances, attempts to set other values must be rejected. What should it use?",
+    options: [
+      { t: "An AWS Organizations tag policy with tag_key CostCenter, allowed tag_value list, and enforced_for ec2:instance.",
+        why: "Correct. Tag policies standardize key case and values, and enforcement blocks non-compliant tagging operations for listed types." },
+      { t: "An IAM policy in each account.",
+        why: "Harder to manage centrally and doesn't give org-wide compliance reporting." },
+      { t: "AWS Config required-tags only.",
+        why: "Detective only." },
+      { t: "Resource Groups.",
+        why: "Groups resources; doesn't control tag values." }
+    ],
+    answer: [0],
+    tip: "Org-wide key case + allowed values = tag policy (+ enforced_for)."
+  },
+  {
+    id: "tgr-03", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "After attaching a tag policy with enforced_for ec2:instance for the CostCenter key, an engineer launches an EC2 instance with no tags at all, and the launch succeeds. Why?",
+    options: [
+      { t: "Tag policies don't require tags to exist; an untagged resource is considered compliant. Requiring the tag needs an SCP or IAM policy with aws:RequestTag.",
+        why: "Correct. Enforcement only blocks non-compliant tag values / keys on tagging operations." },
+      { t: "Tag policies take 24 hours to take effect.",
+        why: "Timing isn't the reason." },
+      { t: "Tag policies only apply to the management account.",
+        why: "They apply to member accounts they're attached to." },
+      { t: "enforced_for only works for S3.",
+        why: "It supports EC2 instances and other types." }
+    ],
+    answer: [0],
+    tip: "Tag policy: untagged = compliant; use SCP to require."
+  },
+  {
+    id: "tgr-04", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A resource has the tag costcenter=100 while the organization's tag policy defines the key as CostCenter. How is the resource evaluated?",
+    options: [
+      { t: "It is non-compliant because tag keys are case-sensitive and the tag policy defines the exact capitalization.",
+        why: "Correct. Case differences make the tag non-compliant." },
+      { t: "It is compliant because keys are case-insensitive.",
+        why: "Tag keys are case-sensitive." },
+      { t: "It is ignored by tag policies.",
+        why: "Tag policies report case mismatches." },
+      { t: "It is automatically renamed to CostCenter.",
+        why: "Tag policies don't change existing tags." }
+    ],
+    answer: [0],
+    tip: "Tags are case-sensitive; tag_key defines case."
+  },
+  {
+    id: "tgr-05", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "The compliance team needs a report of tag policy compliance for all accounts in the organization. Where is it generated and delivered?",
+    options: [
+      { t: "From the management account (StartReportCreation / Generate compliance report), delivered to an S3 bucket in us-east-1.",
+        why: "Correct. The org-wide tag compliance report is created from the management account and written to S3 in us-east-1." },
+      { t: "From each member account, delivered to CloudWatch Logs.",
+        why: "Org-wide reports come from the management account." },
+      { t: "From AWS Config aggregator only.",
+        why: "Config reports rule compliance, not tag policy compliance." },
+      { t: "From Cost Explorer.",
+        why: "Cost Explorer shows costs." }
+    ],
+    answer: [0],
+    tip: "Org tag compliance report = management account → S3 us-east-1."
+  },
+  {
+    id: "tgr-06", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A company's root-level tag policy allows Environment values dev and prod. For the Analytics OU, it wants to add the value staging without replacing the inherited values. Which tag policy operator should the OU policy use?",
+    options: [
+      { t: "@@append on tag_value.",
+        why: "Correct. @@append adds values to the inherited list." },
+      { t: "@@assign on tag_value.",
+        why: "@@assign overwrites the inherited values." },
+      { t: "@@remove on tag_value.",
+        why: "Removes values." },
+      { t: "enforced_for.",
+        why: "Controls enforcement, not allowed values." }
+    ],
+    answer: [0],
+    tip: "Add values in child tag policy = @@append."
+  },
+  {
+    id: "tgr-07", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Engineers sometimes remove the Owner and CostCenter tags from EC2 resources after creation, breaking chargeback. Only a central TagAdmin role should be able to change these tags. What should be implemented?",
+    options: [
+      { t: "An SCP that denies ec2:DeleteTags and ec2:CreateTags when aws:TagKeys contains Owner or CostCenter, unless aws:PrincipalARN matches the TagAdmin role.",
+        why: "Correct. aws:TagKeys controls which keys can be changed, with an exception for the admin role." },
+      { t: "A tag policy with enforced_for.",
+        why: "Tag policies don't stop tag removal." },
+      { t: "Config required-tags.",
+        why: "Only detects after removal." },
+      { t: "Cost allocation tags.",
+        why: "Billing only." }
+    ],
+    answer: [0],
+    tip: "Protect tags from removal = deny DeleteTags / CreateTags with aws:TagKeys."
+  },
+  {
+    id: "tgr-08", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A security team wants to allow only an approved set of tag keys (CostCenter, Owner, Environment, Application) on new resources in an account. Which IAM condition supports this?",
+    options: [
+      { t: "aws:TagKeys with ForAllValues:StringEquals listing the approved keys.",
+        why: "Correct. ForAllValues ensures every key in the request is in the approved list." },
+      { t: "aws:ResourceTag with StringEquals.",
+        why: "Evaluates existing tags, not keys in the request." },
+      { t: "aws:PrincipalTag.",
+        why: "Tags on the caller." },
+      { t: "aws:RequestedRegion.",
+        why: "Region restriction." }
+    ],
+    answer: [0],
+    tip: "Only approved keys = aws:TagKeys + ForAllValues."
+  },
+  {
+    id: "tgr-09", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Finance reports that resources are correctly tagged with CostCenter, but the tag doesn't appear as a grouping option in Cost Explorer. What should be done?",
+    options: [
+      { t: "Activate CostCenter as a cost allocation tag in the management (payer) account and allow up to 24 hours for it to appear.",
+        why: "Correct. User-defined tags must be activated for cost allocation in the management account." },
+      { t: "Activate the tag in each member account.",
+        why: "Activation for the org happens in the management account." },
+      { t: "Enable a tag policy.",
+        why: "Doesn't enable cost reporting." },
+      { t: "Enable AWS Config.",
+        why: "Config doesn't feed Cost Explorer grouping." }
+    ],
+    answer: [0],
+    tip: "Tags not in Cost Explorer = activate cost allocation tags (management account)."
+  },
+  {
+    id: "tgr-10", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Some costs (for example certain data transfer and support charges) can't be tagged, but finance still needs to allocate all spend to business units. Several business units also have dedicated accounts. What should be used?",
+    options: [
+      { t: "AWS Cost Categories with rules based on accounts, tags and services to map spend to business units.",
+        why: "Correct. Cost Categories group costs by accounts, tags and other dimensions, covering untaggable costs." },
+      { t: "Tag policies.",
+        why: "They standardize tags; they can't tag untaggable costs." },
+      { t: "Resource Groups.",
+        why: "Groups resources for operations." },
+      { t: "Config required-tags.",
+        why: "Compliance detection only." }
+    ],
+    answer: [0],
+    tip: "Chargeback incl. untaggable costs = Cost Categories (+ accounts)."
+  },
+  {
+    id: "tgr-11", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A company wants to find every resource missing the Owner tag across all accounts and Regions, and track compliance over time in a central security account. What should it implement?",
+    options: [
+      { t: "The AWS Config required-tags managed rule deployed through an organization conformance pack, with results viewed in an organization aggregator.",
+        why: "Correct. Config detects missing tags and the aggregator centralizes results." },
+      { t: "A tag policy only.",
+        why: "Untagged resources are compliant with tag policies." },
+      { t: "Cost Explorer.",
+        why: "Shows untagged spend, not resource compliance tracking." },
+      { t: "Resource Groups in each Region.",
+        why: "Not a compliance tool." }
+    ],
+    answer: [0],
+    tip: "Report missing tags org-wide = Config required-tags (org pack + aggregator)."
+  },
+  {
+    id: "tgr-12", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "An operations engineer needs to quickly find all EC2 instances and S3 buckets across all Regions in an account that have no Environment tag, and add Environment=dev to them in bulk from the console. What should they use?",
+    options: [
+      { t: "Tag Editor in the Resource Groups console, searching all Regions for resources where Environment is not tagged, then bulk editing tags.",
+        why: "Correct. Tag Editor supports cross-Region search and bulk tag changes." },
+      { t: "Trusted Advisor.",
+        why: "Doesn't bulk edit tags." },
+      { t: "CloudTrail event history.",
+        why: "Shows API calls." },
+      { t: "The S3 console only.",
+        why: "Single service, single view." }
+    ],
+    answer: [0],
+    tip: "Cross-Region search + bulk tagging = Tag Editor."
+  },
+  {
+    id: "tgr-13", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "The platform team wants every new EC2 instance to be tagged automatically with the ARN of the IAM principal that created it, without relying on developers. What is a common solution?",
+    options: [
+      { t: "An EventBridge rule matching CloudTrail RunInstances events that triggers a Lambda function to tag the instance with CreatedBy = userIdentity.arn (or activate the AWS-generated aws:createdBy tag for cost reports).",
+        why: "Correct. Event-driven tagging captures the creator automatically." },
+      { t: "A tag policy with the value set to the creator.",
+        why: "Tag policies can't insert dynamic values." },
+      { t: "Ask developers to tag instances.",
+        why: "Not automatic." },
+      { t: "Resource Groups.",
+        why: "Groups resources; doesn't tag them." }
+    ],
+    answer: [0],
+    tip: "Auto-tag creator = EventBridge (CloudTrail) → Lambda / aws:createdBy."
+  },
+  {
+    id: "tgr-14", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Instances launched by an Auto Scaling group don't have the Application tag that is set on the group. What should be configured?",
+    options: [
+      { t: "Set PropagateAtLaunch to true for the ASG tag (or add TagSpecifications for instances in the launch template).",
+        why: "Correct. Propagation copies ASG tags to launched instances." },
+      { t: "Enable a tag policy.",
+        why: "Doesn't add tags." },
+      { t: "Add the tag to the AMI.",
+        why: "AMI tags aren't copied to instances." },
+      { t: "Use Resource Groups.",
+        why: "Doesn't tag instances." }
+    ],
+    answer: [0],
+    tip: "ASG instances missing tags = PropagateAtLaunch / launch template TagSpecifications."
+  },
+  {
+    id: "tgr-15", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A team deploys many resources with CloudFormation and AWS CDK and wants the CostCenter and Environment tags applied consistently to all taggable resources without adding tags to each resource individually. Which options achieve this? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Specify stack-level tags when deploying CloudFormation stacks; they propagate to supported resources.",
+        why: "Correct. Stack tags propagate to resources that support tagging." },
+      { t: "In CDK, use Tags.of(app).add() (or on a stack/construct scope) to apply tags to all taggable constructs.",
+        why: "Correct. CDK applies tags across the construct tree via an aspect." },
+      { t: "Add the tags to cdk.context.json.",
+        why: "Context caches lookups; it doesn't tag resources." },
+      { t: "Use a tag policy with @@assign values.",
+        why: "Tag policies don't add tags to resources." },
+      { t: "Use Resource Groups.",
+        why: "Groups resources; doesn't tag." }
+    ],
+    answer: [0, 1],
+    tip: "IaC-wide tags = CFN stack tags / CDK Tags.of."
+  },
+  {
+    id: "tgr-16", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A company wants developers to start and stop only the EC2 instances that belong to their own team. New teams are created often, and the security team doesn't want to write a new policy for each team. Developers sign in through IAM Identity Center, which passes a Team attribute. What should be implemented?",
+    options: [
+      { t: "ABAC: an IAM policy allowing ec2:StartInstances / StopInstances when aws:ResourceTag/Team equals ${aws:PrincipalTag/Team}, plus requiring the Team tag on create and denying changes to the Team tag.",
+        why: "Correct. ABAC scales with tags, and the extra controls stop users from re-tagging resources to gain access." },
+      { t: "One IAM role per team listing instance ARNs.",
+        why: "Doesn't scale and needs updates for every new instance." },
+      { t: "A tag policy.",
+        why: "Tag policies don't grant permissions." },
+      { t: "Resource Groups per team.",
+        why: "Groups don't grant access by themselves." }
+    ],
+    answer: [0],
+    tip: "Permissions by team at scale = ABAC (PrincipalTag = ResourceTag) + protect the tag."
+  },
+  {
+    id: "tgr-17", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "An ABAC policy lets users manage resources whose Team tag matches their own Team principal tag. An auditor notices a user changed a resource's Team tag to their own team to gain access. What control is missing?",
+    options: [
+      { t: "A deny on tagging actions (CreateTags / DeleteTags / TagResource / UntagResource) for the Team key, except for authorized admins.",
+        why: "Correct. ABAC requires protecting the authorization tag from changes." },
+      { t: "A Config rule.",
+        why: "Detects but doesn't prevent." },
+      { t: "Cost allocation tag activation.",
+        why: "Billing only." },
+      { t: "A resource group.",
+        why: "Not an access control." }
+    ],
+    answer: [0],
+    tip: "ABAC: deny changing the authorization tag."
+  },
+  {
+    id: "tgr-18", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Operations wants to run a Systems Manager command on all EC2 instances of the 'orders' application in production, including instances launched in the future, and view all of the application's resources together in the console. What should they create?",
+    options: [
+      { t: "A tag-based resource group with resource types and tag filters Application=orders and Environment=prod, used as the Run Command target.",
+        why: "Correct. Tag-based groups are dynamic and can be used as SSM targets." },
+      { t: "A CloudFormation stack-based group for an unrelated stack.",
+        why: "Wouldn't include resources outside that stack." },
+      { t: "A static list of instance IDs.",
+        why: "Doesn't include future instances." },
+      { t: "A tag policy.",
+        why: "Doesn't target resources." }
+    ],
+    answer: [0],
+    tip: "Operate on tagged set incl. new resources = tag-based resource group."
+  },
+  {
+    id: "tgr-19", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "A team created a tag-based resource group in us-east-1 for its application but doesn't see the application's resources running in eu-west-1 in the group. Why?",
+    options: [
+      { t: "Resource groups are regional; create a group with the same query in eu-west-1 (or use Tag Editor for cross-Region search).",
+        why: "Correct. Groups contain resources from one Region." },
+      { t: "The eu-west-1 resources must be in a CloudFormation stack.",
+        why: "Not required for tag-based groups." },
+      { t: "Resource groups only support EC2.",
+        why: "They support many resource types." },
+      { t: "Tags don't replicate across Regions automatically.",
+        why: "The issue is the group's regional scope, not tag replication." }
+    ],
+    answer: [0],
+    tip: "Resource groups are regional."
+  },
+  {
+    id: "tgr-20", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Which type of resource group automatically includes all supported resources created by a specific CloudFormation stack?",
+    options: [
+      { t: "A CloudFormation stack-based resource group.",
+        why: "Correct. It's defined by a stack and follows its resources." },
+      { t: "A tag-based group with no filters.",
+        why: "Would match too broadly or nothing." },
+      { t: "A service-configured capacity reservation group.",
+        why: "That's for EC2 capacity reservations." },
+      { t: "An AppConfig environment.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Group by stack = CloudFormation stack-based group."
+  },
+  {
+    id: "tgr-21", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "Which practices belong in a well-designed AWS tagging strategy? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Define a small mandatory tag set (such as CostCenter, Owner, Environment, Application) with documented allowed values and a single naming convention.",
+        why: "Correct. Consistency and a clear dictionary are the foundation." },
+      { t: "Apply tags automatically at creation through IaC defaults and propagation, and enforce them in layers (prevent, standardize, detect, fix).",
+        why: "Correct. Automation and layered enforcement keep tagging reliable." },
+      { t: "Store database passwords in tags for easy access.",
+        why: "Never store sensitive data in tags." },
+      { t: "Allow free-text values for Environment.",
+        why: "Leads to inconsistent values." },
+      { t: "Use tags instead of separate accounts as the only isolation boundary.",
+        why: "Accounts provide hard boundaries; tags add detail." }
+    ],
+    answer: [0, 1],
+    tip: "Small mandatory set + conventions + automation + layered enforcement."
+  },
+  {
+    id: "tgr-22", domain: "d2", topic: "Tagging and Resource Groups",
+    q: "ECS tasks launched by a service don't carry the tags defined on the service, so their costs can't be allocated. What should be configured?",
+    options: [
+      { t: "Set propagateTags on the ECS service (SERVICE or TASK_DEFINITION) and enable ECS managed tags.",
+        why: "Correct. Propagation copies tags to tasks." },
+      { t: "Add tags to the ECR image.",
+        why: "Image tags (versions) aren't resource tags on tasks." },
+      { t: "Use a tag policy.",
+        why: "Doesn't add tags." },
+      { t: "Activate cost allocation tags only.",
+        why: "Tasks must have the tags first." }
+    ],
+    answer: [0],
+    tip: "ECS tasks untagged = propagateTags + managed tags."
   }
 ];
+
 
 
 

@@ -2144,6 +2144,78 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d2", topic: "Tagging and Resource Groups",
+  sections: [
+    { h: "Tag basics and strategy", items: [
+      "Key = value · **case-sensitive** · **50** user tags · key 128 / value 256 · **`aws:`** reserved (read-only, not counted) · **no secrets**",
+      "Categories: **technical** (Name, Environment, Application) · **business** (**CostCenter**, **Owner**, Project) · **security** (DataClassification) · **automation** (Schedule, Backup, **Patch Group**)",
+      "Small mandatory set + **dictionary** + one naming convention + **allowed values** · **accounts first, tags second**",
+      "Layers: **apply at creation → prevent → standardise → detect → fix**"
+    ]},
+    { h: "Apply automatically", items: [
+      "**CFN stack tags** propagate · **CDK `Tags.of(scope).add()`** · Terraform `default_tags` · SAM `Tags` / `--tags`",
+      "Launch template **TagSpecifications** · ASG **`PropagateAtLaunch`** · ECS **`propagateTags`** + managed tags",
+      "Service Catalog **TagOptions** · copy tags to snapshots / Backup",
+      "Auto-tag creator: **EventBridge (CloudTrail) → Lambda** · AWS-generated **`aws:createdBy`**"
+    ]},
+    { h: "Prevent (SCP / IAM)", table: [
+      ["Condition", "Use"],
+      ["**`aws:RequestTag/K`** + **Null**", "**Require** tag at creation · restrict values"],
+      ["**`aws:TagKeys`** + ForAllValues", "Only approved keys"],
+      ["**`aws:TagKeys`** + deny DeleteTags / CreateTags", "**Protect** tags (admin exception)"],
+      ["**`aws:ResourceTag`** / **`aws:PrincipalTag`**", "**ABAC**, protect tagged resources"]
+    ]},
+    { h: "Tag policies", items: [
+      "Organizations (**all features**) · **tag_key** = exact case · **tag_value** = allowed values (`*` suffix)",
+      "**`enforced_for`** blocks non-compliant **tag operations** on listed types",
+      "**Don't require tags** (untagged = compliant) · don't fix existing",
+      "Inheritance → **effective policy**: **@@assign** (overwrite) · **@@append** (add) · **@@remove** · `@@operators_allowed_for_child_policies`",
+      "Org report from **management account** → **S3 us-east-1** · `GetComplianceSummary`"
+    ]},
+    { h: "Detect, fix, cost", items: [
+      "**Config `required-tags`** (≤ 6 keys) via org conformance pack + aggregator",
+      "**Tag Editor**: cross-Region search (not tagged) + **bulk edit** · Tagging API `GetResources`, `TagResources`",
+      "Fix: Config remediation (custom SSM) · Lambda · Tag Editor · EventBridge `Tag Change on Resource`",
+      "**Cost allocation tags activated in management account** (≤ 24h, forward) · **Cost Categories** for untaggable / account-based · Cost Explorer, Budgets, CUR"
+    ]},
+    { h: "ABAC", items: [
+      "Allow when **`aws:ResourceTag/Team` = `${aws:PrincipalTag/Team}`** · scales without new policies",
+      "**Require tag on create** + **deny changing the tag**",
+      "Identity Center **attributes for access control** → session tags"
+    ]},
+    { h: "Resource Groups", items: [
+      "**Tag-based** (dynamic query) · **CloudFormation stack-based** · service-configured (capacity reservation, License Manager)",
+      "**Regional** · targets for **SSM** (Run Command, Automation, maintenance windows, Patch Manager), Application Manager, **CloudWatch Application Insights**",
+      "Group lifecycle events → EventBridge · AppRegistry / myApplications (`awsApplication` tag)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Block creation without tag", "SCP aws:RequestTag Null"],
+      ["Case + values org-wide", "Tag policy"],
+      ["Untagged launch allowed despite tag policy", "Tag policy doesn't require tags"],
+      ["costcenter vs CostCenter", "Case-sensitive, non-compliant"],
+      ["Org tag compliance report", "Management account → S3 us-east-1"],
+      ["Add a value in child OU", "@@append"],
+      ["Stop tag removal", "Deny DeleteTags with aws:TagKeys"],
+      ["Only approved keys", "aws:TagKeys ForAllValues"],
+      ["Tags missing in Cost Explorer", "Activate cost allocation tags (mgmt)"],
+      ["Untaggable costs chargeback", "Cost Categories"],
+      ["Missing tags across org", "Config required-tags + aggregator"],
+      ["Bulk fix across Regions", "Tag Editor"],
+      ["Tag creator automatically", "EventBridge → Lambda / aws:createdBy"],
+      ["ASG instances untagged", "PropagateAtLaunch"],
+      ["Tag all IaC resources", "Stack tags / CDK Tags.of"],
+      ["Team-scoped access at scale", "ABAC"],
+      ["User re-tagged to gain access", "Deny tag changes"],
+      ["Run command on app X incl. new", "Tag-based resource group"],
+      ["Group missing other Region", "Groups are regional"],
+      ["Group by stack", "Stack-based group"],
+      ["ECS tasks untagged", "propagateTags"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
