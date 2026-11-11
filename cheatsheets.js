@@ -2310,3 +2310,168 @@ window.CHEATSHEETS.push({
   const c = window.CHEATSHEETS.find(x => x.topic === topic);
   if (c) c.sections.push({ h: "More exam scenarios", items });
 });
+
+// Domain 2 master sheet: placed first among the Domain 2 cheat sheets.
+(function () {
+  const sheet = {
+  domain: "d2", topic: "Domain 2 Master Sheet",
+  sections: [
+    { h: "How to pick the answer", items: [
+      "Domain 2 = **17%** · **2.1** IaC + reusable components · **2.2** multi-account / multi-Region automation · **2.3** automation at scale (SSM, Config, AppConfig, Service Catalog)",
+      "**Prevent** = SCP / IAM / proactive Hooks · **detect** = Config rules · **fix** = SSM Automation remediation",
+      "**Push to every account** = StackSets / Control Tower / CfCT · **self-service pull** = Service Catalog",
+      "**All accounts incl. new ones** = service-managed StackSets auto-deploy, org conformance packs, org aggregator, RAM OU sharing, delegated admin auto-enable",
+      "**Keep people out of the management account** = delegated administrator"
+    ]},
+    { h: "Services in one line", table: [
+      ["Service", "Remember"],
+      ["**CloudFormation**", "Params (SSM types), Mappings, Conditions, Outputs/Exports (same acct + Region), dynamic refs, service role"],
+      ["**Change control**", "Change sets · drift · stack policy · termination protection · DeletionPolicy / UpdateReplacePolicy"],
+      ["**Nested / cross-stack**", "Nested = together, > 500 resources · Exports = independent lifecycle · modules = same stack"],
+      ["**Helper scripts**", "cfn-init · cfn-signal → CreationPolicy / WaitCondition · cfn-hup (15 min) · UpdatePolicy rolling / replacing"],
+      ["**Extending**", "Custom resource (respond or 1 h hang) · macros (AUTO_EXPAND) · Registry · Hooks (proactive)"],
+      ["**Rollback**", "ROLLBACK_COMPLETE → delete · UPDATE_ROLLBACK_FAILED → continue-update-rollback · triggers 5 alarms / 180 min"],
+      ["**StackSets**", "Self-managed (roles, any account) vs service-managed (OUs, auto-deploy, no mgmt account, --call-as)"],
+      ["**CDK**", "synth / diff / deploy · bootstrap + --trust · L1/L2/L3 · logical ID trap · CDK Pipelines self-mutation"],
+      ["**SAM**", "Transform · build / package / deploy · sam local (Docker) · AutoPublishAlias + DeploymentPreference"],
+      ["**Systems Manager**", "Run Command (now) · State Manager (always) · Patch Manager · Session Manager · Parameter Store · Automation"],
+      ["**AppConfig**", "Flags without redeploy · validators before · strategies + bake · alarm rollback · agent :2772"],
+      ["**Organizations**", "SCPs never grant, not mgmt account · aws:PrincipalOrgID · RCP · consolidated billing · delegated admin"],
+      ["**Control Tower**", "Landing zone (Log Archive + Audit) · preventive / detective / proactive controls · Account Factory, AFT, CfCT"],
+      ["**Service Catalog**", "Portfolio + product + launch constraint · template constraint · TagOptions · hub and spoke"],
+      ["**Config**", "Regional recorder · managed / Lambda / Guard rules · SSM remediation · conformance packs · read-only aggregator"],
+      ["**Tagging**", "aws:RequestTag requires · tag policy standardises (not required) · cost allocation tags in mgmt · ABAC"],
+      ["**RAM**", "Share subnets / TGW / Resolver rules / prefix lists · org sharing to OU · VPC sharing same org"]
+    ]},
+    { h: "Keywords: CloudFormation", table: [
+      ["The question says", "Answer"],
+      ["Latest AMI, no template edits", "SSM public parameter type"],
+      ["Secret in template", "Dynamic reference"],
+      ["Independent stacks share VPC ID", "Export + ImportValue"],
+      ["Reusable, > 500 resources", "Nested stacks"],
+      ["Preview replacement", "Change set"],
+      ["Manual changes", "Drift detection"],
+      ["Protect DB from replacement", "Stack policy"],
+      ["Keep data on delete / replace", "DeletionPolicy / UpdateReplacePolicy"],
+      ["Wait until app installed", "CreationPolicy + cfn-signal"],
+      ["Apply metadata changes", "cfn-hup"],
+      ["Timed out waiting for signals", "cfn-signal not sent"],
+      ["Call API during deploy", "Custom resource"],
+      ["Custom resource hangs 1 h", "No response sent"],
+      ["CAPABILITY_AUTO_EXPAND", "Macro / SAM"],
+      ["Block bad resources before create", "Hooks"],
+      ["ROLLBACK_COMPLETE", "Delete and recreate"],
+      ["UPDATE_ROLLBACK_FAILED", "continue-update-rollback"],
+      ["Roll back on alarm after deploy", "Rollback triggers"]
+    ]},
+    { h: "Keywords: StackSets, CDK, SAM", table: [
+      ["The question says", "Answer"],
+      ["Many accounts + Regions", "StackSets"],
+      ["New OU accounts automatically", "Service-managed auto-deploy"],
+      ["Outside org / mgmt account", "Self-managed StackSet"],
+      ["Delegated admin not found", "--call-as DELEGATED_ADMIN"],
+      ["Exclude one account", "AccountFilterType DIFFERENCE"],
+      ["OperationInProgressException", "Managed execution"],
+      ["IAM role fails 2nd Region", "Deploy IAM in one Region"],
+      ["Programming language + tests", "CDK"],
+      ["Bootstrap version not found", "cdk bootstrap"],
+      ["CDK cross-account deploy fails", "--trust + crossAccountKeys"],
+      ["Renamed construct replaced", "overrideLogicalId"],
+      ["fromLookup fails", "Set env"],
+      ["Pipeline updates itself", "CDK Pipelines"],
+      ["Serverless + local test", "SAM"],
+      ["Local API / SDK tests", "start-api :3000 / start-lambda :3001"],
+      ["Native deps fail", "sam build --use-container"],
+      ["Lambda canary", "AutoPublishAlias + DeploymentPreference"]
+    ]},
+    { h: "Keywords: SSM and AppConfig", table: [
+      ["The question says", "Answer"],
+      ["Instance not managed", "Agent + profile + endpoints"],
+      ["No NAT", "ssm / ssmmessages / ec2messages endpoints"],
+      ["No instance profiles", "DHMC"],
+      ["On-prem", "Hybrid activation"],
+      ["Run now, 10% at a time", "Run Command"],
+      ["Always, incl. new instances", "State Manager"],
+      ["Patch delays prod / dev", "Baselines + Patch Group + windows"],
+      ["Report patches only", "Scan"],
+      ["Software across accounts SQL", "Inventory + Data Sync + Athena"],
+      ["No bastion, audit", "Session Manager + logging"],
+      ["Laptop → private RDS", "Port forwarding remote host"],
+      ["SecureString denied", "kms:Decrypt"],
+      ["> 4 KB / expiry", "Advanced parameter"],
+      ["Rotation", "Secrets Manager"],
+      ["Runbook approval", "aws:approve"],
+      ["RDP without 3389", "Fleet Manager"],
+      ["Flags without redeploy", "AppConfig"],
+      ["Validate config first", "JSON Schema / Lambda validator"],
+      ["Config rollback on alarm", "Monitors + bake time"],
+      ["Lambda reads config cheaply", "Extension :2772"]
+    ]},
+    { h: "Keywords: Organizations, Control Tower, Service Catalog", table: [
+      ["The question says", "Answer"],
+      ["Prevent in all accounts", "SCP deny"],
+      ["Mgmt account not blocked", "SCPs don't apply"],
+      ["Region lock breaks IAM", "NotAction global services"],
+      ["Invited account role missing", "Create OrganizationAccountAccessRole"],
+      ["Bucket for all org accounts", "aws:PrincipalOrgID"],
+      ["Outside access despite bad policy", "RCP"],
+      ["Keep RIs in one account", "Turn off RI / SP sharing"],
+      ["Security admin not mgmt", "Delegated admin"],
+      ["Best-practice landing zone", "Control Tower"],
+      ["Block / report / before CFN", "Preventive / detective / proactive"],
+      ["Enroll fails", "AWSControlTowerExecution / Config recorder"],
+      ["Account moved, drift", "Update / re-enroll / repair"],
+      ["Terraform vending", "AFT"],
+      ["CFN + SCPs for new accounts", "CfCT"],
+      ["After CT creates account", "CreateManagedAccount event"],
+      ["Self-service, no service perms", "Service Catalog launch constraint"],
+      ["Limit instance types", "Template constraint"],
+      ["Shared portfolio role", "LocalRoleName"],
+      ["Restart without EC2 perms", "Service actions"]
+    ]},
+    { h: "Keywords: Config, tagging, RAM", table: [
+      ["The question says", "Answer"],
+      ["Looked like / who changed", "Config timeline / CloudTrail"],
+      ["Open SSH", "restricted-ssh"],
+      ["External data check", "Custom Lambda rule"],
+      ["No-Lambda check", "Guard rule"],
+      ["Auto-fix", "Remediation + SSM Automation"],
+      ["Remediation fails", "AutomationAssumeRole"],
+      ["Alert only NON_COMPLIANT", "EventBridge filter"],
+      ["Rule set in all accounts", "Org conformance pack"],
+      ["Central view incl. new", "Org aggregator (read-only)"],
+      ["Security Hub empty", "Enable Config"],
+      ["Require tag", "SCP aws:RequestTag Null"],
+      ["Standard case / values", "Tag policy"],
+      ["Tags not in Cost Explorer", "Activate in mgmt account"],
+      ["Team access at scale", "ABAC"],
+      ["Run on app resources incl. new", "Tag-based resource group"],
+      ["Launch into central VPC", "VPC sharing"],
+      ["No invitations, new accounts", "RAM org sharing to OU"],
+      ["Org-wide on-prem DNS", "Share Resolver rules"],
+      ["Same CIDRs everywhere", "Shared prefix list"],
+      ["Block external sharing", "SCP ram:RequestedAllowsExternalPrincipals"]
+    ]},
+    { h: "Numbers to remember", items: [
+      "CFN **500** resources · template **1 MB** via S3 · **200** params / outputs / mappings",
+      "CreationPolicy / WaitCondition **12 h** max · custom resource **1 h** wait · cfn-hup **15 min**",
+      "Rollback triggers **5** alarms, **180** min · StackSets delegated admins **5**",
+      "SCPs **5** per target, **5,120** chars · OU depth **5** · tags **50** (128 / 256)",
+      "Config required-tags **6** keys · periodic 1 / 3 / 6 / 12 / 24 h",
+      "Parameter Store **4 KB** / **8 KB** · Run Command console **2,500** chars",
+      "AppConfig agent **:2772** · SAM local **:3000 / :3001** · RAM invitation **~7 days** · cost tags **24 h**"
+    ]},
+    { h: "Classic wrong answers", items: [
+      "Tag policy requires tags ✗ (SCP aws:RequestTag) · Config rule prevents ✗ (SCP / Hooks) · aggregator remediates ✗",
+      "SCP restricts mgmt account ✗ · SCP grants ✗ · service-managed StackSet to mgmt account ✗ · auto-deploy adds Regions ✗",
+      "Parameter Store rotation ✗ · Run Command for future instances ✗ · baseline alone patches ✗ · edit predefined baseline ✗",
+      "update-stack on ROLLBACK_COMPLETE ✗ · NoEcho encrypts ✗ · exports cross-Region ✗ · hotswap in prod ✗",
+      "sam local enforces IAM ✗ · env vars for feature flags ✗ · CT detective auto-fixes ✗ · CT enables GuardDuty ✗",
+      "Service Catalog pushes baselines ✗ · RAM for S3 / KMS ✗ · VPC sharing external ✗ · CreateAccount for CT automation ✗"
+    ]}
+  ]
+  };
+  const list = window.CHEATSHEETS;
+  const i = list.findIndex(c => c.domain === "d2");
+  if (i < 0) list.push(sheet); else list.splice(i, 0, sheet);
+})();
