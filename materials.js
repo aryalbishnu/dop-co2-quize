@@ -40,5 +40,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["Tagging and Resource Groups"], title: "Week 4 notes - Tagging strategy, Tag policies, Resource Groups (traps, lab, check yourself)", file: "pdfs/Week4_Tagging_and_Resource_Groups.pdf" },
   { domain: "d2", topics: ["AWS RAM"], title: "Week 4 notes - AWS Resource Access Manager (RAM) (traps, lab, check yourself)", file: "pdfs/Week4_AWS_RAM.pdf" },
   { domain: "d2", topics: ["Domain 2 Extras"], title: "Week 4 notes - Domain 2 extras: OpsWorks, Lambda / Step Functions / Scheduler automation, CloudFormation Git sync and IaC generator (traps, lab, check yourself)", file: "pdfs/Week4_Domain2_Extras.pdf" },
-  { domain: "d2", topics: [], title: "Domain 2 master cheat sheet and keyword list (Configuration Management and IaC, incl. extras)", file: "pdfs/Domain2_Master_Cheat_Sheet.pdf" }
+  { domain: "d2", topics: [], title: "Domain 2 master cheat sheet and keyword list (Configuration Management and IaC, incl. extras)", file: "pdfs/Domain2_Master_Cheat_Sheet.pdf" },
+  { domain: "d3", topics: ["DR Strategies"], title: "Week 5 notes - DR strategies: backup and restore, pilot light, warm standby, multi-site; RTO vs RPO (traps, lab, check yourself)", file: "pdfs/Week5_DR_Strategies.pdf" }
 ];

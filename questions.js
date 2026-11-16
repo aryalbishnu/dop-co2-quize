@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: [] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -11689,8 +11689,368 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Ops runbook with approval + rate control = SSM Automation."
+  },
+  // ───────────────────────────── Domain 3: DR Strategies ─────────────────────────────
+  {
+    id: "drs-01", domain: "d3", topic: "DR Strategies",
+    q: "An internal reporting application has an RPO of 24 hours and an RTO of 24 hours. Management wants the LOWEST-cost disaster recovery solution in a second AWS Region. What should a DevOps engineer implement?",
+    options: [
+      { t: "Backup and restore: AWS Backup plans with cross-Region copy of the EC2, EBS and RDS backups, plus CloudFormation templates to redeploy the stack in the DR Region.",
+        why: "Correct. Backup and restore meets hour-level RPO / RTO at the lowest cost; IaC keeps the RTO reasonable." },
+      { t: "Multi-site active/active with Route 53 latency routing.",
+        why: "Meets the targets but is the most expensive option." },
+      { t: "Warm standby with a scaled-down fleet running in the DR Region.",
+        why: "Exceeds requirements at higher cost." },
+      { t: "Multi-AZ RDS in the primary Region.",
+        why: "Multi-AZ is HA within one Region, not DR." }
+    ],
+    answer: [0],
+    tip: "Hours RPO / RTO + lowest cost = backup and restore (+ IaC)."
+  },
+  {
+    id: "drs-02", domain: "d3", topic: "DR Strategies",
+    q: "A company's order database must lose at most 5 minutes of data, and the application must be restored within 1 hour after a Regional outage. To minimize cost, application servers in the DR Region should not run until needed. Which DR strategy fits?",
+    options: [
+      { t: "Pilot light: continuously replicate the database to the DR Region (for example an Aurora Global Database secondary or RDS cross-Region replica), keep AMIs and IaC ready, and start compute only during failover.",
+        why: "Correct. Live data replication gives minutes RPO; compute off keeps costs low; RTO is tens of minutes." },
+      { t: "Backup and restore with daily snapshots.",
+        why: "Daily backups can't meet a 5-minute RPO." },
+      { t: "Multi-site active/active.",
+        why: "Far more expensive than needed." },
+      { t: "Warm standby with full production capacity.",
+        why: "Full capacity is hot standby and more expensive than required." }
+    ],
+    answer: [0],
+    tip: "RPO minutes + compute off = pilot light."
+  },
+  {
+    id: "drs-03", domain: "d3", topic: "DR Strategies",
+    q: "A business-critical web application must be able to serve traffic from the DR Region within a few minutes of a Regional failure. The company accepts running a small, fully functional copy of the stack in the DR Region at all times, which can be scaled out during failover. Which strategy is this?",
+    options: [
+      { t: "Warm standby.",
+        why: "Correct. A scaled-down but working stack runs continuously and scales out at failover." },
+      { t: "Pilot light.",
+        why: "Pilot light keeps only data live; compute must be started first." },
+      { t: "Backup and restore.",
+        why: "RTO would be hours." },
+      { t: "Multi-site active/active.",
+        why: "Active/active runs full capacity serving production in both Regions." }
+    ],
+    answer: [0],
+    tip: "Small working copy running, scale out = warm standby."
+  },
+  {
+    id: "drs-04", domain: "d3", topic: "DR Strategies",
+    q: "A global trading platform requires near-zero RTO and RPO. Users in North America and Europe must be served from the closest Region, and both Regions must accept writes. Which design meets these requirements?",
+    options: [
+      { t: "Multi-site active/active: full stacks in both Regions, DynamoDB global tables for multi-Region writes, and Route 53 latency-based routing (or Global Accelerator) with health checks.",
+        why: "Correct. Active/active with multi-active data and health-checked routing gives near-zero RTO / RPO." },
+      { t: "Warm standby in Europe with Route 53 failover routing.",
+        why: "Active/passive; Europe users aren't served normally and RTO isn't near zero." },
+      { t: "Pilot light with an RDS cross-Region read replica.",
+        why: "RTO is tens of minutes and replicas don't accept writes." },
+      { t: "Backup and restore with AWS Backup.",
+        why: "Hours of RTO / RPO." }
+    ],
+    answer: [0],
+    tip: "Near-zero RTO / RPO + writes in both Regions = active/active + global tables."
+  },
+  {
+    id: "drs-05", domain: "d3", topic: "DR Strategies",
+    q: "Which statement correctly defines RTO and RPO?",
+    options: [
+      { t: "RTO is the maximum acceptable time the service can be down; RPO is the maximum acceptable amount of data loss measured in time.",
+        why: "Correct. RTO = downtime; RPO = data loss window." },
+      { t: "RTO is the maximum data loss; RPO is the maximum downtime.",
+        why: "Reversed." },
+      { t: "Both measure backup frequency.",
+        why: "Only RPO relates to backup / replication frequency." },
+      { t: "RPO is the time to restore backups.",
+        why: "That relates to RTO." }
+    ],
+    answer: [0],
+    tip: "RTO = downtime; RPO = data loss."
+  },
+  {
+    id: "drs-06", domain: "d3", topic: "DR Strategies",
+    q: "A team claims their database is fully protected against Regional disasters because it runs RDS Multi-AZ. What is the problem with this claim?",
+    options: [
+      { t: "Multi-AZ provides high availability within a single Region; it doesn't protect against a Region-wide outage. DR requires cross-Region replication or backups.",
+        why: "Correct. Multi-AZ is HA, not DR." },
+      { t: "Multi-AZ replicates across Regions automatically.",
+        why: "It replicates within one Region." },
+      { t: "Multi-AZ only works for Aurora.",
+        why: "Not true." },
+      { t: "There's no problem.",
+        why: "A Regional outage would take down both AZ copies." }
+    ],
+    answer: [0],
+    tip: "Multi-AZ = HA in one Region, not DR."
+  },
+  {
+    id: "drs-07", domain: "d3", topic: "DR Strategies",
+    q: "A company replicates its S3 data and DynamoDB tables to a second Region for DR. A security review warns that a ransomware attack or an accidental mass deletion would still cause permanent data loss. What should be added? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Point-in-time recovery for DynamoDB and versioning with S3 Object Lock for critical buckets.",
+        why: "Correct. PITR and immutable object versions allow recovery to a point before the damage." },
+      { t: "AWS Backup with cross-account copies to a vault protected by Vault Lock (or a logically air-gapped vault).",
+        why: "Correct. Immutable, isolated backups survive ransomware and deletion." },
+      { t: "Add a third replica Region.",
+        why: "Replication copies the damage to all replicas." },
+      { t: "Increase replication speed with S3 RTC.",
+        why: "Faster replication copies the damage faster." },
+      { t: "Enable Multi-AZ.",
+        why: "HA, not protection from deletion." }
+    ],
+    answer: [0, 1],
+    tip: "Replication isn't backup: PITR + immutable / isolated backups."
+  },
+  {
+    id: "drs-08", domain: "d3", topic: "DR Strategies",
+    q: "A company uses an Aurora PostgreSQL database and needs cross-Region replication with typically sub-second lag, plus a managed way to promote the secondary Region during a disaster. It wants to keep DR costs low by not running database instances in the secondary Region until needed. What should it use?",
+    options: [
+      { t: "Aurora Global Database with a headless secondary cluster (storage replicated, no instances), adding instances and failing over during a disaster.",
+        why: "Correct. Global Database replicates at the storage layer with low lag; a headless secondary fits pilot light." },
+      { t: "Daily Aurora snapshots copied to the DR Region.",
+        why: "RPO would be up to 24 hours." },
+      { t: "Aurora Multi-AZ only.",
+        why: "Single-Region HA." },
+      { t: "DynamoDB global tables.",
+        why: "A different database engine." }
+    ],
+    answer: [0],
+    tip: "Aurora cross-Region, low lag, low cost = Global Database (headless secondary)."
+  },
+  {
+    id: "drs-09", domain: "d3", topic: "DR Strategies",
+    q: "During a planned DR test, a team wants to move the writer of an Aurora Global Database to the secondary Region with no data loss, then move it back after the test. Which operation should they use?",
+    options: [
+      { t: "A managed switchover (planned failover) of the Aurora Global Database.",
+        why: "Correct. Switchover synchronizes before changing the writer, so no data is lost." },
+      { t: "Detach and promote the secondary cluster.",
+        why: "Used for unplanned failover and breaks replication; data loss is possible." },
+      { t: "Restore from a snapshot.",
+        why: "Slow and loses recent data." },
+      { t: "Reboot the primary writer.",
+        why: "Doesn't move the writer to another Region." }
+    ],
+    answer: [0],
+    tip: "Planned Region move with no data loss = Aurora Global DB switchover."
+  },
+  {
+    id: "drs-10", domain: "d3", topic: "DR Strategies",
+    q: "A company uses an RDS for MySQL cross-Region read replica for DR. The primary Region becomes unavailable. What must the DevOps engineer do to make the DR database writable?",
+    options: [
+      { t: "Manually promote the read replica to a standalone DB instance, then point the application (or DNS) to it.",
+        why: "Correct. Cross-Region RDS replicas don't fail over automatically; promotion makes them standalone." },
+      { t: "Nothing; the replica becomes writable automatically.",
+        why: "Promotion is required." },
+      { t: "Restart the replica.",
+        why: "Restarting doesn't promote it." },
+      { t: "Enable Multi-AZ on the replica first.",
+        why: "Doesn't make it writable." }
+    ],
+    answer: [0],
+    tip: "RDS cross-Region replica = manual promote."
+  },
+  {
+    id: "drs-11", domain: "d3", topic: "DR Strategies",
+    q: "A company must replicate S3 objects to a DR Region and requires a predictable replication time backed by an SLA, plus metrics and alerts if replication falls behind. What should it configure?",
+    options: [
+      { t: "S3 Cross-Region Replication with Replication Time Control (RTC), which replicates 99.99% of objects within 15 minutes and provides replication metrics.",
+        why: "Correct. RTC adds an SLA and metrics to CRR." },
+      { t: "S3 CRR without RTC.",
+        why: "No timing guarantee." },
+      { t: "Daily S3 Batch Operations copies.",
+        why: "RPO of a day." },
+      { t: "S3 Transfer Acceleration.",
+        why: "Speeds uploads; isn't replication." }
+    ],
+    answer: [0],
+    tip: "S3 replication with SLA = CRR + RTC (15 min)."
+  },
+  {
+    id: "drs-12", domain: "d3", topic: "DR Strategies",
+    q: "A company runs 150 on-premises application servers and needs DR in AWS with an RPO of seconds and an RTO of minutes, at a low ongoing cost, without re-architecting the applications. What should it use?",
+    options: [
+      { t: "AWS Elastic Disaster Recovery (DRS) with continuous block-level replication to a low-cost staging area and launch of recovery instances during a disaster.",
+        why: "Correct. DRS gives seconds RPO and minutes RTO with minimal running cost." },
+      { t: "Weekly AMI imports.",
+        why: "RPO of a week." },
+      { t: "Multi-site active/active rebuilt on AWS.",
+        why: "Requires re-architecture and high cost." },
+      { t: "AWS Backup of on-premises VMs restored manually.",
+        why: "Backup-based RPO / RTO is hours." }
+    ],
+    answer: [0],
+    tip: "Server DR, RPO seconds, RTO minutes, low cost = AWS DRS."
+  },
+  {
+    id: "drs-13", domain: "d3", topic: "DR Strategies",
+    q: "A pilot light environment exists in us-west-2. During a DR test, the team discovers they can't launch the 120 instances needed in us-west-2 because of an account limit, and the application can't decrypt its data. What should have been prepared? (Choose the BEST answer.)",
+    options: [
+      { t: "Raise service quotas in the DR Region in advance and use KMS multi-Region keys (and multi-Region secrets) so data and secrets are usable in the DR Region.",
+        why: "Correct. DR readiness includes quotas, keys, secrets, AMIs and images in the DR Region." },
+      { t: "Use a larger instance type.",
+        why: "Doesn't fix quotas or decryption." },
+      { t: "Request quota increases during the outage.",
+        why: "Too slow during a disaster." },
+      { t: "Disable encryption.",
+        why: "Insecure and unacceptable." }
+    ],
+    answer: [0],
+    tip: "DR readiness: quotas, multi-Region KMS keys / secrets, AMIs, images."
+  },
+  {
+    id: "drs-14", domain: "d3", topic: "DR Strategies",
+    q: "A company uses an active/passive architecture across two Regions and wants DNS to automatically direct users to the secondary Region when the primary application endpoint becomes unhealthy. What should be configured?",
+    options: [
+      { t: "Route 53 failover routing records (primary and secondary) with a health check on the primary endpoint and a low TTL.",
+        why: "Correct. Failover routing switches answers when the health check fails." },
+      { t: "Route 53 simple routing with two IP addresses.",
+        why: "No health-based failover." },
+      { t: "CloudWatch alarm that emails the team.",
+        why: "Manual and slow." },
+      { t: "Route 53 geolocation routing without health checks.",
+        why: "Doesn't fail over on health." }
+    ],
+    answer: [0],
+    tip: "Automatic active/passive DNS failover = Route 53 failover + health check."
+  },
+  {
+    id: "drs-15", domain: "d3", topic: "DR Strategies",
+    q: "A financial company wants Region failover to be a deliberate, human-approved action that works reliably even if parts of the AWS control plane are impaired, with safety rules preventing both Regions from being turned off and continuous checks that the DR Region is ready. What should it use?",
+    options: [
+      { t: "Route 53 Application Recovery Controller: routing controls on its highly available data plane, safety rules, and readiness checks (optionally Region switch plans).",
+        why: "Correct. ARC is built for controlled, reliable failover with readiness checks." },
+      { t: "Manually edit Route 53 records during the outage.",
+        why: "Relies on the control plane and is error-prone." },
+      { t: "AWS Config rules.",
+        why: "Don't control traffic." },
+      { t: "CloudFront geo restriction.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Controlled, reliable failover + readiness = Route 53 ARC."
+  },
+  {
+    id: "drs-16", domain: "d3", topic: "DR Strategies",
+    q: "Users of a TCP-based gaming service keep connecting to the failed Region for several minutes after a failover because their clients cache DNS. The company wants failover in seconds without depending on DNS TTLs. What should it use?",
+    options: [
+      { t: "AWS Global Accelerator with endpoints in both Regions, health checks and traffic dials.",
+        why: "Correct. Static anycast IPs and health-based routing avoid DNS caching delays." },
+      { t: "Lower the Route 53 TTL to 0.",
+        why: "Clients may still cache, and it doesn't support TCP routing at the edge." },
+      { t: "CloudFront origin failover.",
+        why: "For HTTP(S) content, not arbitrary TCP gaming traffic." },
+      { t: "Route 53 weighted routing.",
+        why: "Still DNS-based." }
+    ],
+    answer: [0],
+    tip: "Seconds failover, no DNS caching = Global Accelerator."
+  },
+  {
+    id: "drs-17", domain: "d3", topic: "DR Strategies",
+    q: "In an active/active design using DynamoDB global tables, the same item is updated in two Regions at nearly the same time. How are conflicts resolved by default?",
+    options: [
+      { t: "Last writer wins, based on timestamps.",
+        why: "Correct. Global tables reconcile concurrent updates with last-writer-wins (design partitioning if that isn't acceptable)." },
+      { t: "The first write wins.",
+        why: "Not the default behavior." },
+      { t: "Both versions are kept as separate items.",
+        why: "Not how global tables work." },
+      { t: "The write in the older Region is rejected with an error.",
+        why: "Not the default behavior." }
+    ],
+    answer: [0],
+    tip: "Global tables conflicts = last-writer-wins."
+  },
+  {
+    id: "drs-18", domain: "d3", topic: "DR Strategies",
+    q: "A pilot light DR environment uses an Auto Scaling group with desired capacity 0 in the DR Region. Which steps are part of failing over? (Choose the BEST sequence.)",
+    options: [
+      { t: "Scale out the ASG (or deploy the stack from IaC), promote the replicated database to writable, then switch traffic with Route 53 / ARC / Global Accelerator.",
+        why: "Correct. Pilot light requires starting compute, promoting data and redirecting traffic." },
+      { t: "Only switch DNS, because the DR environment is already serving traffic.",
+        why: "That's warm standby or active/active." },
+      { t: "Restore all data from last night's backups.",
+        why: "That's backup and restore." },
+      { t: "Nothing; failover is automatic for pilot light.",
+        why: "Compute must be started." }
+    ],
+    answer: [0],
+    tip: "Pilot light failover = start compute + promote DB + switch traffic."
+  },
+  {
+    id: "drs-19", domain: "d3", topic: "DR Strategies",
+    q: "A company's backup and restore DR plan has an RTO target of 4 hours, but the last drill took 14 hours because engineers rebuilt networking, IAM roles and instances by hand. What is the MOST effective improvement?",
+    options: [
+      { t: "Define the entire environment as infrastructure as code (CloudFormation / CDK / StackSets), pre-copy AMIs and container images to the DR Region, and automate restores (AWS Backup restore testing).",
+        why: "Correct. Automation and pre-staged artifacts cut backup-and-restore RTO dramatically." },
+      { t: "Switch to multi-site active/active.",
+        why: "Meets RTO but is far more expensive than needed." },
+      { t: "Take backups more often.",
+        why: "Improves RPO, not RTO." },
+      { t: "Use larger instances in the DR Region.",
+        why: "Doesn't remove manual rebuild time." }
+    ],
+    answer: [0],
+    tip: "Backup and restore RTO = IaC + pre-staged artifacts + automated restores."
+  },
+  {
+    id: "drs-20", domain: "d3", topic: "DR Strategies",
+    q: "Leadership wants continuous assurance that a critical application can meet its RTO of 30 minutes and RPO of 5 minutes, with recommendations when the architecture drifts, and the ability to run fault injection experiments. Which services fit? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "AWS Resilience Hub with a resiliency policy defining the RTO / RPO targets and periodic assessments.",
+        why: "Correct. Resilience Hub assesses apps against RTO / RPO policies and recommends improvements." },
+      { t: "AWS Fault Injection Service (FIS) experiments with stop conditions.",
+        why: "Correct. FIS validates resilience through controlled chaos experiments." },
+      { t: "AWS Trusted Advisor cost checks.",
+        why: "Not RTO / RPO assurance." },
+      { t: "Amazon Inspector.",
+        why: "Vulnerability scanning." },
+      { t: "AWS Budgets.",
+        why: "Cost tracking." }
+    ],
+    answer: [0, 1],
+    tip: "Validate RTO / RPO continuously = Resilience Hub + FIS (+ game days)."
+  },
+  {
+    id: "drs-21", domain: "d3", topic: "DR Strategies",
+    q: "During a Regional outage, the operations team plans to update Route 53 records and launch new EC2 capacity in the DR Region. A reviewer says the failover plan should avoid depending on control plane operations during the event. Which change follows this principle?",
+    options: [
+      { t: "Use pre-provisioned capacity (static stability) and health-check / ARC routing controls that change traffic through the data plane, instead of editing records and launching resources mid-incident.",
+        why: "Correct. Data plane operations and pre-provisioned capacity are more reliable during impairments." },
+      { t: "Increase DNS TTLs.",
+        why: "Slows failover." },
+      { t: "Rely on AWS Support to fail over.",
+        why: "Not a design principle." },
+      { t: "Delete the primary Region's resources first.",
+        why: "Unnecessary and risky." }
+    ],
+    answer: [0],
+    tip: "Failover: data plane + static stability, not control plane changes."
+  },
+  {
+    id: "drs-22", domain: "d3", topic: "DR Strategies",
+    q: "A company has dozens of workloads. Some are customer-facing and generate revenue every second; others are internal tools that can be down for a day. How should it approach DR strategy selection?",
+    options: [
+      { t: "Tier workloads by business impact and assign each the cheapest strategy that meets its RTO / RPO (for example multi-site or warm standby for critical apps, backup and restore for internal tools).",
+        why: "Correct. DR strategy should match business requirements per workload." },
+      { t: "Use multi-site active/active for every workload.",
+        why: "Unnecessarily expensive." },
+      { t: "Use backup and restore for every workload.",
+        why: "Fails critical workloads' RTO / RPO." },
+      { t: "Rely on Multi-AZ for all workloads.",
+        why: "Not DR." }
+    ],
+    answer: [0],
+    tip: "Tier workloads; cheapest strategy meeting each RTO / RPO."
   }
 ];
+
 
 
 

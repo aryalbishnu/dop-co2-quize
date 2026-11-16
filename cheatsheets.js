@@ -2334,6 +2334,67 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "DR Strategies",
+  sections: [
+    { h: "RTO vs RPO", items: [
+      "**RTO** = max **downtime** (driven by running capacity + automation) · **RPO** = max **data loss** (driven by copy frequency)",
+      "Lower RTO / RPO = **more cost** → tier workloads, pick the **cheapest strategy meeting both**",
+      "**HA** (Multi-AZ) ≠ **DR** (another Region) ≠ **backups** (corruption, ransomware, deletion)",
+      "**Replication copies the damage** → keep **PITR + immutable backups** (Vault Lock, air-gapped vault, Object Lock)"
+    ]},
+    { h: "The four strategies", table: [
+      ["Strategy", "RPO / RTO", "DR Region", "Failover"],
+      ["**Backup & restore**", "Hours / hours · cheapest", "Backups only", "Restore + **deploy stack (IaC)** + DNS"],
+      ["**Pilot light**", "Minutes / tens of min", "**Data live**, compute **off** (ASG 0, AMIs, IaC)", "**Start compute**, promote DB, switch traffic"],
+      ["**Warm standby**", "Sec-min / minutes", "**Small working stack running**", "**Scale out**, promote, switch"],
+      ["**Multi-site active/active**", "~0 / ~0 · most expensive", "**Full stacks serving**", "Remove failed Region"]
+    ]},
+    { h: "Data services", items: [
+      "EBS snapshot / **AMI copy** · **AWS DRS** (servers, RPO seconds, RTO minutes, low cost)",
+      "RDS snapshot copy / **cross-Region replica (manual promote)**",
+      "**Aurora Global DB**: < 1 s lag, **single writer** (+ write forwarding), **headless secondary**, **switchover** (planned, no loss) vs **failover** (RPO sec, RTO < 1 min)",
+      "**DynamoDB global tables**: multi-active, **last-writer-wins** · PITR 35 days",
+      "**S3 CRR + RTC** (99.99% in **15 min**) · Multi-Region Access Points · EFS replication · ElastiCache Global Datastore",
+      "**Multi-Region secrets** · **KMS multi-Region keys** · **ECR replication** · **AWS Backup cross-Region / cross-account copy**"
+    ]},
+    { h: "Traffic and failover", items: [
+      "**Route 53 failover + health checks** (active/passive) · latency / geoproximity / weighted (active/active) · **low TTL**",
+      "**ARC**: routing controls (**data plane**), safety rules, **readiness checks**, zonal shift, **Region switch**",
+      "**Global Accelerator**: static anycast IPs, traffic dials, **seconds**, no DNS caching · CloudFront origin failover",
+      "**Data plane over control plane** · **static stability** · plan **failback** · avoid split brain"
+    ]},
+    { h: "Readiness and testing", items: [
+      "Pre-raise **quotas**, copy **AMIs**, replicate images, keys, secrets · **IaC** for identical stacks",
+      "**Game days** · **FIS** (stop conditions) · **Resilience Hub** (RTO / RPO policy, assessments, drift) · ARC readiness · **Backup restore testing**",
+      "Monitor replication lag (Aurora, RDS, DynamoDB, S3 RTC, DRS)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Hours RPO / RTO, lowest cost", "Backup & restore + IaC"],
+      ["RPO minutes, servers off", "Pilot light"],
+      ["Small working copy running", "Warm standby"],
+      ["Near-zero, writes in both Regions", "Active/active + global tables"],
+      ["Multi-AZ claimed as DR", "HA only"],
+      ["Ransomware / mass deletion", "PITR + Object Lock / Vault Lock"],
+      ["Aurora low lag, low DR cost", "Global DB headless secondary"],
+      ["Planned Region move, no loss", "Aurora switchover"],
+      ["RDS replica writable", "Manual promote"],
+      ["S3 replication SLA", "CRR + RTC"],
+      ["On-prem servers, RPO seconds", "AWS DRS"],
+      ["DR can't launch / decrypt", "Quotas + multi-Region keys / secrets"],
+      ["Automatic DNS failover", "Route 53 failover + health check"],
+      ["Human-approved reliable failover", "Route 53 ARC"],
+      ["Seconds failover, DNS caching", "Global Accelerator"],
+      ["Global tables conflict", "Last-writer-wins"],
+      ["Backup & restore RTO too long", "IaC + pre-staged AMIs + restore testing"],
+      ["Continuous RTO / RPO assurance", "Resilience Hub + FIS"],
+      ["Avoid control plane in outage", "Static stability + ARC data plane"],
+      ["Many workloads", "Tier by business impact"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
