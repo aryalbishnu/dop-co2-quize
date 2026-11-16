@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -12048,8 +12048,368 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Tier workloads; cheapest strategy meeting each RTO / RPO."
+  },
+  // ───────────────────────────── Domain 3: Auto Scaling ─────────────────────────────
+  {
+    id: "asg-01", domain: "d3", topic: "Auto Scaling",
+    q: "Instances in an Auto Scaling group must download configuration from S3, install an agent, and pass a local validation script before they receive any traffic from the Application Load Balancer. If validation fails, the instance must not be used. What should a DevOps engineer configure?",
+    options: [
+      { t: "A launch lifecycle hook (EC2_INSTANCE_LAUNCHING) with default result ABANDON; the user data runs the setup and validation and calls complete-lifecycle-action with CONTINUE on success or ABANDON on failure.",
+        why: "Correct. The instance stays in Pending:Wait (not registered with the target group) until the hook completes; ABANDON terminates it." },
+      { t: "Increase the health check grace period to 30 minutes.",
+        why: "The instance would still be registered and could receive traffic before setup finishes." },
+      { t: "A terminate lifecycle hook.",
+        why: "Runs at termination, not launch." },
+      { t: "Scale-in protection.",
+        why: "Unrelated to launch validation." }
+    ],
+    answer: [0],
+    tip: "Setup / validate before traffic = launch lifecycle hook."
+  },
+  {
+    id: "asg-02", domain: "d3", topic: "Auto Scaling",
+    q: "Application logs on Auto Scaling instances must be copied to S3 before any instance is terminated by scale-in or health replacement. What is the MOST reliable approach?",
+    options: [
+      { t: "A terminate lifecycle hook (EC2_INSTANCE_TERMINATING) with an EventBridge rule that triggers an SSM Run Command (or Lambda) to upload logs, which then calls complete-lifecycle-action.",
+        why: "Correct. The instance pauses in Terminating:Wait while logs are copied." },
+      { t: "A cron job that uploads logs every hour.",
+        why: "Logs written since the last run are lost on termination." },
+      { t: "EC2 termination protection.",
+        why: "Doesn't stop ASG termination and doesn't copy logs." },
+      { t: "Suspend the Terminate process permanently.",
+        why: "Breaks scaling." }
+    ],
+    answer: [0],
+    tip: "Logs before termination = terminate hook + EventBridge → SSM / Lambda."
+  },
+  {
+    id: "asg-03", domain: "d3", topic: "Auto Scaling",
+    q: "After adding a launch lifecycle hook to an Auto Scaling group, every scale-out takes about one hour before new instances become InService, even though bootstrap finishes in 3 minutes. What is the MOST likely cause?",
+    options: [
+      { t: "Nothing calls complete-lifecycle-action, so each instance waits for the default 3600-second heartbeat timeout.",
+        why: "Correct. The hook waits for completion or the heartbeat timeout." },
+      { t: "The ALB deregistration delay is one hour.",
+        why: "Deregistration delay applies when removing targets." },
+      { t: "The ASG cooldown is one hour.",
+        why: "Cooldown doesn't delay the lifecycle of launching instances." },
+      { t: "The launch template version is $Latest.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Scale-out takes 1 h after adding a hook = missing complete-lifecycle-action."
+  },
+  {
+    id: "asg-04", domain: "d3", topic: "Auto Scaling",
+    q: "A Java application takes about 12 minutes to start and warm its caches. During sudden traffic spikes, new instances arrive too late. The company wants faster scale-out while keeping idle cost low. What should it configure?",
+    options: [
+      { t: "A warm pool for the Auto Scaling group with instances in the Stopped state, initialized through a launch lifecycle hook.",
+        why: "Correct. Pre-initialized stopped instances start quickly, and you pay mainly for EBS while they're stopped." },
+      { t: "A warm pool with instances in the Running state.",
+        why: "Fastest, but costs as much as running instances." },
+      { t: "Increase the maximum size.",
+        why: "Doesn't make new instances start faster." },
+      { t: "Use simple scaling with a shorter cooldown.",
+        why: "Doesn't reduce initialization time." }
+    ],
+    answer: [0],
+    tip: "Slow boot + low idle cost = warm pool (Stopped)."
+  },
+  {
+    id: "asg-05", domain: "d3", topic: "Auto Scaling",
+    q: "A team wants instances removed during scale-in to go back to the warm pool instead of being terminated, so they can be reused at the next scale-out. Which setting enables this?",
+    options: [
+      { t: "The warm pool instance reuse policy with ReuseOnScaleIn set to true.",
+        why: "Correct. Instances return to the warm pool on scale-in." },
+      { t: "Scale-in protection.",
+        why: "Prevents termination but keeps instances InService." },
+      { t: "The NewestInstance termination policy.",
+        why: "Chooses which instance terminates, not whether it's reused." },
+      { t: "Suspend the Terminate process.",
+        why: "Breaks scale-in." }
+    ],
+    answer: [0],
+    tip: "Return to warm pool on scale-in = ReuseOnScaleIn."
+  },
+  {
+    id: "asg-06", domain: "d3", topic: "Auto Scaling",
+    q: "An Auto Scaling group uses a mixed instances policy with Spot Instances. A team tries to add a warm pool, but the configuration is rejected. Why?",
+    options: [
+      { t: "Warm pools aren't supported for Auto Scaling groups with mixed instances policies or Spot Instances.",
+        why: "Correct. Warm pools work with On-Demand single-configuration groups." },
+      { t: "Warm pools require the Running state.",
+        why: "Stopped is the default." },
+      { t: "Warm pools need a terminate lifecycle hook.",
+        why: "Not required." },
+      { t: "Warm pools only work with launch configurations.",
+        why: "Launch templates are supported." }
+    ],
+    answer: [0],
+    tip: "Warm pools: no mixed instances / Spot."
+  },
+  {
+    id: "asg-07", domain: "d3", topic: "Auto Scaling",
+    q: "An Auto Scaling group spans three AZs with 4, 3 and 3 instances. A scale-in event removes one instance using the default termination policy. Which instance is selected?",
+    options: [
+      { t: "An instance in the AZ with 4 instances; within that AZ, the default order applies (allocation strategy, oldest launch template / configuration, closest to next billing hour, random).",
+        why: "Correct. The ASG first balances AZs by choosing the AZ with the most instances." },
+      { t: "The newest instance in any AZ.",
+        why: "That's the NewestInstance policy, and AZ balance still comes first." },
+      { t: "A random instance in any AZ.",
+        why: "AZ balance is evaluated first." },
+      { t: "The instance with the highest CPU.",
+        why: "Not a termination criterion." }
+    ],
+    answer: [0],
+    tip: "Default termination: AZ with most instances first."
+  },
+  {
+    id: "asg-08", domain: "d3", topic: "Auto Scaling",
+    q: "A company is gradually moving an Auto Scaling group to a new instance generation and wants scale-in events to remove the instances that have been running the longest. Which termination policy should it use?",
+    options: [
+      { t: "OldestInstance.",
+        why: "Correct. Terminates the oldest instances first." },
+      { t: "NewestInstance.",
+        why: "Terminates the newest first." },
+      { t: "ClosestToNextInstanceHour.",
+        why: "Based on billing hour." },
+      { t: "AllocationStrategy.",
+        why: "Aligns On-Demand / Spot mix." }
+    ],
+    answer: [0],
+    tip: "Remove longest-running first = OldestInstance."
+  },
+  {
+    id: "asg-09", domain: "d3", topic: "Auto Scaling",
+    q: "A chat application stores sessions on each instance. During scale-in, the company wants to terminate the instance that currently has the fewest active sessions, as reported by the application. What should it implement?",
+    options: [
+      { t: "A custom termination policy backed by a Lambda function that returns the instance IDs to terminate.",
+        why: "Correct. Custom termination policies let your code choose instances." },
+      { t: "The OldestInstance policy.",
+        why: "Doesn't consider application sessions." },
+      { t: "A warm pool.",
+        why: "Unrelated to selection." },
+      { t: "Scheduled actions.",
+        why: "Control capacity, not which instance terminates." }
+    ],
+    answer: [0],
+    tip: "Choose by app state = custom termination policy (Lambda)."
+  },
+  {
+    id: "asg-10", domain: "d3", topic: "Auto Scaling",
+    q: "One instance in an Auto Scaling group runs a long batch job and must not be terminated during scale-in until the job finishes. What should be used?",
+    options: [
+      { t: "Instance scale-in protection on that instance (removed when the job completes).",
+        why: "Correct. Protected instances aren't selected for scale-in." },
+      { t: "EC2 termination protection (DisableApiTermination).",
+        why: "Doesn't prevent Auto Scaling from terminating the instance." },
+      { t: "Detach and reattach the instance repeatedly.",
+        why: "Operationally messy." },
+      { t: "Increase the cooldown.",
+        why: "Doesn't protect a specific instance." }
+    ],
+    answer: [0],
+    tip: "Protect specific instance from scale-in = scale-in protection."
+  },
+  {
+    id: "asg-11", domain: "d3", topic: "Auto Scaling",
+    q: "An engineer needs to troubleshoot a misbehaving instance in an Auto Scaling group behind an ALB. The instance should stop receiving traffic and must not be replaced while the engineer investigates. What should they do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Put the instance into Standby with EnterStandby, then ExitStandby after troubleshooting.",
+        why: "Correct. Standby removes it from service without replacement." },
+      { t: "Suspend the ReplaceUnhealthy (and HealthCheck) processes while troubleshooting.",
+        why: "Correct. Prevents the ASG from replacing unhealthy instances." },
+      { t: "Enable EC2 termination protection.",
+        why: "Doesn't stop ASG replacement or traffic." },
+      { t: "Delete the launch template.",
+        why: "Breaks the group." },
+      { t: "Set desired capacity to 0.",
+        why: "Terminates all instances." }
+    ],
+    answer: [0, 1],
+    tip: "Troubleshoot without replacement = Standby / suspend ReplaceUnhealthy."
+  },
+  {
+    id: "asg-12", domain: "d3", topic: "Auto Scaling",
+    q: "Instances in an Auto Scaling group sometimes have a hung application that returns HTTP 500 errors, but the instances keep running and are never replaced. The ALB already marks them unhealthy. What should be changed?",
+    options: [
+      { t: "Enable ELB health checks on the Auto Scaling group (with an appropriate grace period) so ALB health status triggers replacement.",
+        why: "Correct. With only EC2 status checks, application failures aren't detected by the ASG." },
+      { t: "Increase the instance size.",
+        why: "Doesn't trigger replacement." },
+      { t: "Add a scheduled action.",
+        why: "Unrelated." },
+      { t: "Enable detailed monitoring.",
+        why: "Doesn't change health checks." }
+    ],
+    answer: [0],
+    tip: "App failures not replaced = enable ELB health checks on ASG."
+  },
+  {
+    id: "asg-13", domain: "d3", topic: "Auto Scaling",
+    q: "A web tier should automatically maintain an average of 1,000 requests per target on its ALB, scaling out quickly when traffic grows and scaling in gradually. Which scaling policy is the simplest to configure?",
+    options: [
+      { t: "A target tracking policy using the ALBRequestCountPerTarget predefined metric with a target value of 1000.",
+        why: "Correct. Target tracking manages alarms and adjustments to keep the metric at the target." },
+      { t: "Simple scaling with a 300-second cooldown.",
+        why: "Legacy and harder to tune." },
+      { t: "Scheduled actions every hour.",
+        why: "Not responsive to actual traffic." },
+      { t: "Manually change desired capacity.",
+        why: "Not automatic." }
+    ],
+    answer: [0],
+    tip: "Keep metric at target = target tracking."
+  },
+  {
+    id: "asg-14", domain: "d3", topic: "Auto Scaling",
+    q: "Workers process messages from an SQS queue. The team wants the Auto Scaling group to keep the number of messages each instance must process at about 100. Which approach is recommended?",
+    options: [
+      { t: "Publish a custom 'backlog per instance' metric (ApproximateNumberOfMessagesVisible divided by InService instances) and use target tracking with a target of 100.",
+        why: "Correct. Backlog per instance scales capacity in proportion to the work per instance." },
+      { t: "Target tracking on raw ApproximateNumberOfMessagesVisible.",
+        why: "Raw queue length doesn't account for the number of instances." },
+      { t: "Scheduled scaling every 15 minutes.",
+        why: "Not driven by the queue." },
+      { t: "CPU-based target tracking only.",
+        why: "CPU may not reflect queue backlog." }
+    ],
+    answer: [0],
+    tip: "Scale on SQS = backlog per instance + target tracking."
+  },
+  {
+    id: "asg-15", domain: "d3", topic: "Auto Scaling",
+    q: "An Auto Scaling group has two target tracking policies: CPU at 50% and ALBRequestCountPerTarget at 1000. CPU is low but request count is above target. What happens?",
+    options: [
+      { t: "The group scales out, because Auto Scaling scales out if any target tracking policy requires it and scales in only when all policies agree.",
+        why: "Correct. This avoids under-provisioning." },
+      { t: "The group scales in, because CPU is low.",
+        why: "Scale-in requires all policies to agree." },
+      { t: "Nothing happens because the policies conflict.",
+        why: "Auto Scaling resolves them as described." },
+      { t: "The policy created first wins.",
+        why: "Not how it works." }
+    ],
+    answer: [0],
+    tip: "Multiple target tracking: out if any, in only if all."
+  },
+  {
+    id: "asg-16", domain: "d3", topic: "Auto Scaling",
+    q: "An application's load rises sharply every weekday at 08:30 and falls after 18:00 in the Asia/Tokyo time zone. Instances take 8 minutes to initialize. The company wants capacity ready before 08:30 without guessing exact numbers manually every week, and still handle unexpected spikes. What should it configure?",
+    options: [
+      { t: "Predictive scaling (forecast and scale, with a scheduling buffer to launch ahead) combined with a target tracking policy for unexpected spikes.",
+        why: "Correct. Predictive scaling learns the daily pattern and launches ahead; target tracking covers deviations." },
+      { t: "Simple scaling only.",
+        why: "Reactive and slow for 8-minute boot times." },
+      { t: "Predictive scaling alone with no other policy.",
+        why: "Doesn't react to unforecast spikes." },
+      { t: "Increase the cooldown.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Cyclical load + launch ahead + spikes = predictive + target tracking."
+  },
+  {
+    id: "asg-17", domain: "d3", topic: "Auto Scaling",
+    q: "A team just created an Auto Scaling group and enabled predictive scaling in 'forecast and scale' mode, but no forecast-based scaling happens. What is the MOST likely reason?",
+    options: [
+      { t: "Predictive scaling needs historical metric data (at least 24 hours) before it can forecast; start in forecast-only mode to evaluate accuracy.",
+        why: "Correct. Forecasts require history." },
+      { t: "Predictive scaling only works with launch configurations.",
+        why: "Not true." },
+      { t: "Predictive scaling requires a warm pool.",
+        why: "Not required." },
+      { t: "Predictive scaling only works on weekends.",
+        why: "Not true." }
+    ],
+    answer: [0],
+    tip: "Predictive needs ≥ 24 h history; start forecast-only."
+  },
+  {
+    id: "asg-18", domain: "d3", topic: "Auto Scaling",
+    q: "A company must increase an Auto Scaling group's minimum capacity to 10 every Black Friday weekend and every weekday during business hours in the America/New_York time zone. Which feature should it use?",
+    options: [
+      { t: "Scheduled actions (one-time for Black Friday and recurring cron for business hours) with the time zone set.",
+        why: "Correct. Scheduled actions change min / max / desired at known times." },
+      { t: "Step scaling.",
+        why: "Reacts to alarms, not schedules." },
+      { t: "Warm pools.",
+        why: "Pre-initialize instances; don't set schedules." },
+      { t: "Instance refresh.",
+        why: "Replaces instances; doesn't schedule capacity." }
+    ],
+    answer: [0],
+    tip: "Known times = scheduled actions (cron + time zone)."
+  },
+  {
+    id: "asg-19", domain: "d3", topic: "Auto Scaling",
+    q: "A new golden AMI was added to version 7 of the launch template. The team wants to replace all instances gradually, keeping at least 90% healthy capacity, pausing at 25% for 15 minutes to validate, and automatically reverting to the previous configuration if a 5XX CloudWatch alarm fires. What should they use?",
+    options: [
+      { t: "An instance refresh with MinHealthyPercentage 90, checkpoints at 25% with a checkpoint delay, and AutoRollback with an AlarmSpecification for the 5XX alarm.",
+        why: "Correct. Instance refresh supports checkpoints and automatic rollback on alarms." },
+      { t: "Terminate all instances at once and let the ASG relaunch them.",
+        why: "Causes an outage and has no rollback." },
+      { t: "Update the launch template and wait for natural scale-in.",
+        why: "Slow and uncontrolled." },
+      { t: "Use a warm pool.",
+        why: "Doesn't replace instances with a new AMI." }
+    ],
+    answer: [0],
+    tip: "Gradual AMI rollout + rollback on alarm = instance refresh (checkpoints + auto rollback)."
+  },
+  {
+    id: "asg-20", domain: "d3", topic: "Auto Scaling",
+    q: "During an instance refresh, the team wants new instances launched before old ones are terminated so capacity never drops below 100%, and they don't want instances already on the new launch template version to be replaced if the refresh is restarted. Which settings achieve this? (Choose the BEST answer.)",
+    options: [
+      { t: "MaxHealthyPercentage above 100 (for example 150) with MinHealthyPercentage 100, and SkipMatching set to true.",
+        why: "Correct. Max healthy above 100 launches first; skip matching avoids replacing up-to-date instances." },
+      { t: "MinHealthyPercentage 0.",
+        why: "Allows all instances to be replaced at once." },
+      { t: "MaxHealthyPercentage 100 and SkipMatching false.",
+        why: "Terminates before launching and replaces everything." },
+      { t: "Suspend the Launch process.",
+        why: "Stops replacements." }
+    ],
+    answer: [0],
+    tip: "Launch before terminate = max healthy > 100%; don't redo = skip matching."
+  },
+  {
+    id: "asg-21", domain: "d3", topic: "Auto Scaling",
+    q: "Whenever EC2 Image Builder publishes a new hardened AMI, the company wants the production Auto Scaling group updated automatically with a safe rolling replacement. Which design is the MOST automated?",
+    options: [
+      { t: "An EventBridge rule on the Image Builder image-available event triggers Lambda (or SSM Automation) to create a new launch template version with the AMI and start an instance refresh with checkpoints and auto rollback.",
+        why: "Correct. Event-driven LT update + instance refresh automates the rollout safely." },
+      { t: "Email the team to update the AMI manually.",
+        why: "Manual." },
+      { t: "Use a scheduled action.",
+        why: "Changes capacity, not AMIs." },
+      { t: "Detach all instances and create a new ASG manually.",
+        why: "Manual and disruptive." }
+    ],
+    answer: [0],
+    tip: "Golden AMI pipeline = Image Builder → EventBridge → new LT version → instance refresh."
+  },
+  {
+    id: "asg-22", domain: "d3", topic: "Auto Scaling",
+    q: "A Spot-heavy Auto Scaling group loses capacity when Spot Instances are interrupted, causing brief overloads. What should the DevOps engineer configure to reduce the impact? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable Capacity Rebalancing so the group launches replacements when a Spot rebalance recommendation is received.",
+        why: "Correct. Replacements start before the interruption notice." },
+      { t: "Use the price-capacity-optimized allocation strategy across many instance types (or attribute-based selection).",
+        why: "Correct. Diversification and capacity-aware allocation reduce interruptions." },
+      { t: "Add a warm pool.",
+        why: "Warm pools don't support Spot." },
+      { t: "Use the lowest-price strategy with a single instance type.",
+        why: "Increases interruption risk." },
+      { t: "Use EC2 termination protection.",
+        why: "Doesn't prevent Spot interruptions." }
+    ],
+    answer: [0, 1],
+    tip: "Spot resilience = Capacity Rebalancing + price-capacity-optimized + diversification."
   }
 ];
+
 
 
 

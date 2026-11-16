@@ -2395,6 +2395,78 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Auto Scaling",
+  sections: [
+    { h: "ASG foundations", items: [
+      "**Launch templates** (versioned) · min / desired / max · multi-AZ, AZ rebalancing",
+      "Health: EC2 (default) · **ELB** (enable for app failures) · custom · **grace period** · **default instance warmup**",
+      "Mixed instances: On-Demand base + %, Spot **price-capacity-optimized**, attribute-based types · **Capacity Rebalancing**",
+      "**Standby** (out of service, not replaced) · **suspend** `ReplaceUnhealthy` / `HealthCheck` · **scale-in protection** (EC2 termination protection doesn't stop ASG)",
+      "Group metrics · activity history · EventBridge events"
+    ]},
+    { h: "Lifecycle hooks", items: [
+      "**Launch** → `Pending:Wait` · **Terminate** → `Terminating:Wait`",
+      "**Heartbeat default 3600 s** · `RecordLifecycleActionHeartbeat` extends (≤ 48 h) · default result CONTINUE / ABANDON",
+      "**`complete-lifecycle-action`** finishes · **ABANDON on launch = terminate**",
+      "Registered with LB **after** launch hook · notifications: **EventBridge**, SNS, SQS",
+      "Launch: bootstrap / validate before traffic · Terminate: **logs to S3**, drain (EventBridge → SSM / Lambda)",
+      "Scale-out takes 1 h = **no complete-lifecycle-action**"
+    ]},
+    { h: "Warm pools", items: [
+      "Pre-initialised instances: **Stopped (cheapest)** / Hibernated / **Running (fastest)**",
+      "Min size + max prepared capacity · **`ReuseOnScaleIn`** returns instances to pool",
+      "Hooks on pool entry (slow setup) and pool → InService",
+      "**No mixed instances / Spot** · alternative: golden AMI, predictive / scheduled"
+    ]},
+    { h: "Termination policies", items: [
+      "**AZ with most instances first** → allocation strategy → **oldest LT / LC** → closest to billing hour → random",
+      "**OldestInstance** · **NewestInstance** · OldestLaunchTemplate · ClosestToNextInstanceHour · AllocationStrategy · **custom Lambda**",
+      "Scale-in protection / Standby exempt instances"
+    ]},
+    { h: "Scaling policies", table: [
+      ["Policy", "Use"],
+      ["**Target tracking**", "Keep metric at target (CPU, **ALBRequestCountPerTarget**, custom) · managed alarms · **out if any, in if all**"],
+      ["**Step**", "Alarm + graded steps · warmup"],
+      ["Simple", "Legacy · cooldown 300 s"],
+      ["**Scheduled**", "One-time / **cron** + **time zone** · set min / max / desired"],
+      ["**Predictive**", "ML forecast (**≥ 24 h** history, 48 h ahead) · **forecast only** first · launch ahead · **+ target tracking**"],
+      ["**SQS**", "**Backlog per instance** custom metric + target tracking"]
+    ]},
+    { h: "Instance refresh", items: [
+      "**MinHealthyPercentage** (default 90) · **MaxHealthyPercentage ≤ 200** (> 100 = launch first)",
+      "Instance warmup · **checkpoints** + delay · **skip matching** · desired configuration · bake time",
+      "**AutoRollback** on failure / **CloudWatch alarms** (AlarmSpecification) · `RollbackInstanceRefresh` · cancel",
+      "Golden AMI: **Image Builder → EventBridge → new LT version → instance refresh**",
+      "CFN alternative: UpdatePolicy rolling / replacing · app code only: CodeDeploy"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Setup / validate before traffic", "Launch hook"],
+      ["Logs before termination", "Terminate hook + EventBridge → SSM"],
+      ["Scale-out 1 h after adding hook", "Call complete-lifecycle-action"],
+      ["Slow boot, low idle cost", "Warm pool Stopped"],
+      ["Return to pool on scale-in", "ReuseOnScaleIn"],
+      ["Warm pool rejected", "Mixed / Spot unsupported"],
+      ["Which AZ on scale-in", "AZ with most instances"],
+      ["Oldest first", "OldestInstance"],
+      ["Fewest sessions", "Custom Lambda policy"],
+      ["Protect one instance", "Scale-in protection"],
+      ["Troubleshoot, no replacement", "Standby / suspend ReplaceUnhealthy"],
+      ["500s not replaced", "ELB health checks"],
+      ["Requests per target", "Target tracking ALBRequestCountPerTarget"],
+      ["SQS workers", "Backlog per instance"],
+      ["Two target policies disagree", "Out if any, in if all"],
+      ["Daily pattern + spikes", "Predictive + target tracking"],
+      ["Predictive not scaling yet", "Needs 24 h, forecast only"],
+      ["Black Friday / business hours", "Scheduled actions"],
+      ["AMI rollout + rollback", "Instance refresh + auto rollback"],
+      ["Launch before terminate", "Max healthy > 100 + skip matching"],
+      ["Spot interruptions", "Capacity Rebalancing + price-capacity-optimized"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
