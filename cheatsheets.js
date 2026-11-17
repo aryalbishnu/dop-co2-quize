@@ -2467,6 +2467,70 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "ELB",
+  sections: [
+    { h: "Pick the load balancer", table: [
+      ["Type", "Use"],
+      ["**ALB** (L7)", "Host / path / header routing, **weighted TGs**, Lambda / IP targets, **WAF**, **OIDC / Cognito auth**, mTLS, **X-Forwarded-For**"],
+      ["**NLB** (L4)", "TCP / UDP / TLS, **static / Elastic IPs**, **source IP preserved**, millions req/s, **PrivateLink**, **ALB as target**"],
+      ["**GWLB** (L3)", "**GENEVE**, third-party firewalls / IDS, **GWLB endpoints**, flow stickiness"],
+      ["CLB", "Legacy"],
+      ["Static IP + L7", "**NLB → ALB** or **Global Accelerator → ALB**"],
+      ["Multi-Region", "ELB is **regional** → Route 53 / Global Accelerator"]
+    ]},
+    { h: "Health checks", items: [
+      "Interval **30 s** · healthy **5** · unhealthy **2** · timeout 5 s · matcher **200** (ranges allowed)",
+      "States: initial, healthy, unhealthy, **draining**, unused, unavailable",
+      "**Fail open**: all unhealthy → route to all · TG health thresholds for **DNS failover**",
+      "ASG must use **ELB health check type** (+ grace period) to replace LB-unhealthy instances",
+      "Keep health checks **lightweight** (deep checks = cascading failure)"
+    ]},
+    { h: "Draining and cross-zone", items: [
+      "**Deregistration delay** default **300 s** (0–3600) · lower = faster deploys / scale-in · raise = long uploads / WebSockets",
+      "CodeDeploy batches slow by ~5 min = deregistration delay",
+      "Cross-zone: **ALB on, free** · **NLB / GWLB off, charged** when on",
+      "Uneven AZ load → **enable cross-zone** or **balance instances** · cross-zone off pairs with **ARC zonal shift**"
+    ]},
+    { h: "Stickiness", items: [
+      "ALB **duration** (`AWSALB`, 1 s–7 days) · **application cookie** (`AWSALBAPP`) · **target group stickiness** (`AWSALBTG`) for weighted blue/green",
+      "NLB: **source IP** · GWLB: 5-tuple (3 / 2-tuple)",
+      "Downsides: uneven load, sessions lost on failure → **ElastiCache / DynamoDB sessions**"
+    ]},
+    { h: "TLS, errors, logs", items: [
+      "ALB HTTPS + ACM + **SNI** · re-encrypt to targets · **NLB TCP passthrough** when backend terminates TLS · NLB TLS listener · **ALB mTLS**",
+      "**502** bad response / closed (keep-alive < idle timeout) · **503** no registered targets · **504** target timeout",
+      "ALB **idle timeout 60 s** (backend keep-alive higher) · NLB TCP idle 350 s",
+      "**Access logs** to S3 (**off by default**) + Athena · `HTTPCode_ELB_5XX` vs `HTTPCode_Target_5XX` · `TargetResponseTime`",
+      "**Slow start** ramps new targets · algorithms: round robin, least outstanding, weighted random"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Path routing + WAF + auth", "ALB"],
+      ["Static IPs + path routing", "NLB → ALB / Global Accelerator"],
+      ["PrivateLink service", "NLB"],
+      ["Third-party firewalls inline", "GWLB"],
+      ["Client IP behind ALB", "X-Forwarded-For"],
+      ["Unhealthy not replaced", "ASG ELB health check"],
+      ["All targets unhealthy", "Fail open; lightweight checks"],
+      ["Deploy batches +5 min", "Lower deregistration delay"],
+      ["Uploads cut on scale-in", "Raise deregistration delay"],
+      ["NLB one AZ overloaded", "Cross-zone / balance instances"],
+      ["Random logouts", "Stickiness → external sessions"],
+      ["Follow app cookie", "Application-based stickiness"],
+      ["Users flip versions in canary", "Target group stickiness"],
+      ["502 with short keep-alive", "Keep-alive > idle timeout"],
+      ["503", "No registered targets"],
+      ["504", "Target timeout"],
+      ["Backend terminates TLS", "NLB TCP passthrough"],
+      ["SQL over requests", "Access logs + Athena"],
+      ["New targets need warmup", "Slow start"],
+      ["Regional failover", "Route 53 alias Evaluate Target Health"],
+      ["SQL injection protection", "WAF on ALB"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

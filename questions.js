@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -12407,8 +12407,365 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Spot resilience = Capacity Rebalancing + price-capacity-optimized + diversification."
+  },
+  // ───────────────────────────── Domain 3: ELB ─────────────────────────────
+  {
+    id: "elb-01", domain: "d3", topic: "ELB",
+    q: "A company runs several microservices behind one entry point. Requests for api.example.com/orders/* must go to the orders service, /users/* to the users service, and some routes must be protected by AWS WAF and require Amazon Cognito sign-in. Which load balancer should be used?",
+    options: [
+      { t: "Application Load Balancer with host- and path-based listener rules, WAF association and authenticate-cognito actions.",
+        why: "Correct. ALB provides L7 routing, WAF integration and built-in authentication." },
+      { t: "Network Load Balancer.",
+        why: "L4 only - no path routing, WAF or authentication." },
+      { t: "Gateway Load Balancer.",
+        why: "For inline network appliances." },
+      { t: "Classic Load Balancer.",
+        why: "Legacy, no advanced routing." }
+    ],
+    answer: [0],
+    tip: "Path / host routing + WAF + auth = ALB."
+  },
+  {
+    id: "elb-02", domain: "d3", topic: "ELB",
+    q: "A partner can only allow-list fixed IP addresses in its firewall. The company's application needs HTTP path-based routing. What should a DevOps engineer implement?",
+    options: [
+      { t: "A Network Load Balancer with Elastic IP addresses per AZ that forwards to an Application Load Balancer target (or AWS Global Accelerator in front of the ALB).",
+        why: "Correct. NLB / Global Accelerator provide static IPs while the ALB keeps L7 routing." },
+      { t: "Assign Elastic IPs to the ALB.",
+        why: "ALBs don't support static IPs." },
+      { t: "Use a Classic Load Balancer.",
+        why: "No static IPs either." },
+      { t: "Publish the ALB's current IP addresses.",
+        why: "ALB IPs change over time." }
+    ],
+    answer: [0],
+    tip: "Static IPs + L7 = NLB → ALB (or Global Accelerator → ALB)."
+  },
+  {
+    id: "elb-03", domain: "d3", topic: "ELB",
+    q: "A SaaS provider wants to expose its service privately to customers' VPCs in other AWS accounts, without VPC peering or internet exposure. Which load balancer must front the service?",
+    options: [
+      { t: "A Network Load Balancer configured as the backend of a VPC endpoint service (AWS PrivateLink).",
+        why: "Correct. PrivateLink endpoint services are backed by an NLB (or GWLB for appliances)." },
+      { t: "An Application Load Balancer directly.",
+        why: "An ALB can sit behind an NLB, but endpoint services use NLB / GWLB." },
+      { t: "A Classic Load Balancer.",
+        why: "Not supported for endpoint services." },
+      { t: "Route 53 private hosted zones only.",
+        why: "DNS doesn't provide private connectivity." }
+    ],
+    answer: [0],
+    tip: "PrivateLink endpoint service = NLB."
+  },
+  {
+    id: "elb-04", domain: "d3", topic: "ELB",
+    q: "A security team must send all traffic entering a VPC through a fleet of third-party firewall appliances for inspection, transparently, while scaling the appliances. Which service fits?",
+    options: [
+      { t: "Gateway Load Balancer with Gateway Load Balancer endpoints referenced in the VPC route tables.",
+        why: "Correct. GWLB uses GENEVE to insert appliances transparently (bump-in-the-wire)." },
+      { t: "Application Load Balancer with WAF.",
+        why: "WAF isn't a third-party appliance fleet and ALB isn't transparent at L3." },
+      { t: "Network Load Balancer with TLS listeners.",
+        why: "Not designed for transparent appliance insertion." },
+      { t: "Route 53 Resolver DNS Firewall.",
+        why: "Filters DNS queries only." }
+    ],
+    answer: [0],
+    tip: "Third-party appliance inspection = GWLB + endpoints."
+  },
+  {
+    id: "elb-05", domain: "d3", topic: "ELB",
+    q: "Application servers behind an ALB need the original client IP address for audit logging. What should the application read?",
+    options: [
+      { t: "The X-Forwarded-For HTTP header added by the ALB.",
+        why: "Correct. The ALB connects to targets from its own IPs and adds the client IP in X-Forwarded-For." },
+      { t: "The TCP source IP address of the connection.",
+        why: "That's the ALB node's IP." },
+      { t: "The X-Amzn-Trace-Id header.",
+        why: "For request tracing." },
+      { t: "VPC Flow Logs.",
+        why: "Would show the ALB IP as the source to the target." }
+    ],
+    answer: [0],
+    tip: "Client IP behind ALB = X-Forwarded-For."
+  },
+  {
+    id: "elb-06", domain: "d3", topic: "ELB",
+    q: "The ALB target group shows some instances as unhealthy because the application hung, but the Auto Scaling group never replaces them. What should be changed?",
+    options: [
+      { t: "Set the Auto Scaling group health check type to ELB (with a suitable health check grace period).",
+        why: "Correct. By default the ASG uses only EC2 status checks." },
+      { t: "Reduce the ALB idle timeout.",
+        why: "Unrelated to replacement." },
+      { t: "Enable sticky sessions.",
+        why: "Unrelated." },
+      { t: "Increase the deregistration delay.",
+        why: "Doesn't trigger replacement." }
+    ],
+    answer: [0],
+    tip: "LB-unhealthy instances not replaced = ASG ELB health check type."
+  },
+  {
+    id: "elb-07", domain: "d3", topic: "ELB",
+    q: "A health check endpoint queries the shared database. During a brief database slowdown, every target became unhealthy at once. What happens to traffic, and what is the recommended design?",
+    options: [
+      { t: "The load balancer fails open and routes to all targets; keep health checks lightweight (process / local checks) and monitor deep dependencies separately with alarms.",
+        why: "Correct. Deep checks on shared dependencies can cause cascading failures." },
+      { t: "All traffic is dropped; make the health check even deeper.",
+        why: "ELB fails open, and deeper checks increase the risk." },
+      { t: "Traffic goes to another Region automatically.",
+        why: "Only if Route 53 failover is configured." },
+      { t: "The load balancer returns 200 for all requests.",
+        why: "Not how fail open works." }
+    ],
+    answer: [0],
+    tip: "All unhealthy = fail open; keep health checks lightweight."
+  },
+  {
+    id: "elb-08", domain: "d3", topic: "ELB",
+    q: "A CodeDeploy in-place deployment behind an ALB takes about 5 extra minutes for every batch, even though requests complete in under a second. What is the MOST likely cause and fix?",
+    options: [
+      { t: "The target group deregistration delay is the default 300 seconds; lower it (for example to 30 seconds).",
+        why: "Correct. Targets stay in draining for the full delay before the deployment continues." },
+      { t: "The health check interval is too short.",
+        why: "Wouldn't add 5 minutes per batch." },
+      { t: "Sticky sessions are enabled.",
+        why: "Doesn't cause fixed 5-minute waits." },
+      { t: "Cross-zone load balancing is disabled.",
+        why: "ALB has cross-zone on; unrelated." }
+    ],
+    answer: [0],
+    tip: "5 minutes per deploy batch = deregistration delay 300 s."
+  },
+  {
+    id: "elb-09", domain: "d3", topic: "ELB",
+    q: "Users uploading large files (several minutes per upload) see failures whenever the Auto Scaling group scales in. What should be adjusted?",
+    options: [
+      { t: "Increase the target group deregistration delay so in-flight uploads can finish while the target is draining (optionally with a terminate lifecycle hook).",
+        why: "Correct. Draining lets existing connections complete before termination." },
+      { t: "Disable health checks.",
+        why: "Doesn't protect in-flight requests." },
+      { t: "Lower the deregistration delay to 0.",
+        why: "Cuts connections immediately." },
+      { t: "Enable cross-zone load balancing.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Long requests cut on scale-in = increase deregistration delay."
+  },
+  {
+    id: "elb-10", domain: "d3", topic: "ELB",
+    q: "A Network Load Balancer spans two AZs. AZ-a has 2 instances and AZ-b has 8. The 2 instances in AZ-a are overloaded. Why, and what are the fixes? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable cross-zone load balancing on the NLB (or target group) so each node distributes across all registered targets.",
+        why: "Correct. NLB cross-zone is off by default, so each AZ node sends traffic only to its AZ's targets." },
+      { t: "Balance the number of instances across AZs (for example via the Auto Scaling group).",
+        why: "Correct. Even targets per AZ fixes the imbalance without cross-zone." },
+      { t: "Enable sticky sessions.",
+        why: "Would worsen imbalance." },
+      { t: "Lower the deregistration delay.",
+        why: "Unrelated." },
+      { t: "Switch to the least outstanding requests algorithm.",
+        why: "That's an ALB algorithm and doesn't cross AZs on an NLB." }
+    ],
+    answer: [0, 1],
+    tip: "Uneven AZ load on NLB = enable cross-zone or balance instances."
+  },
+  {
+    id: "elb-11", domain: "d3", topic: "ELB",
+    q: "Which statement about cross-zone load balancing defaults and costs is correct?",
+    options: [
+      { t: "ALB has cross-zone enabled by default with no inter-AZ data charges; NLB and GWLB have it disabled by default and charge inter-AZ data when enabled.",
+        why: "Correct." },
+      { t: "All load balancers have cross-zone disabled by default.",
+        why: "ALB is enabled by default." },
+      { t: "ALB charges for inter-AZ traffic when cross-zone is enabled.",
+        why: "No inter-AZ charge for ALB cross-zone." },
+      { t: "Cross-zone can't be changed on NLB.",
+        why: "It can be enabled on the LB or target group." }
+    ],
+    answer: [0],
+    tip: "Cross-zone: ALB on / free; NLB, GWLB off / charged."
+  },
+  {
+    id: "elb-12", domain: "d3", topic: "ELB",
+    q: "A legacy web application stores user sessions in local memory. After moving behind an ALB with multiple instances, users are randomly logged out. What is the quickest fix, and what is the better long-term design?",
+    options: [
+      { t: "Quick fix: enable ALB sticky sessions (duration-based AWSALB cookie). Long term: make the app stateless and store sessions in ElastiCache or DynamoDB.",
+        why: "Correct. Stickiness keeps users on one target; externalized sessions remove uneven load and session loss." },
+      { t: "Increase the idle timeout.",
+        why: "Doesn't route users to the same instance." },
+      { t: "Use an NLB with cross-zone disabled.",
+        why: "Doesn't solve session affinity for HTTP well." },
+      { t: "Lower the deregistration delay.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Local sessions = stickiness now, external session store later."
+  },
+  {
+    id: "elb-13", domain: "d3", topic: "ELB",
+    q: "An application already issues its own session cookie named APPSESSION, and the team wants ALB stickiness to follow that cookie's lifetime rather than a fixed duration. Which stickiness type should be configured?",
+    options: [
+      { t: "Application-based cookie stickiness with the cookie name APPSESSION (the ALB adds an AWSALBAPP cookie).",
+        why: "Correct. Application-based stickiness follows the application cookie." },
+      { t: "Duration-based stickiness.",
+        why: "Uses a fixed duration and the AWSALB cookie." },
+      { t: "Source IP stickiness.",
+        why: "That's NLB behavior." },
+      { t: "Target group stickiness.",
+        why: "For keeping users on a target group in weighted forwarding." }
+    ],
+    answer: [0],
+    tip: "Follow your app cookie = application-based stickiness (AWSALBAPP)."
+  },
+  {
+    id: "elb-14", domain: "d3", topic: "ELB",
+    q: "A team runs a canary by forwarding 90% of traffic to the blue target group and 10% to the green target group on an ALB listener rule. Users complain that they flip between versions. What should be enabled?",
+    options: [
+      { t: "Target group stickiness on the weighted forward action (AWSALBTG cookie) so each user stays on one target group for a set duration.",
+        why: "Correct. Target group stickiness keeps users on the same version during weighted routing." },
+      { t: "Duration-based target stickiness only.",
+        why: "Keeps users on a target within a group, not on the same target group." },
+      { t: "Cross-zone load balancing.",
+        why: "Unrelated." },
+      { t: "Slow start mode.",
+        why: "Ramps new targets; doesn't keep users on a version." }
+    ],
+    answer: [0],
+    tip: "Keep users on blue or green during weighting = target group stickiness."
+  },
+  {
+    id: "elb-15", domain: "d3", topic: "ELB",
+    q: "Users intermittently receive HTTP 502 errors from an ALB. Target logs show the application's keep-alive timeout is 5 seconds, while the ALB idle timeout is 60 seconds. What should be done?",
+    options: [
+      { t: "Set the application's keep-alive timeout higher than the ALB idle timeout (or lower the ALB idle timeout below it).",
+        why: "Correct. When the target closes idle connections before the ALB, the ALB can get a closed connection and return 502." },
+      { t: "Increase the deregistration delay.",
+        why: "Unrelated to keep-alive." },
+      { t: "Enable sticky sessions.",
+        why: "Doesn't fix connection closure." },
+      { t: "Switch to cross-zone off.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "502 + short backend keep-alive = keep-alive > ALB idle timeout."
+  },
+  {
+    id: "elb-16", domain: "d3", topic: "ELB",
+    q: "An ALB returns HTTP 503 for every request immediately after a deployment script ran. What is the MOST likely cause?",
+    options: [
+      { t: "The target group has no registered (or no available) targets, for example because the script deregistered all instances.",
+        why: "Correct. ALB returns 503 when there are no targets to route to." },
+      { t: "The targets are responding too slowly.",
+        why: "That causes 504." },
+      { t: "The targets return malformed responses.",
+        why: "That causes 502." },
+      { t: "The SSL certificate expired.",
+        why: "Causes TLS handshake failures, not 503." }
+    ],
+    answer: [0],
+    tip: "ALB 503 = no registered targets."
+  },
+  {
+    id: "elb-17", domain: "d3", topic: "ELB",
+    q: "Some API requests that run complex reports for more than 60 seconds fail with HTTP 504 from the ALB. What is the cause and an appropriate fix?",
+    options: [
+      { t: "The target didn't respond before the ALB idle timeout (60 s default); optimize or make the request asynchronous, or increase the ALB idle timeout.",
+        why: "Correct. 504 means the target timed out." },
+      { t: "No targets are registered.",
+        why: "That's 503." },
+      { t: "The target closed the connection early.",
+        why: "That's typically 502." },
+      { t: "WAF is blocking the request.",
+        why: "WAF blocks return 403." }
+    ],
+    answer: [0],
+    tip: "ALB 504 = target timeout (idle timeout 60 s)."
+  },
+  {
+    id: "elb-18", domain: "d3", topic: "ELB",
+    q: "A backend service must perform its own TLS termination because it uses client certificates checked by the application itself, and the load balancer must not decrypt traffic. Which configuration is appropriate?",
+    options: [
+      { t: "A Network Load Balancer with a TCP listener on port 443 (TLS passthrough to the targets).",
+        why: "Correct. TCP passthrough keeps TLS end-to-end to the backend." },
+      { t: "An ALB HTTPS listener with an ACM certificate.",
+        why: "Terminates TLS at the ALB." },
+      { t: "An NLB TLS listener.",
+        why: "Terminates TLS at the NLB." },
+      { t: "CloudFront in front of an ALB.",
+        why: "Terminates TLS at the edge." }
+    ],
+    answer: [0],
+    tip: "Backend must terminate TLS = NLB TCP passthrough."
+  },
+  {
+    id: "elb-19", domain: "d3", topic: "ELB",
+    q: "The security team wants to analyze every request handled by an ALB (client IP, path, status code, latency) using SQL. What should be done?",
+    options: [
+      { t: "Enable ALB access logs to an S3 bucket (they're off by default) and query them with Amazon Athena.",
+        why: "Correct. Access logs capture per-request details." },
+      { t: "Use the RequestCount CloudWatch metric.",
+        why: "Aggregated counts only." },
+      { t: "Enable VPC Flow Logs.",
+        why: "Network-level, no HTTP paths or status codes." },
+      { t: "Access logs are enabled by default; just query CloudWatch Logs.",
+        why: "They're off by default and go to S3." }
+    ],
+    answer: [0],
+    tip: "Per-request ALB analysis = access logs to S3 + Athena."
+  },
+  {
+    id: "elb-20", domain: "d3", topic: "ELB",
+    q: "Newly launched instances behind an ALB need a few minutes to warm their caches. When they're registered, they immediately receive a full share of traffic and respond slowly. Which ALB feature helps?",
+    options: [
+      { t: "Slow start mode on the target group, which gradually increases the share of requests sent to new targets.",
+        why: "Correct. Slow start ramps traffic linearly over the configured duration." },
+      { t: "Sticky sessions.",
+        why: "Doesn't ramp new targets." },
+      { t: "A longer deregistration delay.",
+        why: "Affects removal, not new targets." },
+      { t: "Cross-zone load balancing.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Ramp traffic to new targets = slow start."
+  },
+  {
+    id: "elb-21", domain: "d3", topic: "ELB",
+    q: "A company wants Route 53 to fail over from its primary Region's ALB to a secondary Region automatically when the primary ALB has no healthy targets. What should be configured?",
+    options: [
+      { t: "Route 53 failover alias records pointing to the ALBs with Evaluate Target Health enabled (optionally tuning target group health thresholds).",
+        why: "Correct. Alias records can use the ALB's target health for DNS failover." },
+      { t: "Cross-zone load balancing on both ALBs.",
+        why: "Works within a Region only." },
+      { t: "Sticky sessions across Regions.",
+        why: "Not possible." },
+      { t: "A single ALB spanning both Regions.",
+        why: "ELB is regional." }
+    ],
+    answer: [0],
+    tip: "Regional ALB failover = Route 53 alias + Evaluate Target Health."
+  },
+  {
+    id: "elb-22", domain: "d3", topic: "ELB",
+    q: "A company needs to protect its public web application from common web exploits such as SQL injection at the load balancer layer. The application currently uses an NLB. What should the DevOps engineer do?",
+    options: [
+      { t: "Use an Application Load Balancer (for example NLB → ALB, or replace the NLB) and associate AWS WAF with the ALB.",
+        why: "Correct. WAF attaches to ALB, not NLB." },
+      { t: "Attach AWS WAF directly to the NLB.",
+        why: "WAF doesn't support NLB." },
+      { t: "Enable cross-zone load balancing.",
+        why: "Unrelated to web exploits." },
+      { t: "Use security groups on the NLB to block SQL injection.",
+        why: "Security groups filter IP / port, not request content." }
+    ],
+    answer: [0],
+    tip: "WAF = ALB (not NLB)."
   }
 ];
+
 
 
 

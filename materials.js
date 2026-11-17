@@ -42,5 +42,6 @@ window.MATERIALS = [
   { domain: "d2", topics: ["Domain 2 Extras"], title: "Week 4 notes - Domain 2 extras: OpsWorks, Lambda / Step Functions / Scheduler automation, CloudFormation Git sync and IaC generator (traps, lab, check yourself)", file: "pdfs/Week4_Domain2_Extras.pdf" },
   { domain: "d2", topics: [], title: "Domain 2 master cheat sheet and keyword list (Configuration Management and IaC, incl. extras)", file: "pdfs/Domain2_Master_Cheat_Sheet.pdf" },
   { domain: "d3", topics: ["DR Strategies"], title: "Week 5 notes - DR strategies: backup and restore, pilot light, warm standby, multi-site; RTO vs RPO (traps, lab, check yourself)", file: "pdfs/Week5_DR_Strategies.pdf" },
-  { domain: "d3", topics: ["Auto Scaling"], title: "Week 5 notes - Auto Scaling: lifecycle hooks, warm pools, termination policies, scaling policies, instance refresh (traps, lab, check yourself)", file: "pdfs/Week5_Auto_Scaling.pdf" }
+  { domain: "d3", topics: ["Auto Scaling"], title: "Week 5 notes - Auto Scaling: lifecycle hooks, warm pools, termination policies, scaling policies, instance refresh (traps, lab, check yourself)", file: "pdfs/Week5_Auto_Scaling.pdf" },
+  { domain: "d3", topics: ["ELB"], title: "Week 5 notes - Elastic Load Balancing: ALB / NLB / GWLB, health checks, connection draining, cross-zone, sticky sessions (traps, lab, check yourself)", file: "pdfs/Week5_ELB.pdf" }
 ];
