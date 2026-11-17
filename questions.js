@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -12763,8 +12763,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "WAF = ALB (not NLB)."
+  },
+  // ───────────────────────────── Domain 3: Route 53 ─────────────────────────────
+  {
+    id: "r53-01", domain: "d3", topic: "Route 53",
+    q: "A team deploys a new version of a web application to a separate ALB and wants to send 10% of users to it for one day before a full cutover, with the ability to switch back quickly. Which Route 53 configuration should be used?",
+    options: [
+      { t: "Weighted alias records for both ALBs (90 and 10) with a low TTL, adjusting weights to 0 / 100 for cutover or rollback.",
+        why: "Correct. Weighted routing splits traffic by weight and supports quick changes." },
+      { t: "Failover routing with the new ALB as secondary.",
+        why: "Failover sends all traffic to the primary while healthy." },
+      { t: "Geolocation routing.",
+        why: "Routes by user location, not percentage." },
+      { t: "Simple routing with both ALB DNS names.",
+        why: "Simple routing can't use alias to two targets or control percentages." }
+    ],
+    answer: [0],
+    tip: "Percentage canary = weighted routing (low TTL)."
+  },
+  {
+    id: "r53-02", domain: "d3", topic: "Route 53",
+    q: "A company wants users to be sent to a static 'we'll be back soon' page hosted on Amazon S3 automatically whenever the primary application endpoint becomes unhealthy. What should be configured?",
+    options: [
+      { t: "Route 53 failover routing: a primary record for the application with a health check (or Evaluate Target Health) and a secondary alias record to the S3 static website.",
+        why: "Correct. Failover routing returns the secondary when the primary is unhealthy." },
+      { t: "Weighted routing 100 / 0.",
+        why: "Doesn't switch based on health unless health checks and weights are combined in a specific way; failover is the purpose-built option." },
+      { t: "Latency routing.",
+        why: "Chooses the lowest-latency Region." },
+      { t: "Geolocation routing with a default record.",
+        why: "Routes by location." }
+    ],
+    answer: [0],
+    tip: "Maintenance page on failure = failover routing + health check."
+  },
+  {
+    id: "r53-03", domain: "d3", topic: "Route 53",
+    q: "A global SaaS application runs in us-east-1, eu-west-1 and ap-southeast-1. Users should automatically reach the Region that gives them the best network performance, and unhealthy Regions should be avoided. Which routing policy fits BEST?",
+    options: [
+      { t: "Latency-based routing with health checks (or Evaluate Target Health) on each Regional record.",
+        why: "Correct. Latency routing picks the Region with the lowest measured latency." },
+      { t: "Geolocation routing by continent.",
+        why: "Routes by location rules, which may not be the fastest Region." },
+      { t: "Weighted routing with equal weights.",
+        why: "Splits evenly regardless of performance." },
+      { t: "Simple routing.",
+        why: "No health checks or performance-based selection." }
+    ],
+    answer: [0],
+    tip: "Fastest Region = latency routing."
+  },
+  {
+    id: "r53-04", domain: "d3", topic: "Route 53",
+    q: "For data residency reasons, users in the European Union must always be served by the application stack in eu-central-1, while all other users go to us-east-1. Which configuration meets this requirement?",
+    options: [
+      { t: "Geolocation routing: a record for Europe (or the specific EU countries) pointing to eu-central-1, and a Default location record pointing to us-east-1.",
+        why: "Correct. Geolocation routes by user location; the default record covers everyone else." },
+      { t: "Latency-based routing.",
+        why: "EU users might get a non-EU Region if it's faster." },
+      { t: "Geoproximity routing with a bias.",
+        why: "Distance-based, not strict country rules." },
+      { t: "Multivalue answer routing.",
+        why: "Random healthy records." }
+    ],
+    answer: [0],
+    tip: "Residency by user location = geolocation (+ default)."
+  },
+  {
+    id: "r53-05", domain: "d3", topic: "Route 53",
+    q: "After setting up geolocation routing for North America and Europe only, users in South America report that the domain doesn't resolve. What is the fix?",
+    options: [
+      { t: "Add a Default geolocation record so users from unmapped locations receive an answer.",
+        why: "Correct. Without a default, Route 53 returns no answer for unmatched locations." },
+      { t: "Lower the TTL.",
+        why: "Doesn't create an answer." },
+      { t: "Switch to simple routing.",
+        why: "Loses geolocation routing." },
+      { t: "Add a health check.",
+        why: "Health checks don't add locations." }
+    ],
+    answer: [0],
+    tip: "Geolocation no answer = add Default record."
+  },
+  {
+    id: "r53-06", domain: "d3", topic: "Route 53",
+    q: "A company runs the same application in us-east-1 and us-west-2 and wants to gradually move users in the central United States from us-east-1 to us-west-2 over a week, based on geographic proximity. Which feature supports this?",
+    options: [
+      { t: "Geoproximity routing, increasing the bias for us-west-2 (or decreasing it for us-east-1) step by step.",
+        why: "Correct. Bias expands or shrinks a Region's geographic catchment area." },
+      { t: "Latency routing.",
+        why: "Can't be tuned gradually." },
+      { t: "Failover routing.",
+        why: "All-or-nothing based on health." },
+      { t: "IP-based routing.",
+        why: "Routes by client CIDR, not geographic proximity." }
+    ],
+    answer: [0],
+    tip: "Gradually shift by geography = geoproximity bias."
+  },
+  {
+    id: "r53-07", domain: "d3", topic: "Route 53",
+    q: "A company wants DNS to return up to eight IP addresses of healthy web servers so that clients can choose one, without placing a load balancer in front. Unhealthy servers must not be returned. Which routing policy should be used?",
+    options: [
+      { t: "Multivalue answer routing with a health check on each record.",
+        why: "Correct. Multivalue returns up to 8 healthy records." },
+      { t: "Simple routing with multiple IP values.",
+        why: "Simple routing doesn't support health checks." },
+      { t: "Weighted routing with weight 0.",
+        why: "Weight 0 removes traffic." },
+      { t: "Latency routing.",
+        why: "Returns one Region's answer." }
+    ],
+    answer: [0],
+    tip: "Several healthy IPs = multivalue answer."
+  },
+  {
+    id: "r53-08", domain: "d3", topic: "Route 53",
+    q: "A company wants its root domain example.com (zone apex) to point to an Application Load Balancer. An engineer tries to create a CNAME record and receives an error. What should be done?",
+    options: [
+      { t: "Create an alias A (and AAAA) record at the zone apex pointing to the ALB.",
+        why: "Correct. CNAMEs aren't allowed at the apex; alias records are." },
+      { t: "Point the apex to the ALB's current IP addresses with an A record.",
+        why: "ALB IPs change." },
+      { t: "Use a TXT record.",
+        why: "TXT records don't route traffic." },
+      { t: "Create the CNAME in a private hosted zone.",
+        why: "Still not allowed at the apex and wouldn't be public." }
+    ],
+    answer: [0],
+    tip: "Zone apex → AWS resource = alias record."
+  },
+  {
+    id: "r53-09", domain: "d3", topic: "Route 53",
+    q: "An internal service runs on EC2 instances in private subnets with no public IPs. The team wants a Route 53 failover record that switches when this service becomes unhealthy. Why does an endpoint health check fail, and what should be used instead?",
+    options: [
+      { t: "Route 53 health checkers run on the internet and can't reach private IPs; create a CloudWatch alarm on a service metric and use a CloudWatch alarm-based health check.",
+        why: "Correct. Alarm-based health checks monitor private resources through metrics." },
+      { t: "Increase the failure threshold.",
+        why: "Checkers still can't reach the private IP." },
+      { t: "Use a calculated health check with no children.",
+        why: "Needs child checks." },
+      { t: "Enable HTTPS health checks.",
+        why: "Protocol doesn't solve reachability." }
+    ],
+    answer: [0],
+    tip: "Health check private resource = CloudWatch alarm-based."
+  },
+  {
+    id: "r53-10", domain: "d3", topic: "Route 53",
+    q: "An application should be considered healthy for DNS failover only if both the web tier health check and the API tier health check are healthy. Which Route 53 feature should be used?",
+    options: [
+      { t: "A calculated health check that combines the two child health checks with an AND condition (both must be healthy).",
+        why: "Correct. Calculated health checks combine children with AND / OR / at least N." },
+      { t: "Two separate failover records.",
+        why: "Doesn't combine health." },
+      { t: "Multivalue answer routing.",
+        why: "Returns records independently." },
+      { t: "Increase the request interval.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Combine health checks = calculated health check."
+  },
+  {
+    id: "r53-11", domain: "d3", topic: "Route 53",
+    q: "A new Route 53 HTTP health check on a public web server always reports unhealthy, although the website works from a browser. Which are likely causes? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "The security group or firewall doesn't allow inbound traffic from the Route 53 health checker IP ranges.",
+        why: "Correct. Checkers must be able to reach the endpoint." },
+      { t: "The health check uses the wrong port, path, or a string match that doesn't appear in the first 5,120 bytes of the response.",
+        why: "Correct. Misconfiguration causes false unhealthy results." },
+      { t: "The record TTL is too high.",
+        why: "TTL doesn't affect health checks." },
+      { t: "The hosted zone is public.",
+        why: "Public zones support health checks." },
+      { t: "Route 53 health checks only support TCP.",
+        why: "HTTP / HTTPS are supported." }
+    ],
+    answer: [0, 1],
+    tip: "Always unhealthy = checker IPs blocked or wrong path / port / string."
+  },
+  {
+    id: "r53-12", domain: "d3", topic: "Route 53",
+    q: "A company uses alias records pointing to ALBs in two Regions with failover routing. It wants failover to happen when an ALB has no healthy targets, without creating and paying for separate Route 53 health checks. What should be configured?",
+    options: [
+      { t: "Set Evaluate Target Health to Yes on the alias records.",
+        why: "Correct. The alias uses the ALB's target health for routing decisions." },
+      { t: "Create TCP health checks on the ALB IPs.",
+        why: "ALB IPs change, and separate checks aren't needed." },
+      { t: "Use weighted routing with weight 0.",
+        why: "Doesn't evaluate health." },
+      { t: "Increase the TTL.",
+        why: "Slows failover." }
+    ],
+    answer: [0],
+    tip: "Alias failover without health checks = Evaluate Target Health."
+  },
+  {
+    id: "r53-13", domain: "d3", topic: "Route 53",
+    q: "The operations team wants an email whenever a Route 53 health check becomes unhealthy. The CloudWatch alarm they created in eu-west-1 never finds the metric. Why?",
+    options: [
+      { t: "Route 53 health check metrics (HealthCheckStatus) are published in us-east-1; create the alarm (and SNS topic) in us-east-1.",
+        why: "Correct. Route 53 is global and its health check metrics are in us-east-1." },
+      { t: "Health checks don't publish metrics.",
+        why: "They publish HealthCheckStatus." },
+      { t: "The alarm needs a 10-second period.",
+        why: "The Region is the issue." },
+      { t: "Route 53 can only notify through EventBridge.",
+        why: "CloudWatch alarms work." }
+    ],
+    answer: [0],
+    tip: "Route 53 health check metrics = us-east-1."
+  },
+  {
+    id: "r53-14", domain: "d3", topic: "Route 53",
+    q: "All records in a weighted record set become unhealthy at the same time. How does Route 53 respond to DNS queries?",
+    options: [
+      { t: "It considers all records healthy again (fails open) and returns them according to their weights.",
+        why: "Correct. Route 53 doesn't return an empty answer because of health checks." },
+      { t: "It returns NXDOMAIN.",
+        why: "Not the behavior." },
+      { t: "It returns no answer.",
+        why: "Fail open returns records." },
+      { t: "It automatically uses the secondary Region.",
+        why: "Only if failover is configured." }
+    ],
+    answer: [0],
+    tip: "All unhealthy in a group = fail open."
+  },
+  {
+    id: "r53-15", domain: "d3", topic: "Route 53",
+    q: "A company wants users routed to the lowest-latency Region, and within each Region wants automatic failover from the primary ALB to a backup stack in the same Region. How can this be designed in Route 53?",
+    options: [
+      { t: "Nested records: latency-based alias records per Region pointing to failover record sets (primary ALB / secondary backup) in each Region, or the equivalent Traffic Flow policy.",
+        why: "Correct. Alias records let you combine routing policies in a tree." },
+      { t: "A single record with both latency and failover policies.",
+        why: "A record has one routing policy; combine with nested aliases." },
+      { t: "Geolocation routing only.",
+        why: "Doesn't provide latency or failover combination." },
+      { t: "Simple routing with all ALBs.",
+        why: "No health or latency logic." }
+    ],
+    answer: [0],
+    tip: "Combine policies = nested alias records / Traffic Flow."
+  },
+  {
+    id: "r53-16", domain: "d3", topic: "Route 53",
+    q: "A financial company requires that Regional failover be a deliberate decision by the incident commander, must work reliably even if Route 53's control plane APIs are impaired, and must never allow both Regions to be turned off. Which solution meets these requirements?",
+    options: [
+      { t: "Route 53 ARC routing controls in a cluster (data plane endpoints), tied to routing control health checks used by failover records, with an assertion safety rule requiring at least one Region on.",
+        why: "Correct. Routing controls give reliable, manual failover with safety rules." },
+      { t: "Edit the Route 53 failover records manually during the incident.",
+        why: "Depends on the control plane and is error-prone." },
+      { t: "Automatic failover based on endpoint health checks only.",
+        why: "Not a deliberate decision, and no safety rules." },
+      { t: "Increase the TTL to keep users stable.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Human-approved, reliable failover + safety rules = ARC routing controls."
+  },
+  {
+    id: "r53-17", domain: "d3", topic: "Route 53",
+    q: "How does an ARC routing control move traffic between Regions?",
+    options: [
+      { t: "Each routing control is linked to a Route 53 routing control health check; turning the control off makes the health check unhealthy, so failover (or other health-checked) records route to the other Region.",
+        why: "Correct. Routing controls work through health checks on the data plane." },
+      { t: "It rewrites DNS records through the Route 53 API.",
+        why: "It doesn't edit records." },
+      { t: "It changes ALB listener rules.",
+        why: "Not how routing controls work." },
+      { t: "It modifies VPC route tables.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Routing control off → its health check unhealthy → DNS failover."
+  },
+  {
+    id: "r53-18", domain: "d3", topic: "Route 53",
+    q: "An AZ in a Region is experiencing intermittent network issues. An application behind an ALB (cross-zone load balancing disabled) runs in three AZs with enough capacity in any two. The team wants to quickly move traffic away from the impaired AZ for a few hours. What should they use?",
+    options: [
+      { t: "An ARC zonal shift for the ALB away from the impaired AZ, with an expiry time.",
+        why: "Correct. Zonal shift temporarily removes an AZ from traffic for supported resources." },
+      { t: "Delete the subnet in the impaired AZ.",
+        why: "Disruptive and slow." },
+      { t: "Change Route 53 to geolocation routing.",
+        why: "Doesn't target AZs." },
+      { t: "Disable health checks.",
+        why: "Would keep sending traffic to bad targets." }
+    ],
+    answer: [0],
+    tip: "Move traffic from an AZ temporarily = zonal shift."
+  },
+  {
+    id: "r53-19", domain: "d3", topic: "Route 53",
+    q: "A company wants AWS to automatically move its application's traffic away from an Availability Zone when AWS detects an impairment there, without operator action. What must it configure, and what is required?",
+    options: [
+      { t: "Enable ARC zonal autoshift for the resource, configure practice runs with outcome (and optionally blocking) alarms, and ensure enough capacity in the remaining AZs.",
+        why: "Correct. Autoshift requires practice runs and static capacity to absorb shifted traffic." },
+      { t: "Enable cross-zone load balancing only.",
+        why: "Doesn't evacuate an AZ." },
+      { t: "Create Route 53 latency records per AZ.",
+        why: "Route 53 records don't target AZs this way." },
+      { t: "Use ARC readiness checks only.",
+        why: "Readiness checks verify replicas; they don't shift traffic." }
+    ],
+    answer: [0],
+    tip: "Automatic AZ evacuation = zonal autoshift (+ practice runs, capacity)."
+  },
+  {
+    id: "r53-20", domain: "d3", topic: "Route 53",
+    q: "Before relying on a warm standby Region, leadership wants continuous verification that the standby has the same Auto Scaling capacity, service quotas and configuration as production. Which ARC feature provides this?",
+    options: [
+      { t: "ARC readiness checks with a recovery group, cells and resource sets.",
+        why: "Correct. Readiness checks continuously compare replicas for readiness." },
+      { t: "Routing controls.",
+        why: "Switch traffic; don't check parity." },
+      { t: "Zonal shift.",
+        why: "Moves traffic from an AZ." },
+      { t: "Route 53 calculated health checks.",
+        why: "Combine health, not capacity / quota parity." }
+    ],
+    answer: [0],
+    tip: "Is the DR Region ready? = ARC readiness checks."
+  },
+  {
+    id: "r53-21", domain: "d3", topic: "Route 53",
+    q: "A company's Region failover involves several ordered steps: scaling up compute in the standby Region, failing over an Aurora Global Database, switching traffic and running a custom validation Lambda function, with an approval step. It wants this to be a repeatable, auditable plan. What should it use?",
+    options: [
+      { t: "ARC Region switch with a recovery plan made of ordered execution blocks (scaling, Aurora Global Database failover, routing, Lambda, approval).",
+        why: "Correct. Region switch orchestrates multi-step Region failover and failback." },
+      { t: "A Route 53 weighted record.",
+        why: "Only shifts DNS traffic." },
+      { t: "Zonal autoshift.",
+        why: "AZ-level only." },
+      { t: "A manual runbook in a wiki.",
+        why: "Not automated or auditable." }
+    ],
+    answer: [0],
+    tip: "Orchestrated multi-step Region failover = ARC Region switch."
+  },
+  {
+    id: "r53-22", domain: "d3", topic: "Route 53",
+    q: "Workloads in several VPCs across accounts must resolve the on-premises domain corp.example.com using the corporate DNS servers. Which Route 53 configuration fits?",
+    options: [
+      { t: "A Route 53 Resolver outbound endpoint with a forwarding rule for corp.example.com, shared to the other accounts with AWS RAM and associated with their VPCs.",
+        why: "Correct. Outbound endpoints and forwarding rules provide hybrid DNS resolution." },
+      { t: "A public hosted zone for corp.example.com.",
+        why: "Wouldn't use the corporate DNS servers." },
+      { t: "A Resolver inbound endpoint only.",
+        why: "Inbound is for on-premises resolving AWS names." },
+      { t: "Geolocation routing.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "VPCs resolve on-prem names = outbound endpoint + forwarding rule (RAM)."
   }
 ];
+
 
 
 

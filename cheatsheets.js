@@ -2531,6 +2531,71 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Route 53",
+  sections: [
+    { h: "Basics", items: [
+      "Public / **private hosted zones** (VPC association, cross-account authorization)",
+      "**Alias**: AWS targets (ELB, CloudFront, S3 website, API GW, Global Accelerator), **zone apex OK**, **free**, **Evaluate Target Health** · **not EC2 DNS**",
+      "**CNAME not at apex** · **low TTL** (60 s) for failover / migrations",
+      "Resolver: **inbound** (on-prem → AWS), **outbound + forwarding rules** (RAM share), DNS Firewall, Profiles",
+      "Global: health metrics, query logs, DNSSEC keys in **us-east-1**"
+    ]},
+    { h: "Routing policies", table: [
+      ["Policy", "Use"],
+      ["Simple", "Single resource · **no health checks**"],
+      ["**Weighted**", "**Canary / blue-green** (0–255, weight 0 = none)"],
+      ["**Latency**", "**Fastest Region**"],
+      ["**Failover**", "Active/passive DR · **primary needs health check** · S3 maintenance page"],
+      ["**Geolocation**", "Continent / country / state · **compliance** · **Default record required**"],
+      ["**Geoproximity**", "Distance + **bias** (−99…+99) to shift traffic"],
+      ["**Multivalue**", "Up to **8 healthy** records (client-side)"],
+      ["**IP-based**", "Client CIDR collections (ISPs / networks)"],
+      ["Nested / Traffic Flow", "Combine (latency → failover) · policy records cost monthly"]
+    ]},
+    { h: "Health checks", items: [
+      "**Endpoint**: HTTP / HTTPS / TCP, path, **string match** (first 5,120 bytes), **30 s / 10 s**, threshold **3**, healthy if **> 18%** of ~15 checkers, 2xx/3xx in 4 s",
+      "**Allow checker IP ranges** in SG / firewall · HTTPS doesn't validate cert",
+      "**Calculated**: AND / OR / at least N children (≤ 256)",
+      "**CloudWatch alarm-based**: **private resources** / business metrics",
+      "`HealthCheckStatus` in **us-east-1** → alarm → SNS · **fail open** if all unhealthy",
+      "Alias **Evaluate Target Health** replaces separate ELB checks"
+    ]},
+    { h: "ARC", items: [
+      "**Zonal shift**: manual, temporary move away from an AZ (ALB, NLB, ASG, EKS) · best with **cross-zone off**",
+      "**Zonal autoshift**: AWS shifts on AZ impairment · needs **practice runs** + outcome / blocking alarms + **spare capacity**",
+      "**Routing controls**: cluster = **5 data plane endpoints** · on/off → **routing control health check** → failover records · **safety rules** (assertion: ≥ 1 on; gating) · per-hour cost",
+      "**Readiness checks**: recovery group → cells → resource sets · capacity / quota / config parity",
+      "**Region switch**: recovery plans (scale, Aurora failover, routing, Lambda, approval)",
+      "Seconds failover without DNS caching → **Global Accelerator**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["10% canary", "Weighted"],
+      ["Maintenance page on failure", "Failover + health check"],
+      ["Best performance globally", "Latency"],
+      ["EU residency", "Geolocation + default"],
+      ["Geo routing no answer", "Add Default record"],
+      ["Gradual geographic shift", "Geoproximity bias"],
+      ["Up to 8 healthy IPs", "Multivalue"],
+      ["Apex to ALB", "Alias record"],
+      ["Private resource health", "CloudWatch alarm-based check"],
+      ["Both tiers must be healthy", "Calculated (AND)"],
+      ["Always unhealthy", "Checker IPs / path / string"],
+      ["ELB failover, no checks", "Evaluate Target Health"],
+      ["Alarm metric missing", "us-east-1"],
+      ["All unhealthy", "Fail open"],
+      ["Latency + failover", "Nested aliases"],
+      ["Human-approved reliable failover", "ARC routing controls + safety rules"],
+      ["Move away from bad AZ now", "Zonal shift"],
+      ["Automatic AZ evacuation", "Zonal autoshift"],
+      ["Is DR ready?", "Readiness checks"],
+      ["Multi-step Region failover plan", "Region switch"],
+      ["VPCs resolve on-prem names", "Outbound endpoint + rule (RAM)"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
