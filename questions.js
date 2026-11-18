@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -13119,8 +13119,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "VPCs resolve on-prem names = outbound endpoint + forwarding rule (RAM)."
+  },
+  // ───────────────────────────── Domain 3: Multi-Region Data ─────────────────────────────
+  {
+    id: "mrd-01", domain: "d3", topic: "Multi-Region Data",
+    q: "A production RDS for PostgreSQL database must automatically fail over within a couple of minutes if its Availability Zone fails, and applications must keep using the same connection endpoint. Which configuration meets this requirement?",
+    options: [
+      { t: "Enable RDS Multi-AZ (DB instance deployment) so a synchronous standby in another AZ is promoted automatically and the endpoint DNS points to it.",
+        why: "Correct. Multi-AZ provides automatic failover in the Region using the same endpoint." },
+      { t: "Create a read replica in another AZ and promote it manually.",
+        why: "Manual promotion and a different endpoint." },
+      { t: "Take hourly snapshots.",
+        why: "Restore takes much longer and loses data." },
+      { t: "Create a cross-Region read replica.",
+        why: "DR across Regions, not automatic AZ failover." }
+    ],
+    answer: [0],
+    tip: "Automatic AZ failover, same endpoint = RDS Multi-AZ."
+  },
+  {
+    id: "mrd-02", domain: "d3", topic: "Multi-Region Data",
+    q: "A team runs RDS MySQL Multi-AZ (DB instance) and wants to send reporting queries to the standby to reduce load on the primary. Why won't this work, and what should they do?",
+    options: [
+      { t: "The Multi-AZ DB instance standby isn't readable; create read replicas (or use a Multi-AZ DB cluster with readable standbys) for reporting.",
+        why: "Correct. The standby exists only for failover." },
+      { t: "Point the reporting tool at the standby's private IP.",
+        why: "The standby doesn't accept connections." },
+      { t: "Enable Performance Insights on the standby.",
+        why: "Doesn't make it readable." },
+      { t: "Reboot with failover every night.",
+        why: "Disruptive and doesn't add read capacity." }
+    ],
+    answer: [0],
+    tip: "Multi-AZ instance standby isn't readable → read replicas / Multi-AZ cluster."
+  },
+  {
+    id: "mrd-03", domain: "d3", topic: "Multi-Region Data",
+    q: "A company wants RDS failover under 35 seconds within a Region and also wants two standby copies that can serve read traffic. The engine is MySQL. What should it use?",
+    options: [
+      { t: "A Multi-AZ DB cluster (one writer and two readable standbys across three AZs).",
+        why: "Correct. Multi-AZ DB clusters offer faster failover and readable standbys." },
+      { t: "A Multi-AZ DB instance.",
+        why: "Standby isn't readable and failover is typically 60 to 120 seconds." },
+      { t: "A single-AZ instance with read replicas.",
+        why: "No automatic failover." },
+      { t: "Cross-Region automated backups.",
+        why: "Backups, not HA." }
+    ],
+    answer: [0],
+    tip: "Faster failover + readable standbys = Multi-AZ DB cluster."
+  },
+  {
+    id: "mrd-04", domain: "d3", topic: "Multi-Region Data",
+    q: "A company has an RDS MySQL database in us-east-1 and wants a DR copy in us-west-2 with an RPO of a few seconds. In a disaster, an engineer will make the DR copy writable. What should be configured, and what is the failover step?",
+    options: [
+      { t: "A cross-Region read replica in us-west-2 (preferably Multi-AZ); during a disaster, promote the replica to a standalone instance and repoint the application.",
+        why: "Correct. Async cross-Region replication gives seconds of RPO; promotion is manual." },
+      { t: "Multi-AZ in us-east-1.",
+        why: "Same Region only." },
+      { t: "Daily snapshot copies to us-west-2.",
+        why: "RPO up to 24 hours." },
+      { t: "A cross-Region read replica that fails over automatically.",
+        why: "RDS cross-Region replicas don't fail over automatically." }
+    ],
+    answer: [0],
+    tip: "RDS cross-Region DR seconds RPO = cross-Region replica + manual promote."
+  },
+  {
+    id: "mrd-05", domain: "d3", topic: "Multi-Region Data",
+    q: "An engineer tries to create a read replica of an RDS instance, but the option is unavailable. The source instance has automated backup retention set to 0. What is required?",
+    options: [
+      { t: "Enable automated backups (retention greater than 0) on the source instance.",
+        why: "Correct. Read replicas require automated backups on the source." },
+      { t: "Enable Multi-AZ first.",
+        why: "Not a requirement." },
+      { t: "Use a larger instance class.",
+        why: "Not the issue." },
+      { t: "Disable encryption.",
+        why: "Encrypted sources support replicas." }
+    ],
+    answer: [0],
+    tip: "Read replica requires automated backups on source."
+  },
+  {
+    id: "mrd-06", domain: "d3", topic: "Multi-Region Data",
+    q: "A company needs the lowest-cost cross-Region DR for an RDS PostgreSQL database with an RPO of minutes and an RTO of a few hours, without running a database instance in the DR Region. Which option fits?",
+    options: [
+      { t: "Cross-Region automated backup replication (snapshots and transaction logs copied), restoring to a point in time in the DR Region when needed.",
+        why: "Correct. Low cost with point-in-time recovery in the DR Region." },
+      { t: "A cross-Region read replica.",
+        why: "Requires a running instance (higher cost)." },
+      { t: "Aurora Global Database.",
+        why: "Different engine, higher cost." },
+      { t: "Multi-AZ.",
+        why: "Same Region." }
+    ],
+    answer: [0],
+    tip: "Cheap RDS DR, RPO minutes = cross-Region automated backup replication."
+  },
+  {
+    id: "mrd-07", domain: "d3", topic: "Multi-Region Data",
+    q: "A company runs Aurora PostgreSQL and needs a secondary Region with replication lag typically under one second, low-latency local reads in that Region, and a managed way to fail over in about a minute during a Regional outage. What should it use?",
+    options: [
+      { t: "Aurora Global Database with a secondary cluster in the other Region.",
+        why: "Correct. Storage-based replication under 1 s and managed failover." },
+      { t: "Aurora Replicas in the same Region.",
+        why: "Same Region only." },
+      { t: "Daily Aurora snapshots copied cross-Region.",
+        why: "RPO of a day." },
+      { t: "DynamoDB Global Tables.",
+        why: "Different database." }
+    ],
+    answer: [0],
+    tip: "Aurora cross-Region < 1 s, ~1 min failover = Global Database."
+  },
+  {
+    id: "mrd-08", domain: "d3", topic: "Multi-Region Data",
+    q: "To keep DR costs low, a company wants its Aurora Global Database secondary Region to replicate data continuously but not pay for database instances until a disaster occurs. What should it configure?",
+    options: [
+      { t: "A headless secondary cluster (storage only, no DB instances), adding instances during failover.",
+        why: "Correct. Headless secondaries support a pilot light pattern." },
+      { t: "A secondary cluster with 16 replicas.",
+        why: "Maximum cost." },
+      { t: "Stop the secondary cluster instances permanently.",
+        why: "Headless is the supported approach." },
+      { t: "Delete the secondary and rely on snapshots.",
+        why: "Loses continuous replication." }
+    ],
+    answer: [0],
+    tip: "Aurora pilot light = headless secondary."
+  },
+  {
+    id: "mrd-09", domain: "d3", topic: "Multi-Region Data",
+    q: "Applications in an Aurora Global Database secondary Region occasionally need to perform writes, but the team doesn't want to change application code to connect to the primary Region. Which feature helps?",
+    options: [
+      { t: "Write forwarding on the secondary cluster, which forwards writes to the primary writer.",
+        why: "Correct. The primary remains the single writer; secondaries forward writes." },
+      { t: "Make the secondary cluster writable directly.",
+        why: "Secondaries are read-only." },
+      { t: "Enable Multi-AZ on the secondary.",
+        why: "Doesn't enable writes." },
+      { t: "Use DynamoDB Streams.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Writes from Aurora secondary Region = write forwarding."
+  },
+  {
+    id: "mrd-10", domain: "d3", topic: "Multi-Region Data",
+    q: "During a scheduled DR drill, a company wants to move the primary Region of its Aurora Global Database to the secondary Region with no data loss, then move it back after the test. Which operation should be used?",
+    options: [
+      { t: "A switchover (planned operation) of the Aurora Global Database.",
+        why: "Correct. Switchover synchronizes before moving the writer, so RPO is zero." },
+      { t: "Detach and promote the secondary cluster.",
+        why: "Breaks the global database and risks data loss." },
+      { t: "Managed failover with allow data loss.",
+        why: "Intended for unplanned outages." },
+      { t: "Restore a snapshot in the other Region.",
+        why: "Slow and loses data." }
+    ],
+    answer: [0],
+    tip: "Planned Region move, no data loss = switchover."
+  },
+  {
+    id: "mrd-11", domain: "d3", topic: "Multi-Region Data",
+    q: "After an Aurora Global Database failover to a secondary Region, applications had to be reconfigured with a new connection string. The team wants future switchovers and failovers to require no application connection changes. What should they use?",
+    options: [
+      { t: "The Aurora Global Database global writer endpoint, which always points to the current primary writer.",
+        why: "Correct. It follows the primary across Regions." },
+      { t: "The secondary cluster reader endpoint.",
+        why: "Points to readers in one Region." },
+      { t: "Hardcode both Regional endpoints.",
+        why: "Requires application logic and changes." },
+      { t: "An RDS Proxy in each Region only.",
+        why: "Doesn't automatically follow the global primary." }
+    ],
+    answer: [0],
+    tip: "No connection change across Regions = global writer endpoint."
+  },
+  {
+    id: "mrd-12", domain: "d3", topic: "Multi-Region Data",
+    q: "A financial application on Aurora PostgreSQL Global Database must never lose more than a bounded amount of committed data if the primary Region fails, even if replication falls behind. What feature limits this?",
+    options: [
+      { t: "Set the rds.global_db_rpo parameter so the primary pauses commits if secondaries exceed the RPO threshold.",
+        why: "Correct. RPO management bounds data loss for Aurora PostgreSQL Global Database." },
+      { t: "Increase the number of Aurora Replicas.",
+        why: "Doesn't bound cross-Region lag." },
+      { t: "Enable Backtrack.",
+        why: "Rewinds data in place; doesn't bound RPO." },
+      { t: "Use Multi-AZ.",
+        why: "Same-Region HA." }
+    ],
+    answer: [0],
+    tip: "Bound Aurora PostgreSQL global RPO = rds.global_db_rpo."
+  },
+  {
+    id: "mrd-13", domain: "d3", topic: "Multi-Region Data",
+    q: "A mobile game has players in North America, Europe and Asia. Each player's progress must be written with single-digit millisecond latency in the closest Region, and the application must keep working if one Region fails. Which database solution fits?",
+    options: [
+      { t: "DynamoDB Global Tables with replicas in the three Regions; each application stack writes to its local replica.",
+        why: "Correct. Global Tables are multi-active with local reads and writes." },
+      { t: "Aurora Global Database.",
+        why: "Single writer in one Region." },
+      { t: "RDS with cross-Region read replicas.",
+        why: "Replicas are read-only." },
+      { t: "DynamoDB in one Region with DAX.",
+        why: "No Regional resilience or local writes elsewhere." }
+    ],
+    answer: [0],
+    tip: "Local writes in every Region = DynamoDB Global Tables."
+  },
+  {
+    id: "mrd-14", domain: "d3", topic: "Multi-Region Data",
+    q: "With DynamoDB Global Tables in the default mode, the same item is updated in two Regions within milliseconds. How is the conflict resolved?",
+    options: [
+      { t: "Last writer wins, based on the update timestamp.",
+        why: "Correct. Default (MREC) global tables use last-writer-wins." },
+      { t: "The write in the older Region wins.",
+        why: "Not the rule." },
+      { t: "Both writes fail.",
+        why: "Not the behavior." },
+      { t: "DynamoDB merges attribute values.",
+        why: "Items aren't merged." }
+    ],
+    answer: [0],
+    tip: "Global Tables (MREC) conflicts = last-writer-wins."
+  },
+  {
+    id: "mrd-15", domain: "d3", topic: "Multi-Region Data",
+    q: "A payments ledger needs multi-Region resilience with zero data loss (RPO 0) and strongly consistent reads in any Region, and can accept higher write latency. Which DynamoDB feature fits?",
+    options: [
+      { t: "DynamoDB Global Tables with multi-Region strong consistency (MRSC), deployed across three Regions.",
+        why: "Correct. MRSC provides strong consistency across Regions and RPO zero." },
+      { t: "Global Tables in default eventual consistency mode.",
+        why: "Async with last-writer-wins; RPO isn't zero." },
+      { t: "DynamoDB Streams with Lambda replication.",
+        why: "Custom async replication." },
+      { t: "PITR only.",
+        why: "Backups, not multi-Region active resilience." }
+    ],
+    answer: [0],
+    tip: "Multi-Region strong consistency, RPO 0 = Global Tables MRSC."
+  },
+  {
+    id: "mrd-16", domain: "d3", topic: "Multi-Region Data",
+    q: "A developer accidentally deleted thousands of items from a DynamoDB global table. The deletions replicated to all Regions. What should have been in place to recover the data?",
+    options: [
+      { t: "Point-in-time recovery (PITR) or AWS Backup backups for the table, because replication copies deletes to every replica.",
+        why: "Correct. Replication isn't a backup." },
+      { t: "An additional replica Region.",
+        why: "Deletes replicate there too." },
+      { t: "Higher write capacity.",
+        why: "Unrelated." },
+      { t: "TTL settings.",
+        why: "TTL deletes items; it doesn't restore them." }
+    ],
+    answer: [0],
+    tip: "Global tables replicate deletes → keep PITR / backups."
+  },
+  {
+    id: "mrd-17", domain: "d3", topic: "Multi-Region Data",
+    q: "A company enabled S3 Cross-Region Replication on a bucket that already contains 50 million objects. Only new uploads appear in the destination bucket. How should the existing objects be replicated?",
+    options: [
+      { t: "Run S3 Batch Replication for the existing objects.",
+        why: "Correct. Replication rules apply to new objects; Batch Replication handles existing or failed ones." },
+      { t: "Disable and re-enable versioning.",
+        why: "Doesn't replicate existing objects." },
+      { t: "Wait - S3 will backfill automatically.",
+        why: "It won't." },
+      { t: "Enable Replication Time Control.",
+        why: "Adds an SLA for new objects only." }
+    ],
+    answer: [0],
+    tip: "Existing objects = S3 Batch Replication."
+  },
+  {
+    id: "mrd-18", domain: "d3", topic: "Multi-Region Data",
+    q: "An engineer tries to configure S3 replication from a source bucket to a destination bucket and the console blocks the rule. Which requirement is MOST likely missing?",
+    options: [
+      { t: "Versioning must be enabled on both the source and destination buckets.",
+        why: "Correct. Replication requires versioning on both." },
+      { t: "Both buckets must use the same storage class.",
+        why: "Destination class can differ." },
+      { t: "Both buckets must be in the same account.",
+        why: "Cross-account replication is supported." },
+      { t: "Object Lock must be enabled.",
+        why: "Not required." }
+    ],
+    answer: [0],
+    tip: "S3 replication needs versioning on both buckets."
+  },
+  {
+    id: "mrd-19", domain: "d3", topic: "Multi-Region Data",
+    q: "Objects encrypted with SSE-KMS aren't being replicated to the destination bucket in another Region, while SSE-S3 objects replicate fine. What should be done? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable replication of objects encrypted with AWS KMS in the replication rule and specify a KMS key in the destination Region.",
+        why: "Correct. SSE-KMS replication must be explicitly enabled with a destination key." },
+      { t: "Grant the replication role kms:Decrypt on the source key and kms:Encrypt on the destination key.",
+        why: "Correct. The role needs permission to use both keys." },
+      { t: "Disable versioning on the destination.",
+        why: "Versioning is required." },
+      { t: "Switch the destination to S3 Glacier.",
+        why: "Storage class doesn't fix KMS permissions." },
+      { t: "Enable delete marker replication.",
+        why: "Unrelated to encryption." }
+    ],
+    answer: [0, 1],
+    tip: "SSE-KMS replication = enable KMS option + destination key + role KMS permissions."
+  },
+  {
+    id: "mrd-20", domain: "d3", topic: "Multi-Region Data",
+    q: "A company replicates objects from its production account bucket to a bucket in a separate backup account. The backup account must own the replica objects so that its own policies apply. What should be configured?",
+    options: [
+      { t: "Cross-account replication with owner override (AccessControlTranslation) so replicas are owned by the destination account, plus a destination bucket policy allowing the replication role.",
+        why: "Correct. Owner override transfers object ownership to the destination account." },
+      { t: "Same-Region Replication only.",
+        why: "Region type doesn't change ownership." },
+      { t: "Make the destination bucket public.",
+        why: "Insecure." },
+      { t: "Use S3 Transfer Acceleration.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Replicas owned by destination account = owner override."
+  },
+  {
+    id: "mrd-21", domain: "d3", topic: "Multi-Region Data",
+    q: "A malicious insider permanently deletes specific object versions in a production S3 bucket that replicates to a DR bucket in another Region. What happens in the DR bucket?",
+    options: [
+      { t: "The permanently deleted versions remain in the DR bucket, because deletions of specific object versions are never replicated.",
+        why: "Correct. This protects replicas from malicious version deletes." },
+      { t: "The same versions are deleted in the DR bucket.",
+        why: "Version deletes aren't replicated." },
+      { t: "The DR bucket is emptied.",
+        why: "Not the behavior." },
+      { t: "Replication stops permanently.",
+        why: "Not the behavior." }
+    ],
+    answer: [0],
+    tip: "Permanent version deletes aren't replicated."
+  },
+  {
+    id: "mrd-22", domain: "d3", topic: "Multi-Region Data",
+    q: "A media company needs objects copied to a second Region within a predictable time backed by an SLA, wants alerts for objects that take longer, and wants applications to use a single global S3 endpoint that routes to the nearest bucket and can fail over. Which combination meets these needs?",
+    options: [
+      { t: "S3 CRR with Replication Time Control (99.99% within 15 minutes, metrics and event notifications), two-way replication, and S3 Multi-Region Access Points with failover controls.",
+        why: "Correct. RTC adds the SLA; Multi-Region Access Points provide one endpoint with routing and failover." },
+      { t: "Same-Region Replication and CloudFront.",
+        why: "SRR doesn't copy to another Region." },
+      { t: "S3 Transfer Acceleration only.",
+        why: "Speeds uploads; no replication SLA." },
+      { t: "Daily S3 Batch Operations copy jobs.",
+        why: "No SLA, not continuous." }
+    ],
+    answer: [0],
+    tip: "Replication SLA + single global endpoint = RTC + Multi-Region Access Points."
   }
 ];
+
 
 
 

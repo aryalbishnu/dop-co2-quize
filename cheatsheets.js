@@ -2596,6 +2596,70 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Multi-Region Data",
+  sections: [
+    { h: "RDS: Multi-AZ vs read replicas", table: [
+      ["", "Multi-AZ instance", "Multi-AZ cluster", "Read replica"],
+      ["Purpose", "**HA** in Region", "HA + reads", "**Read scaling** / cross-Region copy"],
+      ["Replication", "**Sync**", "Semi-sync", "**Async** (`ReplicaLag`)"],
+      ["Readable", "**No**", "Yes (2 standbys, 3 AZs)", "Yes"],
+      ["Failover", "**Auto 60–120 s**, same endpoint", "Auto < 35 s", "**Manual promote** (standalone)"]
+    ]},
+    { h: "RDS details", items: [
+      "Replicas: up to **15** (MySQL / MariaDB / PostgreSQL) · same or cross-Region · **automated backups required** · destination-Region **KMS key** · can be Multi-AZ",
+      "Cross-Region DR: **snapshot copy** (cheapest) → **automated backup replication** (PITR, RPO minutes) → **cross-Region replica + promote** (RPO seconds)",
+      "Use **endpoint DNS**, retries, **RDS Proxy** · test with reboot with failover"
+    ]},
+    { h: "Aurora Global Database", items: [
+      "In-Region: **6 copies / 3 AZs**, 15 replicas, reader endpoint, ~**30 s** failover by promotion tier",
+      "Global: **storage-based async, < 1 s**, read-only secondaries (16 replicas each), **headless secondary** = pilot light",
+      "**Write forwarding** (single primary writer) · **global writer endpoint** follows primary",
+      "**Switchover** = planned, **RPO 0** · **failover** = unplanned, RPO seconds, **RTO < 1 min** · detach-and-promote",
+      "`AuroraGlobalDBReplicationLag` / `RPOLag` · PostgreSQL **`rds.global_db_rpo`** bounds data loss"
+    ]},
+    { h: "DynamoDB Global Tables", items: [
+      "**Multi-active** read / write in every Region · async **< 1 s**",
+      "**MREC** (default): eventual, **last-writer-wins** · **MRSC**: strong consistency, **RPO 0**, 3 Regions, higher write latency",
+      "Add replicas to existing table · on-demand or auto scaling · replicated write units · GSIs / TTL replicated",
+      "`ReplicationLatency` · partition write ownership · **keep PITR / Backup** (deletes replicate)"
+    ]},
+    { h: "S3 CRR / SRR", items: [
+      "**CRR** = other Region (DR, latency, compliance) · **SRR** = same Region (log aggregation, prod → test, sovereignty)",
+      "**Versioning both buckets** · IAM replication role · prefix / tag filters · destination storage class",
+      "**New objects only** → **Batch Replication** for existing / failed",
+      "Cross-account: bucket policy + **owner override** · **SSE-KMS**: enable KMS replication + destination key + role KMS perms",
+      "Delete markers **optional** · **version deletes never replicated** · **not transitive** · lifecycle not replicated",
+      "**RTC** 99.99% in **15 min** + metrics / notifications · **two-way** + replica modification sync · **Multi-Region Access Points** (failover controls)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Auto AZ failover, same endpoint", "RDS Multi-AZ"],
+      ["Reports on standby", "Not readable → replicas"],
+      ["< 35 s + readable standbys", "Multi-AZ DB cluster"],
+      ["RDS DR seconds RPO", "Cross-Region replica + promote"],
+      ["Replica option missing", "Enable automated backups"],
+      ["Cheap RDS DR, no instance", "Automated backup replication"],
+      ["Aurora < 1 s cross-Region", "Global Database"],
+      ["Aurora pilot light", "Headless secondary"],
+      ["Writes from secondary", "Write forwarding"],
+      ["Drill, no data loss", "Switchover"],
+      ["No connection change", "Global writer endpoint"],
+      ["Bound Aurora RPO", "rds.global_db_rpo"],
+      ["Local writes everywhere", "Global Tables"],
+      ["Global table conflict", "Last-writer-wins"],
+      ["Strong consistency, RPO 0", "Global Tables MRSC"],
+      ["Deletes replicated", "PITR / Backup"],
+      ["Existing S3 objects", "Batch Replication"],
+      ["Rule blocked", "Versioning both"],
+      ["SSE-KMS not replicating", "KMS option + keys + role"],
+      ["Destination owns replicas", "Owner override"],
+      ["Version deleted in source", "Remains in destination"],
+      ["SLA + single endpoint", "RTC + Multi-Region Access Points"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
