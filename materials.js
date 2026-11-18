@@ -45,5 +45,6 @@ window.MATERIALS = [
   { domain: "d3", topics: ["Auto Scaling"], title: "Week 5 notes - Auto Scaling: lifecycle hooks, warm pools, termination policies, scaling policies, instance refresh (traps, lab, check yourself)", file: "pdfs/Week5_Auto_Scaling.pdf" },
   { domain: "d3", topics: ["ELB"], title: "Week 5 notes - Elastic Load Balancing: ALB / NLB / GWLB, health checks, connection draining, cross-zone, sticky sessions (traps, lab, check yourself)", file: "pdfs/Week5_ELB.pdf" },
   { domain: "d3", topics: ["Route 53"], title: "Week 5 notes - Route 53: routing policies, health checks, ARC (traps, lab, check yourself)", file: "pdfs/Week5_Route53.pdf" },
-  { domain: "d3", topics: ["Multi-Region Data"], title: "Week 5 notes - Multi-Region data: Aurora Global Database, DynamoDB Global Tables, RDS read replicas / Multi-AZ, S3 CRR / SRR (traps, lab, check yourself)", file: "pdfs/Week5_Multi_Region_Data.pdf" }
+  { domain: "d3", topics: ["Multi-Region Data"], title: "Week 5 notes - Multi-Region data: Aurora Global Database, DynamoDB Global Tables, RDS read replicas / Multi-AZ, S3 CRR / SRR (traps, lab, check yourself)", file: "pdfs/Week5_Multi_Region_Data.pdf" },
+  { domain: "d3", topics: ["AWS Backup"], title: "Week 5 notes - AWS Backup: plans, vaults, cross-Region / cross-account copies, Vault Lock (traps, lab, check yourself)", file: "pdfs/Week5_AWS_Backup.pdf" }
 ];

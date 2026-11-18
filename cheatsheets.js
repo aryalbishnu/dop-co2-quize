@@ -2660,6 +2660,72 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "AWS Backup",
+  sections: [
+    { h: "Building blocks", items: [
+      "**Backup plans** (rules) · **resource assignments** (tags / ARNs / types, IAM role) · **vaults** (KMS, access policy, lock) · **recovery points / jobs**",
+      "Services: EC2, EBS, RDS, Aurora, DynamoDB, EFS, FSx, S3, Storage Gateway, SAP HANA, VMware, DocumentDB, Neptune, Redshift, CFN stacks",
+      "**Tag-based assignment** → new resources protected automatically (enforce tag with tag policies / SCPs)"
+    ]},
+    { h: "Plan rules", items: [
+      "Frequency hourly / 12h / daily / weekly / monthly / **cron** · window start / complete",
+      "**Continuous backup (PITR)** RDS, Aurora, S3, SAP HANA · **≤ 35 days**",
+      "Lifecycle: **cold storage (min 90 days)** → expire · **copy actions** (own lifecycle)",
+      "**VSS** for Windows app-consistent · **DynamoDB advanced features** for copies / cold storage"
+    ]},
+    { h: "Vaults", items: [
+      "KMS: **vault key** for fully managed types (EFS, DynamoDB adv, S3) · **source key** for EBS / RDS / Aurora",
+      "**Vault access policy**: deny `DeleteRecoveryPoint` except break-glass · allow `CopyIntoBackupVault` from org",
+      "SNS vault notifications / EventBridge job events · **legal hold** · restore = **new resource**"
+    ]},
+    { h: "Copies", table: [
+      ["Type", "Requirements"],
+      ["**Cross-Region**", "Copy action → vault in other Region, own lifecycle (DR)"],
+      ["**Cross-account**", "Same **Organization** · **enable cross-account backup** (mgmt account) · destination **vault policy** CopyIntoBackupVault"],
+      ["EBS / RDS cross-account", "**Customer managed KMS key shared** with destination (aws/ebs, aws/rds can't be shared)"]
+    ]},
+    { h: "Vault Lock and air gap", table: [
+      ["Option", "Behaviour"],
+      ["**Governance**", "Min / max retention, blocks deletes · **removable** by privileged users (testing)"],
+      ["**Compliance**", "**Immutable for everyone incl. root / AWS** after **cooling-off ≥ 72 h** · editable only during cooling-off"],
+      ["**Logically air-gapped vault**", "Locked by default, **AWS-owned key**, isolated · **shared via RAM** to recovery account"],
+      ["Ransomware design", "Separate backup account + compliance lock / air gap + DR Region + SCP / vault policy deny deletes"]
+    ]},
+    { h: "Organization", items: [
+      "**Organizations backup policies** → plans in member accounts, **local admins can't change**",
+      "**Delegated administrator** · cross-account monitoring",
+      "**Backup Audit Manager**: frameworks / controls (protected, frequency, retention, encryption, copies, lock) + reports to S3 · needs **Config**",
+      "**Restore testing**: scheduled restores, validation (EventBridge → Lambda), restore time, cleanup"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Central multi-service policy", "AWS Backup plans"],
+      ["Auto-include new resources", "Tag-based assignment"],
+      ["PITR 14 days + 7 years", "Continuous rule + snapshot rule"],
+      ["Cold 30 / delete 60 rejected", "Cold storage min 90 days"],
+      ["Copy to DR Region", "Copy action + own lifecycle"],
+      ["Central backup account", "Enable cross-account + vault policy"],
+      ["EBS / RDS copy fails", "Shared CMK"],
+      ["WORM, even root", "Vault Lock compliance"],
+      ["Testable removable lock", "Governance mode"],
+      ["Fix compliance lock", "Only during cooling-off"],
+      ["Isolated + RAM share", "Logically air-gapped vault"],
+      ["Ransomware-resilient", "Separate account + compliance lock"],
+      ["80 accounts, can't change", "Org backup policies"],
+      ["Prove compliance", "Backup Audit Manager"],
+      ["Prove restores", "Restore testing"],
+      ["Litigation", "Legal hold"],
+      ["Restore didn't overwrite", "Restore = new resource"],
+      ["DynamoDB copy missing", "Advanced features"],
+      ["App-consistent Windows", "VSS"],
+      ["Only break-glass deletes", "Vault access policy"],
+      ["Failure alerts", "EventBridge / vault SNS"],
+      ["Server RPO seconds", "DRS, not Backup"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -13475,8 +13475,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Replication SLA + single global endpoint = RTC + Multi-Region Access Points."
+  },
+  // ───────────────────────────── Domain 3: AWS Backup ─────────────────────────────
+  {
+    id: "bkp-01", domain: "d3", topic: "AWS Backup",
+    q: "A company uses EC2, EBS, RDS, DynamoDB and EFS across several teams. Each team currently scripts its own backups with different schedules and retention. Leadership wants one centrally managed backup policy with consistent schedules, retention and reporting. What should a DevOps engineer implement?",
+    options: [
+      { t: "AWS Backup with backup plans (schedule, lifecycle, target vault) and resource assignments, plus Backup Audit Manager reports.",
+        why: "Correct. AWS Backup centralizes policy-based backups across services." },
+      { t: "Separate Lambda scripts per service on a schedule.",
+        why: "Custom, inconsistent and hard to audit." },
+      { t: "Data Lifecycle Manager for all services.",
+        why: "DLM manages EBS snapshots / AMIs only." },
+      { t: "Enable Multi-AZ on every database.",
+        why: "HA, not backup." }
+    ],
+    answer: [0],
+    tip: "Central multi-service backup policy = AWS Backup plans."
+  },
+  {
+    id: "bkp-02", domain: "d3", topic: "AWS Backup",
+    q: "New production resources are created every week. The company wants every resource tagged backup=daily to be included in the daily backup plan automatically, without editing the plan each time. What should be configured?",
+    options: [
+      { t: "A tag-based resource assignment in the backup plan selecting resources with backup=daily (enforcing the tag with tag policies / SCPs).",
+        why: "Correct. Tag-based assignments automatically include new matching resources." },
+      { t: "Add each resource ARN to the plan manually.",
+        why: "Manual and error-prone." },
+      { t: "Create a new backup plan per resource.",
+        why: "Not scalable." },
+      { t: "Use on-demand backups weekly.",
+        why: "Not the daily policy." }
+    ],
+    answer: [0],
+    tip: "Include new resources automatically = tag-based assignment."
+  },
+  {
+    id: "bkp-03", domain: "d3", topic: "AWS Backup",
+    q: "A team needs to restore an RDS database to any second within the last 14 days and also keep monthly backups for 7 years, managed in AWS Backup. Which configuration meets this?",
+    options: [
+      { t: "A backup plan with a continuous backup rule (point-in-time recovery, retention up to 35 days) plus a monthly snapshot rule with 7-year retention.",
+        why: "Correct. Continuous backup gives PITR up to 35 days; snapshot rules provide long retention." },
+      { t: "Continuous backup with 7-year retention.",
+        why: "Continuous backup retention is limited to 35 days." },
+      { t: "Daily snapshots only.",
+        why: "No second-level PITR." },
+      { t: "RDS read replicas.",
+        why: "Replicas aren't backups." }
+    ],
+    answer: [0],
+    tip: "PITR ≤ 35 days + long retention = continuous rule + snapshot rule."
+  },
+  {
+    id: "bkp-04", domain: "d3", topic: "AWS Backup",
+    q: "An engineer configures a backup rule to move EFS recovery points to cold storage after 30 days and delete them after 60 days. The configuration is rejected. Why?",
+    options: [
+      { t: "Recovery points must remain in cold storage for at least 90 days, so deletion must be at least 90 days after the transition (e.g. delete after 120 days or later).",
+        why: "Correct. Cold storage has a 90-day minimum." },
+      { t: "EFS doesn't support cold storage.",
+        why: "It does." },
+      { t: "Lifecycle can't delete backups.",
+        why: "Expiration is supported." },
+      { t: "Cold storage requires Vault Lock.",
+        why: "Not required." }
+    ],
+    answer: [0],
+    tip: "Cold storage minimum = 90 days."
+  },
+  {
+    id: "bkp-05", domain: "d3", topic: "AWS Backup",
+    q: "For disaster recovery, every daily backup must also exist in us-west-2 and be kept there for 90 days, while the primary copy in us-east-1 is kept for 35 days. What should be configured?",
+    options: [
+      { t: "A copy action in the backup rule targeting a vault in us-west-2 with its own lifecycle (delete after 90 days).",
+        why: "Correct. Copy actions create cross-Region copies with independent retention." },
+      { t: "S3 Cross-Region Replication on the backup vault.",
+        why: "Vaults aren't S3 buckets you replicate." },
+      { t: "A second backup plan in us-west-2 backing up us-east-1 resources.",
+        why: "Plans back up resources in their own Region." },
+      { t: "Manual monthly copies.",
+        why: "Not automated daily." }
+    ],
+    answer: [0],
+    tip: "Cross-Region backup copy = copy action with own lifecycle."
+  },
+  {
+    id: "bkp-06", domain: "d3", topic: "AWS Backup",
+    q: "A company wants backups from all workload accounts copied into a dedicated backup account so that a compromised workload account can't destroy every copy. Which steps are required? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable cross-account backup in the AWS Organizations management account (AWS Backup settings), with all accounts in the same organization.",
+        why: "Correct. Cross-account copy requires Organizations and the feature enabled." },
+      { t: "Add a vault access policy on the destination vault allowing backup:CopyIntoBackupVault from the source accounts or organization.",
+        why: "Correct. The destination vault must allow incoming copies." },
+      { t: "Make the destination vault public.",
+        why: "Insecure and not how it works." },
+      { t: "Use S3 replication between accounts.",
+        why: "Not the mechanism for AWS Backup copies." },
+      { t: "Disable encryption on source resources.",
+        why: "Encryption is required and supported." }
+    ],
+    answer: [0, 1],
+    tip: "Cross-account copy = Organizations + enable setting + destination vault policy."
+  },
+  {
+    id: "bkp-07", domain: "d3", topic: "AWS Backup",
+    q: "Cross-account copy jobs succeed for EFS and DynamoDB recovery points but fail for EBS and RDS recovery points. The EBS volumes use the aws/ebs key and RDS uses aws/rds. What is the fix?",
+    options: [
+      { t: "Encrypt the source EBS volumes and RDS instances with a customer managed KMS key and share that key with the destination account.",
+        why: "Correct. AWS managed keys can't be shared cross-account; independently encrypted types need a shared CMK." },
+      { t: "Disable encryption on EBS and RDS.",
+        why: "Not acceptable and unnecessary." },
+      { t: "Enable DynamoDB advanced features.",
+        why: "Unrelated to EBS / RDS." },
+      { t: "Use Vault Lock on the source vault.",
+        why: "Doesn't fix key sharing." }
+    ],
+    answer: [0],
+    tip: "EBS / RDS cross-account copy = customer managed key shared with destination."
+  },
+  {
+    id: "bkp-08", domain: "d3", topic: "AWS Backup",
+    q: "A financial services company must store backups in WORM format so that no user - including administrators and the root user - can delete or shorten retention of recovery points before 7 years, to meet regulatory requirements. What should it configure?",
+    options: [
+      { t: "AWS Backup Vault Lock in compliance mode with a minimum retention, after the cooling-off period expires.",
+        why: "Correct. Compliance mode becomes immutable for everyone after the grace period." },
+      { t: "Vault Lock in governance mode.",
+        why: "Privileged users can remove governance locks." },
+      { t: "An IAM policy denying deletes.",
+        why: "Admins / root could change the policy." },
+      { t: "Cross-Region copies only.",
+        why: "Copies can still be deleted without a lock." }
+    ],
+    answer: [0],
+    tip: "Immutable for everyone incl. root = Vault Lock compliance mode."
+  },
+  {
+    id: "bkp-09", domain: "d3", topic: "AWS Backup",
+    q: "A team wants to test Vault Lock retention rules before committing to them, while still preventing accidental deletion by regular users. Administrators must be able to adjust or remove the lock during testing. Which mode should be used?",
+    options: [
+      { t: "Governance mode.",
+        why: "Correct. Governance mode can be changed or removed by users with sufficient permissions." },
+      { t: "Compliance mode with a 0-day cooling-off period.",
+        why: "Compliance requires at least 72 hours and then becomes immutable." },
+      { t: "A logically air-gapped vault.",
+        why: "Locked by default in compliance mode." },
+      { t: "Legal hold.",
+        why: "Holds specific recovery points; not a retention test mechanism." }
+    ],
+    answer: [0],
+    tip: "Test / removable lock = governance mode."
+  },
+  {
+    id: "bkp-10", domain: "d3", topic: "AWS Backup",
+    q: "After applying Vault Lock in compliance mode, the team realized the minimum retention value was wrong. It's been 24 hours since the lock was applied with a 72-hour cooling-off period. What can they do?",
+    options: [
+      { t: "Remove or change the lock now, because changes are still allowed during the cooling-off period; after it ends, the lock is immutable.",
+        why: "Correct. The cooling-off period allows corrections before the lock becomes permanent." },
+      { t: "Nothing - compliance mode is immutable immediately.",
+        why: "It becomes immutable after the cooling-off period." },
+      { t: "Ask AWS Support to remove it at any time.",
+        why: "After the grace period, not even AWS can remove it." },
+      { t: "Delete the vault.",
+        why: "Locked vaults with recovery points can't simply be deleted." }
+    ],
+    answer: [0],
+    tip: "Compliance lock editable only during cooling-off (≥ 72 h)."
+  },
+  {
+    id: "bkp-11", domain: "d3", topic: "AWS Backup",
+    q: "A company wants its most critical backups stored in a vault that is isolated from its own accounts' KMS keys and administrators, locked by default, and shareable with a separate recovery account so restores can start immediately after an account compromise. Which feature fits?",
+    options: [
+      { t: "An AWS Backup logically air-gapped vault, shared to the recovery account with AWS RAM.",
+        why: "Correct. Air-gapped vaults are locked by default, use AWS-owned keys and can be shared via RAM." },
+      { t: "A standard vault with governance mode.",
+        why: "Not isolated or immutable." },
+      { t: "An S3 bucket with versioning.",
+        why: "Not an AWS Backup vault and not isolated from account admins." },
+      { t: "A cross-Region copy in the same account.",
+        why: "Still in the compromised account." }
+    ],
+    answer: [0],
+    tip: "Isolated, locked, RAM-shareable = logically air-gapped vault."
+  },
+  {
+    id: "bkp-12", domain: "d3", topic: "AWS Backup",
+    q: "Which design BEST protects backups against ransomware that compromises administrator credentials in a workload account? (Choose the BEST answer.)",
+    options: [
+      { t: "Copy recovery points to a separate backup account vault with Vault Lock in compliance mode (and/or a logically air-gapped vault), plus SCPs and vault policies denying deletes and policy changes.",
+        why: "Correct. Isolation plus immutability survives compromised workload accounts." },
+      { t: "Keep more frequent backups in the same vault.",
+        why: "Attackers with admin access could delete them." },
+      { t: "Replicate data with S3 CRR.",
+        why: "Replication copies encrypted / deleted data." },
+      { t: "Enable Multi-AZ.",
+        why: "HA, not backup protection." }
+    ],
+    answer: [0],
+    tip: "Ransomware-resilient backups = separate account + compliance lock / air-gapped."
+  },
+  {
+    id: "bkp-13", domain: "d3", topic: "AWS Backup",
+    q: "A company with 80 accounts wants every account in the Production OU to receive the same backup plan automatically, and local account administrators must not be able to change or delete it. What should be used?",
+    options: [
+      { t: "AWS Organizations backup policies attached to the Production OU (managed by an AWS Backup delegated administrator).",
+        why: "Correct. Backup policies deploy centrally managed plans that member accounts can't modify." },
+      { t: "Create the plan manually in each account.",
+        why: "Inconsistent, and local admins could change it." },
+      { t: "Share the backup plan with AWS RAM.",
+        why: "Plans aren't shared this way." },
+      { t: "Use a CloudFormation stack in each account without protection.",
+        why: "Local admins could change it." }
+    ],
+    answer: [0],
+    tip: "Org-wide protected backup plans = Organizations backup policies."
+  },
+  {
+    id: "bkp-14", domain: "d3", topic: "AWS Backup",
+    q: "Auditors require evidence that all production resources are covered by a backup plan with daily frequency, at least 35 days retention, encrypted recovery points and a cross-Region copy, delivered as regular reports. What should the DevOps engineer configure?",
+    options: [
+      { t: "AWS Backup Audit Manager frameworks with the corresponding controls and compliance report plans delivered to S3 (requires AWS Config recording).",
+        why: "Correct. Backup Audit Manager evaluates controls and generates reports." },
+      { t: "Screenshots of the AWS Backup console each month.",
+        why: "Manual and unreliable." },
+      { t: "CloudTrail Lake queries only.",
+        why: "Doesn't evaluate backup compliance controls." },
+      { t: "Trusted Advisor checks.",
+        why: "Not backup policy compliance reporting." }
+    ],
+    answer: [0],
+    tip: "Prove backup compliance = Backup Audit Manager (Config-based)."
+  },
+  {
+    id: "bkp-15", domain: "d3", topic: "AWS Backup",
+    q: "The company has never tested its backups and wants to automatically restore selected recovery points on a schedule, validate that the restored resources work, measure restore duration and clean up afterwards. Which feature fits?",
+    options: [
+      { t: "AWS Backup restore testing plans (with EventBridge-triggered validation, e.g. a Lambda function).",
+        why: "Correct. Restore testing automates scheduled restores, validation and cleanup." },
+      { t: "Backup Audit Manager.",
+        why: "Checks policy compliance, not actual restores." },
+      { t: "Vault Lock.",
+        why: "Immutability, not restore validation." },
+      { t: "Legal hold.",
+        why: "Retention, not testing." }
+    ],
+    answer: [0],
+    tip: "Prove restores work = restore testing."
+  },
+  {
+    id: "bkp-16", domain: "d3", topic: "AWS Backup",
+    q: "Legal counsel asks that specific recovery points for a project be kept indefinitely during litigation, even though their normal retention would expire next week. What should be done?",
+    options: [
+      { t: "Place an AWS Backup legal hold on those recovery points until it's released.",
+        why: "Correct. Legal hold retains recovery points beyond their lifecycle." },
+      { t: "Change the plan retention for all resources to forever.",
+        why: "Overkill and affects everything." },
+      { t: "Copy them to an S3 bucket manually.",
+        why: "Unnecessary; legal hold exists." },
+      { t: "Apply compliance-mode Vault Lock.",
+        why: "Enforces minimum retention for the vault, not a targeted indefinite hold." }
+    ],
+    answer: [0],
+    tip: "Keep specific backups beyond retention = legal hold."
+  },
+  {
+    id: "bkp-17", domain: "d3", topic: "AWS Backup",
+    q: "A team restores an EBS recovery point expecting the existing volume to be overwritten, but the original volume is unchanged. Why?",
+    options: [
+      { t: "AWS Backup restores always create a new resource; the team must attach / switch to the new volume.",
+        why: "Correct. Restore doesn't overwrite the original resource." },
+      { t: "The restore failed silently.",
+        why: "Restore creates a new volume by design." },
+      { t: "EBS can't be restored by AWS Backup.",
+        why: "It can." },
+      { t: "Vault Lock prevented the overwrite.",
+        why: "Vault Lock doesn't affect restore targets." }
+    ],
+    answer: [0],
+    tip: "Restore = new resource."
+  },
+  {
+    id: "bkp-18", domain: "d3", topic: "AWS Backup",
+    q: "A team tries to add a cross-Region copy action for DynamoDB tables in an AWS Backup plan, but DynamoDB copies and cold storage aren't available. What must be enabled?",
+    options: [
+      { t: "AWS Backup advanced features for DynamoDB in the Backup settings.",
+        why: "Correct. Advanced features enable cross-Region / cross-account copies, cold storage and tags." },
+      { t: "DynamoDB Streams.",
+        why: "Unrelated to backup copies." },
+      { t: "DynamoDB global tables.",
+        why: "Replication, not backup features." },
+      { t: "Vault Lock.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "DynamoDB copies / cold storage = enable advanced features."
+  },
+  {
+    id: "bkp-19", domain: "d3", topic: "AWS Backup",
+    q: "Windows EC2 instances running SQL Server need application-consistent backups through AWS Backup. What should be enabled in the backup rule / plan?",
+    options: [
+      { t: "Windows VSS (Volume Shadow Copy Service) backup option for EC2.",
+        why: "Correct. VSS creates application-consistent snapshots." },
+      { t: "Continuous backup.",
+        why: "Not for EC2." },
+      { t: "Cold storage.",
+        why: "Storage tier only." },
+      { t: "Cross-account copy.",
+        why: "Unrelated to consistency." }
+    ],
+    answer: [0],
+    tip: "App-consistent Windows backups = VSS."
+  },
+  {
+    id: "bkp-20", domain: "d3", topic: "AWS Backup",
+    q: "The security team wants a vault in which no IAM principal other than a dedicated break-glass role can delete recovery points. Which control applies directly to the vault?",
+    options: [
+      { t: "A vault access policy that denies backup:DeleteRecoveryPoint for all principals except the break-glass role.",
+        why: "Correct. Resource-based vault policies restrict actions on recovery points." },
+      { t: "A tag policy.",
+        why: "Doesn't control deletes." },
+      { t: "An S3 bucket policy.",
+        why: "Vaults aren't S3 buckets." },
+      { t: "Disable CloudTrail.",
+        why: "Wrong direction." }
+    ],
+    answer: [0],
+    tip: "Restrict deletes on a vault = vault access policy."
+  },
+  {
+    id: "bkp-21", domain: "d3", topic: "AWS Backup",
+    q: "The operations team wants a Slack / email alert whenever any backup or copy job fails in any account. Which approach works?",
+    options: [
+      { t: "EventBridge rules on AWS Backup job state change events (FAILED) to SNS (or vault SNS notifications), with cross-account monitoring in the delegated administrator account.",
+        why: "Correct. Backup emits job events and supports vault notifications." },
+      { t: "Check the console manually each morning.",
+        why: "Not automated." },
+      { t: "Enable Vault Lock.",
+        why: "Doesn't send alerts." },
+      { t: "Use S3 event notifications.",
+        why: "Backups aren't S3 objects you own." }
+    ],
+    answer: [0],
+    tip: "Backup failure alerts = EventBridge job events / vault SNS notifications."
+  },
+  {
+    id: "bkp-22", domain: "d3", topic: "AWS Backup",
+    q: "A company needs disaster recovery for 300 on-premises and EC2 application servers with an RPO of seconds and an RTO of minutes. A team member proposes AWS Backup hourly backups. What is the BEST response?",
+    options: [
+      { t: "Use AWS Elastic Disaster Recovery for continuous block-level replication; AWS Backup is backup-based (RPO of the backup interval, RTO of a restore) and complements DRS for long-term retention.",
+        why: "Correct. RPO seconds / RTO minutes for servers is DRS territory." },
+      { t: "Hourly AWS Backup meets RPO seconds.",
+        why: "Hourly backups give up to an hour of data loss." },
+      { t: "Use Vault Lock to reduce RTO.",
+        why: "Vault Lock doesn't affect RTO." },
+      { t: "Use cold storage.",
+        why: "Increases restore time." }
+    ],
+    answer: [0],
+    tip: "Server DR RPO seconds = DRS; Backup = retention / backup & restore."
   }
 ];
+
 
 
 
