@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -13831,8 +13831,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Server DR RPO seconds = DRS; Backup = retention / backup & restore."
+  },
+  // ───────────────────────────── Domain 3: DRS ─────────────────────────────
+  {
+    id: "edr-01", domain: "d3", topic: "DRS",
+    q: "A company runs 200 VMware virtual machines in its data center, including databases installed on the VMs. It needs disaster recovery in AWS with an RPO of seconds and an RTO of minutes, at the lowest ongoing cost, without re-architecting the applications. What should it use?",
+    options: [
+      { t: "AWS Elastic Disaster Recovery with continuous block-level replication to a low-cost staging area, launching recovery instances only when needed.",
+        why: "Correct. DRS gives seconds RPO and minutes RTO while only paying mainly for staging until recovery." },
+      { t: "AWS Backup with hourly backups of the VMs.",
+        why: "RPO up to an hour and RTO of a restore." },
+      { t: "A full warm standby of all VMs running on EC2.",
+        why: "Meets targets but much higher cost." },
+      { t: "AWS Application Migration Service.",
+        why: "Designed for one-time migrations, not ongoing DR." }
+    ],
+    answer: [0],
+    tip: "Server DR, RPO seconds / RTO minutes, low cost = DRS."
+  },
+  {
+    id: "edr-02", domain: "d3", topic: "DRS",
+    q: "Which statement correctly describes how AWS Elastic Disaster Recovery keeps costs low before a disaster?",
+    options: [
+      { t: "Data is replicated to small replication servers and low-cost EBS volumes (plus snapshots) in a staging subnet; full-size recovery instances are launched only during drills or recovery.",
+        why: "Correct. Compute for recovery isn't running until needed." },
+      { t: "DRS runs full-size EC2 copies of every server continuously.",
+        why: "That would be a warm / hot standby." },
+      { t: "DRS stores data only as daily backups.",
+        why: "Replication is continuous." },
+      { t: "DRS doesn't use EBS.",
+        why: "Staging uses EBS volumes and snapshots." }
+    ],
+    answer: [0],
+    tip: "DRS staging = small replication servers + cheap EBS."
+  },
+  {
+    id: "edr-03", domain: "d3", topic: "DRS",
+    q: "Company policy forbids replication traffic over the public internet. The data center connects to AWS through AWS Direct Connect. How should DRS replication be configured?",
+    options: [
+      { t: "Set the replication settings data routing to use private IP so the agent sends data to the replication servers over Direct Connect (with VPC endpoints for DRS endpoints as needed).",
+        why: "Correct. Private IP routing keeps replication on private connectivity." },
+      { t: "Disable encryption in transit.",
+        why: "Unrelated and insecure." },
+      { t: "Replication always uses the internet.",
+        why: "Private routing is supported." },
+      { t: "Use S3 Transfer Acceleration.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Replication off the internet = private IP routing over DX / VPN."
+  },
+  {
+    id: "edr-04", domain: "d3", topic: "DRS",
+    q: "The AWS Replication Agent was installed on several on-premises servers, but replication never starts. The firewall team confirms HTTPS to AWS is open. What else is MOST likely blocked?",
+    options: [
+      { t: "Outbound TCP port 1500 from the source servers to the replication servers in the staging subnet.",
+        why: "Correct. Data replication uses TCP 1500; 443 is for the DRS service endpoints." },
+      { t: "Inbound port 22 to the source servers.",
+        why: "Not needed for replication." },
+      { t: "UDP 53 to the internet.",
+        why: "Not the replication data path." },
+      { t: "TCP 3389.",
+        why: "RDP isn't used by replication." }
+    ],
+    answer: [0],
+    tip: "DRS ports: 443 control, TCP 1500 data."
+  },
+  {
+    id: "edr-05", domain: "d3", topic: "DRS",
+    q: "Ransomware encrypted the disks of several protected servers 40 minutes ago, and the encrypted blocks have already replicated. How should the company recover with DRS?",
+    options: [
+      { t: "Launch recovery instances from a point-in-time recovery point taken before the encryption started.",
+        why: "Correct. DRS retains PIT snapshots for exactly this purpose." },
+      { t: "Launch from the latest state.",
+        why: "The latest state contains the encrypted data." },
+      { t: "Restart replication from scratch.",
+        why: "Doesn't recover the clean data." },
+      { t: "Use the DRS Failback Client.",
+        why: "That's for failback, not choosing a clean point." }
+    ],
+    answer: [0],
+    tip: "Recover before ransomware = PIT recovery point."
+  },
+  {
+    id: "edr-06", domain: "d3", topic: "DRS",
+    q: "By default, which point-in-time recovery points does DRS retain for each source server?",
+    options: [
+      { t: "Every 10 minutes for the last hour, hourly for the last 24 hours, and daily for the last 7 days (retention can be extended).",
+        why: "Correct. This is the default PIT policy." },
+      { t: "Only the latest state.",
+        why: "PIT points are retained." },
+      { t: "Monthly points for 7 years.",
+        why: "That's a backup-style retention." },
+      { t: "Every second for 35 days.",
+        why: "Not the default." }
+    ],
+    answer: [0],
+    tip: "DRS PIT default: 10 min / 1 h, hourly / 24 h, daily / 7 d."
+  },
+  {
+    id: "edr-07", domain: "d3", topic: "DRS",
+    q: "Auditors require quarterly DR tests that prove applications can run in AWS, without stopping replication or affecting production servers. What should the team do?",
+    options: [
+      { t: "Run DRS drills that launch drill instances (in an isolated subnet / VPC) from the latest or a PIT state, validate, then terminate them.",
+        why: "Correct. Drills are non-disruptive and don't affect replication." },
+      { t: "Stop replication, launch recovery instances, then reinstall the agent.",
+        why: "Disruptive and unnecessary." },
+      { t: "Shut down production to simulate a disaster.",
+        why: "Unacceptable impact." },
+      { t: "Review replication lag only.",
+        why: "Doesn't prove the application runs." }
+    ],
+    answer: [0],
+    tip: "Non-disruptive DR test = DRS drill."
+  },
+  {
+    id: "edr-08", domain: "d3", topic: "DRS",
+    q: "Servers replicated from VMware fail to boot correctly on EC2 when launched manually from copied volumes. How does DRS handle this during drills and recovery?",
+    options: [
+      { t: "DRS launches a conversion server that converts the replicated boot volumes (drivers, bootloader) so they boot natively on EC2.",
+        why: "Correct. Conversion is automatic in DRS launches." },
+      { t: "Engineers must manually install EC2 drivers before each recovery.",
+        why: "DRS automates conversion." },
+      { t: "DRS only supports Linux.",
+        why: "Windows is supported." },
+      { t: "DRS uses VM Import each time.",
+        why: "Not the DRS mechanism." }
+    ],
+    answer: [0],
+    tip: "Boot volumes made EC2-ready = conversion server."
+  },
+  {
+    id: "edr-09", domain: "d3", topic: "DRS",
+    q: "After recovery, every recovery instance must automatically install the CloudWatch agent, run an application health validation script and update an internal DNS record. What should be configured in DRS?",
+    options: [
+      { t: "Post-launch actions using Systems Manager documents that run after drill and recovery instances launch.",
+        why: "Correct. Post-launch actions automate configuration and validation." },
+      { t: "EC2 user data edited manually during the disaster.",
+        why: "Manual and error-prone." },
+      { t: "A replication settings template change.",
+        why: "Replication settings don't run scripts on recovery instances." },
+      { t: "Increase PIT retention.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Automate config after recovery = post-launch actions (SSM)."
+  },
+  {
+    id: "edr-10", domain: "d3", topic: "DRS",
+    q: "Legacy applications use hardcoded private IP addresses to reach each other. After failover with DRS, the applications must keep the same private IPs where possible. Which launch setting helps?",
+    options: [
+      { t: "Enable 'copy private IP' in the DRS launch settings and use recovery subnets whose CIDR includes those addresses.",
+        why: "Correct. Recovery instances can reuse source private IPs." },
+      { t: "Enable right-sizing.",
+        why: "Chooses instance type, not IPs." },
+      { t: "Increase the staging EBS size.",
+        why: "Unrelated." },
+      { t: "Use a shared replication server.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Keep same private IP = copy private IP launch setting."
+  },
+  {
+    id: "edr-11", domain: "d3", topic: "DRS",
+    q: "A company wants DRS to choose an EC2 instance type that matches each source server's CPU and memory automatically when launching recovery instances. Which setting should be enabled?",
+    options: [
+      { t: "Instance type right-sizing set to Basic in the launch settings.",
+        why: "Correct. Basic right-sizing maps source resources to an EC2 type." },
+      { t: "Copy private IP.",
+        why: "Network setting." },
+      { t: "Transfer server tags.",
+        why: "Tagging only." },
+      { t: "Shared replication servers.",
+        why: "Staging cost setting." }
+    ],
+    answer: [0],
+    tip: "Match source size automatically = right-sizing Basic."
+  },
+  {
+    id: "edr-12", domain: "d3", topic: "DRS",
+    q: "The data center has recovered after a disaster, and the company wants to move production back from AWS recovery instances to its VMware environment with minimal data loss. What should it use?",
+    options: [
+      { t: "The DRS Failback Client booted on the target VMware machines to replicate data back from the recovery instances, then cut over and re-protect.",
+        why: "Correct. The Failback Client handles failback to on-premises." },
+      { t: "Rebuild the servers from scratch and restore from tape.",
+        why: "Slow and loses data." },
+      { t: "Start reversed replication to another AWS Region.",
+        why: "That's for AWS-to-AWS failback." },
+      { t: "Use AWS Backup restore to on-premises.",
+        why: "Not the DRS failback mechanism." }
+    ],
+    answer: [0],
+    tip: "Failback to on-prem = DRS Failback Client."
+  },
+  {
+    id: "edr-13", domain: "d3", topic: "DRS",
+    q: "EC2 workloads in us-east-1 are protected by DRS into us-west-2. After failing over to us-west-2, the company wants to return to us-east-1 once it recovers. What should be done?",
+    options: [
+      { t: "Start reversed replication from the recovery instances in us-west-2 back to us-east-1, then launch in us-east-1 and switch traffic back.",
+        why: "Correct. AWS-to-AWS failback uses reversed replication." },
+      { t: "Use the DRS Failback Client ISO in us-east-1.",
+        why: "That's for on-premises / VMware failback." },
+      { t: "Snapshot and copy volumes manually.",
+        why: "Manual and slower." },
+      { t: "Delete the source servers.",
+        why: "Removes protection." }
+    ],
+    answer: [0],
+    tip: "AWS → AWS failback = reversed replication."
+  },
+  {
+    id: "edr-14", domain: "d3", topic: "DRS",
+    q: "A team wants to protect its Amazon RDS for MySQL database and DynamoDB tables with AWS Elastic Disaster Recovery. What is the correct advice?",
+    options: [
+      { t: "DRS protects servers (physical, virtual, EC2); use RDS cross-Region read replicas / automated backup replication and DynamoDB global tables or AWS Backup for managed services.",
+        why: "Correct. Managed services use their native replication features." },
+      { t: "Install the DRS agent on RDS instances.",
+        why: "You can't install agents on RDS." },
+      { t: "DRS supports DynamoDB through Streams.",
+        why: "Not a DRS feature." },
+      { t: "Use DRS drills for RDS.",
+        why: "RDS isn't a DRS source." }
+    ],
+    answer: [0],
+    tip: "Managed services aren't DRS sources."
+  },
+  {
+    id: "edr-15", domain: "d3", topic: "DRS",
+    q: "Staging costs for DRS are higher than expected. Most source servers have large disks with low change rates. Which changes reduce cost? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Use the Auto (or st1 / sc1) staging EBS volume type for large, low-change disks.",
+        why: "Correct. Low-cost volume types reduce staging storage cost." },
+      { t: "Use shared replication servers instead of dedicated ones for low-write servers.",
+        why: "Correct. Shared replication servers cost less for many low-change sources." },
+      { t: "Launch recovery instances permanently.",
+        why: "Increases cost." },
+      { t: "Increase PIT retention to 365 days.",
+        why: "More snapshots increase cost." },
+      { t: "Switch to io2 staging volumes.",
+        why: "More expensive." }
+    ],
+    answer: [0, 1],
+    tip: "Lower DRS staging cost = cheap EBS types + shared replication servers."
+  },
+  {
+    id: "edr-16", domain: "d3", topic: "DRS",
+    q: "Replication lag for a busy database server keeps growing in the DRS console, while other servers are healthy. Which is the MOST likely fix?",
+    options: [
+      { t: "Increase bandwidth / remove throttling and use a larger dedicated replication server (and suitable staging volume type) for that high-write server.",
+        why: "Correct. High write rates need more replication capacity." },
+      { t: "Decrease PIT retention.",
+        why: "Doesn't affect replication throughput." },
+      { t: "Enable copy private IP.",
+        why: "Launch setting, unrelated to lag." },
+      { t: "Run a drill.",
+        why: "Doesn't fix lag." }
+    ],
+    answer: [0],
+    tip: "Replication lag = bandwidth / replication server capacity."
+  },
+  {
+    id: "edr-17", domain: "d3", topic: "DRS",
+    q: "A company is moving 400 servers to AWS permanently (lift-and-shift) and also needs ongoing DR for 50 servers that will stay on-premises. Which services fit each requirement?",
+    options: [
+      { t: "AWS Application Migration Service (MGN) for the one-time migration, and AWS Elastic Disaster Recovery for ongoing DR of the remaining servers.",
+        why: "Correct. MGN and DRS share technology but serve migration vs DR." },
+      { t: "DRS for both.",
+        why: "DRS is optimized for DR, MGN for migrations." },
+      { t: "AWS Backup for both.",
+        why: "Backups don't provide migration cutover or seconds RPO." },
+      { t: "Snowball for both.",
+        why: "Offline data transfer, not server replication." }
+    ],
+    answer: [0],
+    tip: "Migration = MGN; ongoing DR = DRS."
+  },
+  {
+    id: "edr-18", domain: "d3", topic: "DRS",
+    q: "A company must protect 900 servers with DRS, but the number of replicating source servers per account in the Region is limited. How can it scale while recovering into one target account?",
+    options: [
+      { t: "Use multiple DRS staging accounts (extended source servers) that replicate the servers and recover into the target account.",
+        why: "Correct. Multiple staging accounts extend capacity." },
+      { t: "Replicate all servers into one replication server.",
+        why: "Doesn't address the quota and would be overloaded." },
+      { t: "Use AWS Backup instead.",
+        why: "Changes RPO / RTO characteristics." },
+      { t: "Run drills more often.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Scale DRS beyond one account = multiple staging accounts."
+  },
+  {
+    id: "edr-19", domain: "d3", topic: "DRS",
+    q: "Security wants the credentials used to install the AWS Replication Agent on source servers to have only the permissions needed for agent installation. What should be used?",
+    options: [
+      { t: "An IAM principal with the AWSElasticDisasterRecoveryAgentInstallationPolicy managed policy (preferably temporary credentials).",
+        why: "Correct. The managed policy scopes agent installation permissions." },
+      { t: "AdministratorAccess keys stored on each server.",
+        why: "Over-privileged and insecure." },
+      { t: "The root user access keys.",
+        why: "Never." },
+      { t: "No credentials are needed.",
+        why: "Installation requires credentials." }
+    ],
+    answer: [0],
+    tip: "Agent install credentials = AWSElasticDisasterRecoveryAgentInstallationPolicy."
+  },
+  {
+    id: "edr-20", domain: "d3", topic: "DRS",
+    q: "Applications protected by DRS depend on each other: the database must be up before the application tier, which must be up before the web tier. How should recovery be performed?",
+    options: [
+      { t: "Launch recovery instances in dependency order (database, then application, then web), using post-launch actions for validation, then switch DNS / traffic.",
+        why: "Correct. Recover by application group in dependency order." },
+      { t: "Launch all servers at random; dependencies resolve themselves.",
+        why: "Applications may fail to start." },
+      { t: "Launch only the web tier.",
+        why: "Missing dependencies." },
+      { t: "Use Route 53 weighted routing to start servers.",
+        why: "DNS doesn't start servers." }
+    ],
+    answer: [0],
+    tip: "Recover in dependency order, validate, then switch traffic."
+  },
+  {
+    id: "edr-21", domain: "d3", topic: "DRS",
+    q: "The operations team wants an automatic notification whenever DRS replication for any source server stalls. What should be configured?",
+    options: [
+      { t: "An Amazon EventBridge rule on DRS events (for example replication stalled) targeting SNS.",
+        why: "Correct. DRS emits events to EventBridge." },
+      { t: "A Route 53 health check on each source server.",
+        why: "Doesn't reflect replication state." },
+      { t: "AWS Config required-tags.",
+        why: "Unrelated." },
+      { t: "Check the console weekly.",
+        why: "Not automatic." }
+    ],
+    answer: [0],
+    tip: "Replication stall alerts = EventBridge DRS events → SNS."
+  },
+  {
+    id: "edr-22", domain: "d3", topic: "DRS",
+    q: "When protecting EC2 workloads cross-Region with DRS, the team wants the recovery Region to have the same subnets, security groups and route tables as the source VPC without rebuilding them by hand. Which DRS capability helps?",
+    options: [
+      { t: "DRS network (VPC configuration) replication for EC2 sources, which captures the source VPC configuration and recreates it in the recovery Region.",
+        why: "Correct. It replicates network configuration for AWS-based sources." },
+      { t: "Copy private IP alone.",
+        why: "Needs matching subnets to exist." },
+      { t: "Right-sizing.",
+        why: "Instance type only." },
+      { t: "PIT retention.",
+        why: "Data recovery points only." }
+    ],
+    answer: [0],
+    tip: "Recreate source VPC config in recovery Region = DRS network replication."
   }
 ];
+
 
 
 

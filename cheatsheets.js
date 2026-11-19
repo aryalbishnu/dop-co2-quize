@@ -2726,6 +2726,69 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "DRS",
+  sections: [
+    { h: "What DRS is", items: [
+      "**Continuous block-level replication** of **physical / VMware / Hyper-V / other-cloud / EC2** servers → **low-cost staging** in an AWS Region",
+      "**RPO seconds · RTO minutes** (5–20 min) · successor of CloudEndure DR · **active/passive**",
+      "Pay mostly for staging · recovery / drill instances only while running",
+      "**Not** for managed services (RDS, DynamoDB, S3) · migration = **MGN** · retention = **AWS Backup**"
+    ]},
+    { h: "Architecture", items: [
+      "**AWS Replication Agent** (or agentless vCenter) · crash-consistent",
+      "Ports: **TCP 1500** data to replication servers · **443** control",
+      "Staging subnet: **small replication servers** + **cheap EBS** + **PIT snapshots** · optional staging account",
+      "**Private IP routing** over VPN / Direct Connect · TLS in transit · EBS KMS at rest",
+      "**Conversion server** makes boot volumes EC2-compatible at launch"
+    ]},
+    { h: "Settings", table: [
+      ["Setting", "Detail"],
+      ["Replication server", "Dedicated or **shared** (cheaper)"],
+      ["Staging EBS", "**Auto / st1 / sc1** (cost lever) or gp3"],
+      ["PIT retention", "10 min / 1 h · hourly / 24 h · **daily / 7 d** · extendable"],
+      ["Data routing", "Public IP or **private IP**"],
+      ["Launch template", "Type, subnet, SGs, profile"],
+      ["Right-sizing", "**Basic** = match source CPU / RAM"],
+      ["Copy private IP", "Keep source private IP"],
+      ["Post-launch actions", "**SSM documents** (agents, validation, DNS)"],
+      ["Network replication", "Recreate **source VPC config** for EC2 sources"]
+    ]},
+    { h: "Operations", items: [
+      "**Drill** = non-disruptive test (replication continues) → terminate",
+      "**Recovery** = latest or **PIT** (ransomware) → switch DNS / ARC",
+      "Recover in **dependency order** (DB → app → web)",
+      "**Failback**: **Failback Client** (on-prem / VMware) · **reversed replication** (AWS → AWS) · re-protect",
+      "Agent creds: **AWSElasticDisasterRecoveryAgentInstallationPolicy** · scale: **multiple staging accounts**",
+      "Monitor lag / backlog · **EventBridge** stall events → SNS"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["VMware DR, RPO seconds, low cost", "DRS"],
+      ["Why cheap", "Small replication servers + cheap EBS"],
+      ["No internet replication", "Private IP over DX / VPN"],
+      ["Agent installed, no replication", "Open TCP 1500"],
+      ["Ransomware 40 min ago", "PIT recovery point"],
+      ["Test without impact", "Drill"],
+      ["VMware disk won't boot", "Conversion server"],
+      ["Configure after recovery", "Post-launch actions"],
+      ["Keep same IPs", "Copy private IP"],
+      ["Match instance size", "Right-sizing Basic"],
+      ["Back to VMware", "Failback Client"],
+      ["Back to original Region", "Reversed replication"],
+      ["Protect RDS / DynamoDB", "Native replication, not DRS"],
+      ["Reduce staging cost", "Cheap EBS + shared servers"],
+      ["Growing lag", "Bandwidth / bigger replication server"],
+      ["Migrate + DR", "MGN + DRS"],
+      ["900 servers", "Multiple staging accounts"],
+      ["Agent install creds", "Agent installation policy"],
+      ["Dependent tiers", "Recover in order"],
+      ["Stall alerts", "EventBridge → SNS"],
+      ["Same VPC config in DR Region", "Network replication"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
