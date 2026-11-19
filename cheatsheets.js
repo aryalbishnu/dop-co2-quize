@@ -2789,6 +2789,79 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Decoupling",
+  sections: [
+    { h: "Which service", table: [
+      ["Need", "Choose"],
+      ["Buffer work, one consumer per message, retry + DLQ", "**SQS**"],
+      ["Order per entity, no duplicates", "**SQS FIFO** (MessageGroupId)"],
+      ["One event → many consumers", "**SNS → multiple SQS** (filter policies)"],
+      ["Rich routing, AWS / SaaS events, archive / replay", "**EventBridge**"],
+      ["Multiple readers, order per key, replay", "**Kinesis Data Streams**"],
+      ["Managed delivery to S3 / Redshift / OpenSearch", "**Data Firehose** (no replay)"],
+      ["Multi-step workflow, retries, compensation", "**Step Functions**"]
+    ]},
+    { h: "SQS essentials", items: [
+      "Standard: **at least once**, best-effort order · FIFO: exactly-once, **order per group**, 300 / 3,000 msg/s, dedup **5 min**",
+      "**Visibility timeout** 30 s default / 12 h max · **> processing time** · `ChangeMessageVisibility`",
+      "Lambda: **visibility ≥ 6 × function timeout** · **ReportBatchItemFailures** · maximum concurrency",
+      "Retention 4 d (1 min–14 d) · **long polling 20 s** · delay queue ≤ 15 min · batch 10 · **S3 pointer** for big payloads",
+      "Scale on **backlog per instance** · alarm **ApproximateAgeOfOldestMessage**"
+    ]},
+    { h: "DLQ", items: [
+      "Redrive policy: **maxReceiveCount** → DLQ (poison messages)",
+      "**Same type** (FIFO → FIFO DLQ), same account / Region",
+      "**DLQ retention > source** (enqueue timestamp kept)",
+      "**DLQ redrive** (StartMessageMoveTask) after fix · alarm DLQ depth > 0"
+    ]},
+    { h: "SNS", items: [
+      "Push to SQS, Lambda, HTTP/S, email, SMS, mobile, Firehose · standard / **FIFO topics** (archive / replay)",
+      "**Filter policies** (attributes / body) · raw delivery · **subscription DLQ**",
+      "SNS → SQS needs **queue policy allowing topic** + **KMS key permissions** if encrypted"
+    ]},
+    { h: "Kinesis", items: [
+      "Shard: **1 MB/s or 1,000 rec/s in** · **2 MB/s out** shared or per consumer (**EFO**)",
+      "**Order per partition key** · retention **24 h → 365 d** (replay) · on-demand vs provisioned",
+      "Throttling / hot shard → better key, more shards / on-demand, backoff · lag = **IteratorAge**",
+      "Lambda: **bisect batch**, **max retry attempts / record age**, **on-failure destination**, parallelization factor (≤ 10)",
+      "KCL checkpoints in DynamoDB · **Firehose**: buffering, Lambda transform, **Parquet**, dynamic partitioning, **near real time, no replay**"
+    ]},
+    { h: "Step Functions", items: [
+      "**Standard** (1 year, exactly-once, history) vs **Express** (5 min, high volume)",
+      "States: Task, Choice, Parallel, Map / **Distributed Map**, Wait, Pass, Succeed, Fail",
+      "**Retry** (backoff, jitter) · **Catch** (fallback) · timeouts / **heartbeats**",
+      "**Request-response** · **.sync** (wait for job) · **.waitForTaskToken** (callback / approval) · SDK integrations",
+      "**Saga** = Catch → compensating states · **redrive** from failed step"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Orders lost in spikes", "SQS buffer + scale on backlog"],
+      ["Processed twice (3-min jobs)", "Visibility > processing time"],
+      ["Lambda + SQS redelivery", "Visibility ≥ 6× timeout"],
+      ["Poison message loops", "DLQ + maxReceiveCount"],
+      ["Standard DLQ for FIFO", "Must be FIFO"],
+      ["DLQ messages vanish", "DLQ retention longer"],
+      ["Reprocess after fix", "DLQ redrive"],
+      ["Empty receives cost", "Long polling 20 s"],
+      ["Per-account order", "FIFO + MessageGroupId"],
+      ["50 MB payload", "S3 + pointer"],
+      ["3 services get each event", "SNS → 3 SQS"],
+      ["Subscriber filter", "Filter policy"],
+      ["SNS → SQS nothing arrives", "Queue policy + KMS key policy"],
+      ["AWS / SaaS routing + replay", "EventBridge"],
+      ["Multi-reader replay stream", "Kinesis Data Streams"],
+      ["Hot shard throttling", "Better key + shards + backoff"],
+      ["IteratorAge rising", "Consumer lag → scale consumer"],
+      ["Poison Kinesis record", "Bisect + max retries + destination"],
+      ["Logs to S3 Parquet", "Data Firehose"],
+      ["Undo reservation on failure", "Step Functions saga"],
+      ["Resume failed execution", "Redrive"],
+      ["Batch fails for one message", "ReportBatchItemFailures"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

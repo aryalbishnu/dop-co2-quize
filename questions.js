@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -14187,8 +14187,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Recreate source VPC config in recovery Region = DRS network replication."
+  },
+  // ───────────────────────────── Domain 3: Decoupling ─────────────────────────────
+  {
+    id: "dec-01", domain: "d3", topic: "Decoupling",
+    q: "An order website writes orders directly to backend workers. During traffic spikes, the workers become overloaded and orders are lost. The company wants the web tier to accept orders even when workers are slow or temporarily down, and workers to process at their own pace. What should a DevOps engineer implement?",
+    options: [
+      { t: "Place an Amazon SQS queue between the web tier and the workers, and scale the worker Auto Scaling group on the queue backlog per instance.",
+        why: "Correct. SQS buffers requests (load leveling) and decouples producer and consumer scaling." },
+      { t: "Increase the worker instance size.",
+        why: "Doesn't prevent loss during outages or extreme spikes." },
+      { t: "Use an Application Load Balancer with sticky sessions.",
+        why: "Doesn't buffer work." },
+      { t: "Send orders by email to the workers.",
+        why: "Not a reliable decoupling mechanism." }
+    ],
+    answer: [0],
+    tip: "Buffer work between tiers = SQS (load leveling)."
+  },
+  {
+    id: "dec-02", domain: "d3", topic: "Decoupling",
+    q: "Workers take about 3 minutes to process each SQS message. Customers report that some orders are processed twice. The queue uses the default settings. What is the MOST likely cause and fix?",
+    options: [
+      { t: "The visibility timeout (default 30 seconds) is shorter than the processing time, so messages reappear and are received by another worker; increase it beyond the processing time (or extend it with ChangeMessageVisibility).",
+        why: "Correct. Messages become visible again if not deleted before the timeout." },
+      { t: "Enable long polling.",
+        why: "Reduces empty receives; doesn't stop redelivery." },
+      { t: "Increase message retention.",
+        why: "Unrelated to duplicates." },
+      { t: "Add a delay queue.",
+        why: "Delays first delivery only." }
+    ],
+    answer: [0],
+    tip: "Duplicates with long processing = visibility timeout too short."
+  },
+  {
+    id: "dec-03", domain: "d3", topic: "Decoupling",
+    q: "A Lambda function with a 2-minute timeout is triggered by an SQS queue. Messages are sometimes processed again while the previous invocation is still running. What does AWS recommend for the queue's visibility timeout?",
+    options: [
+      { t: "Set the queue visibility timeout to at least six times the function timeout (12 minutes or more here).",
+        why: "Correct. This avoids redelivery during processing and retries of the batch." },
+      { t: "Set it equal to the function timeout.",
+        why: "Too short to account for retries and polling." },
+      { t: "Set it to 0.",
+        why: "Messages would be redelivered immediately." },
+      { t: "Visibility timeout doesn't matter with Lambda.",
+        why: "It matters a lot." }
+    ],
+    answer: [0],
+    tip: "Lambda + SQS: visibility ≥ 6 × function timeout."
+  },
+  {
+    id: "dec-04", domain: "d3", topic: "Decoupling",
+    q: "A malformed message keeps failing in an SQS-driven worker and is received over and over, wasting capacity and delaying other messages. What should be configured?",
+    options: [
+      { t: "A dead-letter queue with a redrive policy (maxReceiveCount, for example 5) so the poison message is moved after repeated failures, plus an alarm on the DLQ.",
+        why: "Correct. DLQs isolate poison messages for analysis." },
+      { t: "Increase retention to 14 days.",
+        why: "The message keeps failing longer." },
+      { t: "Delete the queue and recreate it.",
+        why: "Loses all messages." },
+      { t: "Disable the visibility timeout.",
+        why: "Increases redelivery." }
+    ],
+    answer: [0],
+    tip: "Poison messages = DLQ + maxReceiveCount."
+  },
+  {
+    id: "dec-05", domain: "d3", topic: "Decoupling",
+    q: "An engineer tries to configure a standard SQS queue as the dead-letter queue for a FIFO queue, but it isn't allowed. Why?",
+    options: [
+      { t: "The DLQ of a FIFO queue must also be a FIFO queue (and in the same account and Region).",
+        why: "Correct. Queue types must match." },
+      { t: "FIFO queues don't support DLQs.",
+        why: "They do." },
+      { t: "The DLQ must be in another Region.",
+        why: "Must be the same Region." },
+      { t: "DLQs require long polling.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "FIFO source → FIFO DLQ."
+  },
+  {
+    id: "dec-06", domain: "d3", topic: "Decoupling",
+    q: "Messages moved to a standard DLQ disappear within hours, before engineers can investigate. The source queue retention is 4 days and the DLQ retention is also 4 days. What is the cause and fix?",
+    options: [
+      { t: "Messages keep their original enqueue timestamp, so they expire relative to when they first entered the source queue; set the DLQ retention longer than the source (e.g. 14 days).",
+        why: "Correct. DLQ retention should exceed the source queue's retention." },
+      { t: "DLQs delete messages after one hour.",
+        why: "Not true." },
+      { t: "Long polling deletes messages.",
+        why: "Not true." },
+      { t: "The redrive policy deletes messages.",
+        why: "It moves messages to the DLQ." }
+    ],
+    answer: [0],
+    tip: "DLQ retention > source retention."
+  },
+  {
+    id: "dec-07", domain: "d3", topic: "Decoupling",
+    q: "A bug caused 10,000 messages to land in a DLQ. The bug is now fixed and deployed. How should the team reprocess the messages with the LEAST effort?",
+    options: [
+      { t: "Use SQS DLQ redrive (StartMessageMoveTask / console) to move the messages back to the source queue.",
+        why: "Correct. Redrive is the built-in way to reprocess DLQ messages." },
+      { t: "Write a script that receives and resends each message manually.",
+        why: "More effort than built-in redrive." },
+      { t: "Delete the DLQ.",
+        why: "Loses the messages." },
+      { t: "Increase maxReceiveCount.",
+        why: "Doesn't move existing DLQ messages." }
+    ],
+    answer: [0],
+    tip: "Reprocess after fix = DLQ redrive."
+  },
+  {
+    id: "dec-08", domain: "d3", topic: "Decoupling",
+    q: "An SQS consumer fleet polls continuously and the bill shows a very high number of empty receive requests. How can cost be reduced without slowing processing?",
+    options: [
+      { t: "Enable long polling by setting ReceiveMessageWaitTimeSeconds up to 20 seconds.",
+        why: "Correct. Long polling waits for messages and reduces empty responses." },
+      { t: "Use a delay queue.",
+        why: "Delays delivery." },
+      { t: "Lower the visibility timeout.",
+        why: "Unrelated to empty receives." },
+      { t: "Switch to FIFO.",
+        why: "Doesn't reduce empty receives." }
+    ],
+    answer: [0],
+    tip: "Many empty receives = long polling."
+  },
+  {
+    id: "dec-09", domain: "d3", topic: "Decoupling",
+    q: "Bank transfer commands for each account must be processed in the exact order they were sent, without duplicates, while different accounts can be processed in parallel. Which solution fits?",
+    options: [
+      { t: "An SQS FIFO queue using the account ID as MessageGroupId and deduplication (content-based or MessageDeduplicationId).",
+        why: "Correct. FIFO orders per message group and deduplicates; groups allow parallelism." },
+      { t: "An SQS standard queue.",
+        why: "Best-effort ordering and possible duplicates." },
+      { t: "An SNS standard topic.",
+        why: "No strict ordering." },
+      { t: "A FIFO queue with a single MessageGroupId for all accounts.",
+        why: "Ordered but no parallelism across accounts." }
+    ],
+    answer: [0],
+    tip: "Ordered per entity + parallel + no dupes = FIFO + MessageGroupId per entity."
+  },
+  {
+    id: "dec-10", domain: "d3", topic: "Decoupling",
+    q: "A payload of up to 50 MB must be passed between microservices through SQS. What is the recommended approach?",
+    options: [
+      { t: "Store the payload in Amazon S3 and send a pointer in the SQS message (for example with the SQS Extended Client Library).",
+        why: "Correct. The claim-check pattern handles payloads beyond the message size limit." },
+      { t: "Split the payload into thousands of messages manually.",
+        why: "Complex and error-prone." },
+      { t: "Compress it until it fits.",
+        why: "May not fit and adds complexity." },
+      { t: "Use SNS instead.",
+        why: "SNS has similar size limits." }
+    ],
+    answer: [0],
+    tip: "Large payloads = S3 + pointer (Extended Client)."
+  },
+  {
+    id: "dec-11", domain: "d3", topic: "Decoupling",
+    q: "When an order is placed, the billing, shipping and analytics services must each receive a copy of the event, process it independently, and keep working even if one service is down for hours. What design should be used?",
+    options: [
+      { t: "Publish to an SNS topic subscribed by three SQS queues (one per service), each with its own consumers and DLQ (SNS fan-out).",
+        why: "Correct. Fan-out with per-consumer queues decouples and buffers each service." },
+      { t: "One SQS queue shared by all three services.",
+        why: "Each message would be processed by only one consumer." },
+      { t: "Direct HTTP calls to each service.",
+        why: "Tightly coupled; failures lose events." },
+      { t: "A single Lambda function calling all services.",
+        why: "Tightly coupled and fragile." }
+    ],
+    answer: [0],
+    tip: "One event, many independent consumers = SNS → multiple SQS."
+  },
+  {
+    id: "dec-12", domain: "d3", topic: "Decoupling",
+    q: "In an SNS fan-out design, the shipping queue should only receive events where the message attribute type equals 'physical'. Other subscribers need all events. What should be configured?",
+    options: [
+      { t: "A subscription filter policy on the shipping queue's subscription matching type = physical.",
+        why: "Correct. Filter policies deliver only matching messages to that subscriber." },
+      { t: "A separate topic for each attribute value published by the producer.",
+        why: "More complexity than needed." },
+      { t: "Discard unwanted messages in the shipping consumer code.",
+        why: "Wastes processing and cost." },
+      { t: "SQS delay queue.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Subscriber gets only some messages = SNS filter policy."
+  },
+  {
+    id: "dec-13", domain: "d3", topic: "Decoupling",
+    q: "An SNS topic is subscribed to an SQS queue, but no messages ever arrive in the queue. The queue is encrypted with a customer managed KMS key. What are the likely causes? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "The SQS queue access policy doesn't allow the SNS topic (sns.amazonaws.com with aws:SourceArn of the topic) to send messages.",
+        why: "Correct. The queue policy must allow the topic." },
+      { t: "The KMS key policy doesn't allow SNS to use the key (kms:GenerateDataKey / kms:Decrypt).",
+        why: "Correct. Encrypted queues require key permissions for SNS." },
+      { t: "Long polling is disabled.",
+        why: "Doesn't stop delivery." },
+      { t: "The queue's visibility timeout is too short.",
+        why: "Doesn't affect delivery." },
+      { t: "SNS can't deliver to SQS.",
+        why: "It can." }
+    ],
+    answer: [0, 1],
+    tip: "SNS → SQS fails = queue policy + KMS key policy."
+  },
+  {
+    id: "dec-14", domain: "d3", topic: "Decoupling",
+    q: "A company needs to route events from many AWS services and SaaS partners to different targets based on detailed event content, archive events, and replay them later for testing. Which service fits BEST?",
+    options: [
+      { t: "Amazon EventBridge (rules with event patterns, archive and replay).",
+        why: "Correct. EventBridge is designed for event routing with rich filtering and replay." },
+      { t: "Amazon SNS standard topic.",
+        why: "Fan-out without AWS/SaaS event sources or archive for standard topics." },
+      { t: "Amazon SQS.",
+        why: "A queue, not an event router." },
+      { t: "Amazon Data Firehose.",
+        why: "Delivery to storage / analytics destinations." }
+    ],
+    answer: [0],
+    tip: "Rich event routing + AWS/SaaS events + replay = EventBridge."
+  },
+  {
+    id: "dec-15", domain: "d3", topic: "Decoupling",
+    q: "Clickstream events must be processed in real time by three independent applications (fraud detection, analytics, archiving), each reading the full stream at its own pace, with events for the same user kept in order and the ability to replay the last 7 days. Which service fits?",
+    options: [
+      { t: "Amazon Kinesis Data Streams with the user ID as partition key and 7-day retention.",
+        why: "Correct. Multiple consumers, per-key ordering and replay within retention." },
+      { t: "Amazon SQS standard queue.",
+        why: "Each message is consumed once and deleted; no replay or ordering." },
+      { t: "Amazon SNS.",
+        why: "Push only, no replay of past messages for standard topics." },
+      { t: "Amazon Data Firehose alone.",
+        why: "No replay or multiple custom real-time consumers." }
+    ],
+    answer: [0],
+    tip: "Multiple consumers + order per key + replay = Kinesis Data Streams."
+  },
+  {
+    id: "dec-16", domain: "d3", topic: "Decoupling",
+    q: "Producers writing to a provisioned Kinesis data stream receive ProvisionedThroughputExceededException. Metrics show one shard receiving most of the traffic because the partition key is the country code. What should be done? (Choose the BEST answer.)",
+    options: [
+      { t: "Use a higher-cardinality partition key (e.g. user ID), add shards or switch to on-demand mode, and retry with exponential backoff.",
+        why: "Correct. A hot shard from poor key distribution limits throughput." },
+      { t: "Increase retention to 365 days.",
+        why: "Doesn't change write throughput." },
+      { t: "Enable enhanced fan-out.",
+        why: "Improves reads, not writes." },
+      { t: "Reduce the number of shards.",
+        why: "Makes throttling worse." }
+    ],
+    answer: [0],
+    tip: "Write throttling / hot shard = better partition key + shards / on-demand + backoff."
+  },
+  {
+    id: "dec-17", domain: "d3", topic: "Decoupling",
+    q: "The IteratorAge metric for a Lambda function consuming a Kinesis stream keeps increasing. What does this indicate, and how can it be improved?",
+    options: [
+      { t: "The consumer is falling behind the stream; increase processing throughput (parallelization factor, more shards, enhanced fan-out, faster code / larger batch).",
+        why: "Correct. Iterator age measures consumer lag." },
+      { t: "Records are being produced too slowly.",
+        why: "Iterator age grows when consumers lag." },
+      { t: "The stream retention is too long.",
+        why: "Unrelated." },
+      { t: "Producers are throttled.",
+        why: "That's a producer metric issue." }
+    ],
+    answer: [0],
+    tip: "Growing IteratorAge = consumer lag."
+  },
+  {
+    id: "dec-18", domain: "d3", topic: "Decoupling",
+    q: "A single malformed record causes a Lambda function consuming a Kinesis shard to fail repeatedly, and processing for that shard stops. Which event source mapping settings resolve this?",
+    options: [
+      { t: "Enable bisect batch on function error, set maximum retry attempts / maximum record age, and configure an on-failure destination (SQS or SNS).",
+        why: "Correct. These isolate and skip poison records while preserving information about them." },
+      { t: "Increase the stream retention.",
+        why: "Retries continue longer, blocking the shard." },
+      { t: "Add an SQS DLQ to the Kinesis stream.",
+        why: "Kinesis has no queue DLQ; use the mapping's on-failure destination." },
+      { t: "Disable checkpointing.",
+        why: "Not a valid fix." }
+    ],
+    answer: [0],
+    tip: "Poison record in Kinesis + Lambda = bisect + max retries/age + on-failure destination."
+  },
+  {
+    id: "dec-19", domain: "d3", topic: "Decoupling",
+    q: "Application logs must be delivered continuously to Amazon S3 in Parquet format, partitioned by date, with a delay of up to a few minutes acceptable and no consumer code to manage. What should be used?",
+    options: [
+      { t: "Amazon Data Firehose with buffering, format conversion to Parquet and dynamic partitioning to S3.",
+        why: "Correct. Firehose is managed near-real-time delivery with transformation." },
+      { t: "Kinesis Data Streams with a custom KCL application writing Parquet.",
+        why: "Possible but requires managing consumer code." },
+      { t: "SQS with an EC2 consumer.",
+        why: "Custom code and infrastructure." },
+      { t: "SNS email subscriptions.",
+        why: "Not a data delivery pipeline." }
+    ],
+    answer: [0],
+    tip: "Managed delivery to S3 with Parquet = Data Firehose."
+  },
+  {
+    id: "dec-20", domain: "d3", topic: "Decoupling",
+    q: "An order workflow reserves inventory, charges the payment and books shipping. If payment fails after inventory was reserved, the reservation must be released. The workflow must retry transient errors with backoff and show a visual execution history. What should be used?",
+    options: [
+      { t: "An AWS Step Functions Standard workflow with Retry (backoff) on each task and Catch to compensating states (saga pattern).",
+        why: "Correct. Step Functions provides retries, compensation and execution history." },
+      { t: "One Lambda function that calls all services with sleep-based retries.",
+        why: "Fragile, limited to 15 minutes, no visual history." },
+      { t: "An SNS topic.",
+        why: "Choreography without central compensation logic." },
+      { t: "An SQS FIFO queue.",
+        why: "Doesn't implement workflow logic." }
+    ],
+    answer: [0],
+    tip: "Multi-step with compensation = Step Functions saga (Retry + Catch)."
+  },
+  {
+    id: "dec-21", domain: "d3", topic: "Decoupling",
+    q: "A Step Functions Standard execution that runs for 2 hours failed at the last step due to a bug that has now been fixed. Restarting from the beginning would repeat expensive work. What should the team do?",
+    options: [
+      { t: "Redrive the failed execution so it resumes from the failed step.",
+        why: "Correct. Redrive restarts Standard executions from the point of failure." },
+      { t: "Start a new execution with the same input.",
+        why: "Repeats all completed work." },
+      { t: "Convert to an Express workflow.",
+        why: "Express is limited to 5 minutes." },
+      { t: "Increase the state machine timeout.",
+        why: "Doesn't resume the failed execution." }
+    ],
+    answer: [0],
+    tip: "Resume failed workflow = redrive."
+  },
+  {
+    id: "dec-22", domain: "d3", topic: "Decoupling",
+    q: "A Lambda function processes batches of 10 SQS messages. When one message fails, the whole batch is retried, causing the 9 successful messages to be processed again. What should be configured?",
+    options: [
+      { t: "Enable partial batch responses (ReportBatchItemFailures) and return only the failed message IDs, with idempotent processing.",
+        why: "Correct. Only failed messages return to the queue." },
+      { t: "Set batch size to 1 permanently.",
+        why: "Works but reduces efficiency." },
+      { t: "Increase the visibility timeout to 12 hours.",
+        why: "Delays retries but still reprocesses successes." },
+      { t: "Delete the queue after each batch.",
+        why: "Not reasonable." }
+    ],
+    answer: [0],
+    tip: "Avoid reprocessing successes = ReportBatchItemFailures."
   }
 ];
+
 
 
 
