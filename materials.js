@@ -48,5 +48,6 @@ window.MATERIALS = [
   { domain: "d3", topics: ["Multi-Region Data"], title: "Week 5 notes - Multi-Region data: Aurora Global Database, DynamoDB Global Tables, RDS read replicas / Multi-AZ, S3 CRR / SRR (traps, lab, check yourself)", file: "pdfs/Week5_Multi_Region_Data.pdf" },
   { domain: "d3", topics: ["AWS Backup"], title: "Week 5 notes - AWS Backup: plans, vaults, cross-Region / cross-account copies, Vault Lock (traps, lab, check yourself)", file: "pdfs/Week5_AWS_Backup.pdf" },
   { domain: "d3", topics: ["DRS"], title: "Week 5 notes - AWS Elastic Disaster Recovery (DRS) (traps, lab, check yourself)", file: "pdfs/Week5_DRS.pdf" },
-  { domain: "d3", topics: ["Decoupling"], title: "Week 5 notes - Decoupling: SQS (DLQ, visibility timeout), SNS, Kinesis, Step Functions (traps, lab, check yourself)", file: "pdfs/Week5_Decoupling.pdf" }
+  { domain: "d3", topics: ["Decoupling"], title: "Week 5 notes - Decoupling: SQS (DLQ, visibility timeout), SNS, Kinesis, Step Functions (traps, lab, check yourself)", file: "pdfs/Week5_Decoupling.pdf" },
+  { domain: "d3", topics: ["Caching"], title: "Week 5 notes - Caching: CloudFront, ElastiCache (traps, lab, check yourself)", file: "pdfs/Week5_Caching.pdf" }
 ];

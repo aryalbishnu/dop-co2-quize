@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -14543,8 +14543,365 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Avoid reprocessing successes = ReportBatchItemFailures."
+  },
+  // ───────────────────────────── Domain 3: Caching ─────────────────────────────
+  {
+    id: "cch-01", domain: "d3", topic: "Caching",
+    q: "A media company serves images and videos from an S3 bucket in us-east-1 to users worldwide. Users in Asia report slow load times and S3 request costs are high. What should a DevOps engineer implement?",
+    options: [
+      { t: "An Amazon CloudFront distribution in front of the S3 bucket (with OAC), caching objects at edge locations near users.",
+        why: "Correct. CloudFront reduces latency and offloads requests from the origin." },
+      { t: "S3 Cross-Region Replication to every Region.",
+        why: "Expensive and users still need routing to the nearest bucket." },
+      { t: "S3 Transfer Acceleration for downloads.",
+        why: "Mainly accelerates uploads; doesn't cache." },
+      { t: "Increase the S3 storage class.",
+        why: "Storage class doesn't improve latency." }
+    ],
+    answer: [0],
+    tip: "Global low latency + origin offload = CloudFront."
+  },
+  {
+    id: "cch-02", domain: "d3", topic: "Caching",
+    q: "The S3 bucket behind a CloudFront distribution must not be publicly accessible, and objects are encrypted with SSE-KMS. Only CloudFront should be able to read them. What should be configured?",
+    options: [
+      { t: "Origin Access Control (OAC) with a bucket policy allowing cloudfront.amazonaws.com conditioned on the distribution ARN (AWS:SourceArn), Block Public Access on, and a KMS key policy that allows CloudFront to decrypt.",
+        why: "Correct. OAC supports SSE-KMS and restricts access to the specific distribution." },
+      { t: "Origin Access Identity (OAI).",
+        why: "Legacy and doesn't support SSE-KMS objects." },
+      { t: "Make the bucket public and use signed URLs.",
+        why: "The bucket would still be public." },
+      { t: "Use the S3 website endpoint as origin.",
+        why: "Website endpoints are custom origins and must be public." }
+    ],
+    answer: [0],
+    tip: "Private S3 origin (incl. KMS) = OAC."
+  },
+  {
+    id: "cch-03", domain: "d3", topic: "Caching",
+    q: "After each deployment of a single-page application, many users keep receiving old JavaScript files from CloudFront for hours. The team wants new versions to appear instantly without extra cost on every release. What is the BEST practice?",
+    options: [
+      { t: "Use versioned (hashed) file names for static assets and reference the new names from the updated HTML (short TTL on index.html).",
+        why: "Correct. New URLs bypass old cached objects instantly and cheaply." },
+      { t: "Create a /* invalidation after every deployment.",
+        why: "Works but takes time and costs beyond the free invalidation paths." },
+      { t: "Disable caching for all files.",
+        why: "Loses CDN benefits and increases origin load." },
+      { t: "Increase the default TTL.",
+        why: "Makes stale content last longer." }
+    ],
+    answer: [0],
+    tip: "Instant cache busting = versioned file names."
+  },
+  {
+    id: "cch-04", domain: "d3", topic: "Caching",
+    q: "A critical typo was published in an existing HTML file that's cached in CloudFront with a 24-hour TTL. The page must be fixed immediately without renaming the file. What should be done?",
+    options: [
+      { t: "Upload the fixed file to the origin and create a CloudFront invalidation for that path.",
+        why: "Correct. Invalidation removes the cached object so the next request fetches the new version." },
+      { t: "Wait for the TTL to expire.",
+        why: "Up to 24 hours." },
+      { t: "Delete the distribution.",
+        why: "Disruptive." },
+      { t: "Change the price class.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Urgent fix to same URL = invalidation."
+  },
+  {
+    id: "cch-05", domain: "d3", topic: "Caching",
+    q: "A CloudFront distribution has a very low cache hit ratio. The behavior forwards all headers, all cookies and all query strings to the origin. The origin only needs the 'lang' query string to vary responses, plus an authorization header that doesn't change the content. What should be changed?",
+    options: [
+      { t: "Use a cache policy whose cache key includes only the 'lang' query string, and an origin request policy to forward the needed header without adding it to the cache key.",
+        why: "Correct. A smaller cache key increases hits while still forwarding what the origin needs." },
+      { t: "Forward even more headers.",
+        why: "Further fragments the cache." },
+      { t: "Lower the TTL to 0.",
+        why: "Reduces hits further." },
+      { t: "Disable compression.",
+        why: "Unrelated to cache key fragmentation." }
+    ],
+    answer: [0],
+    tip: "Low hit ratio = trim cache key; forward extras via origin request policy."
+  },
+  {
+    id: "cch-06", domain: "d3", topic: "Caching",
+    q: "A CloudFront distribution with many global viewers causes high request load on a fragile origin even with good TTLs, because requests from many edge locations all miss at the same time. Which feature reduces load on the origin?",
+    options: [
+      { t: "Origin Shield, an additional centralized caching layer in front of the origin.",
+        why: "Correct. Origin Shield collapses requests and improves the hit ratio." },
+      { t: "Geo restriction.",
+        why: "Blocks countries; doesn't reduce origin load in general." },
+      { t: "Signed cookies.",
+        why: "Access control only." },
+      { t: "Real-time logs.",
+        why: "Observability only." }
+    ],
+    answer: [0],
+    tip: "Protect origin from many edges = Origin Shield."
+  },
+  {
+    id: "cch-07", domain: "d3", topic: "Caching",
+    q: "A static website is served by CloudFront from an S3 bucket in us-east-1. The company wants CloudFront to automatically serve content from a replica bucket in us-west-2 if the primary bucket returns errors or is unreachable. What should be configured?",
+    options: [
+      { t: "A CloudFront origin group with the us-east-1 bucket as primary and the us-west-2 bucket as secondary, with failover on 5xx / 403 / 404 status codes.",
+        why: "Correct. Origin failover retries GET / HEAD / OPTIONS requests on the secondary origin." },
+      { t: "Route 53 weighted routing between the buckets.",
+        why: "CloudFront needs origin failover; DNS weights aren't health-based here." },
+      { t: "A second distribution for the secondary bucket.",
+        why: "Requires DNS changes and isn't automatic." },
+      { t: "S3 Transfer Acceleration.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "CloudFront origin failover = origin group."
+  },
+  {
+    id: "cch-08", domain: "d3", topic: "Caching",
+    q: "A team configured CloudFront origin failover for an API, but POST requests aren't retried on the secondary origin when the primary fails. Why?",
+    options: [
+      { t: "Origin failover only applies to GET, HEAD and OPTIONS requests.",
+        why: "Correct. Other methods aren't retried on the secondary origin." },
+      { t: "The secondary origin must be an S3 bucket.",
+        why: "Any origin type works." },
+      { t: "Failover requires Lambda@Edge.",
+        why: "Not required." },
+      { t: "POST requests are cached.",
+        why: "POST responses aren't cached." }
+    ],
+    answer: [0],
+    tip: "Origin failover = GET / HEAD / OPTIONS only."
+  },
+  {
+    id: "cch-09", domain: "d3", topic: "Caching",
+    q: "An engineer imported an ACM certificate for www.example.com in eu-west-1 but can't select it when adding the alternate domain name to a CloudFront distribution. What is the fix?",
+    options: [
+      { t: "Request or import the certificate in ACM in us-east-1 (N. Virginia), which CloudFront uses.",
+        why: "Correct. CloudFront requires certificates in us-east-1." },
+      { t: "Use a self-signed certificate.",
+        why: "Browsers won't trust it, and the Region is the issue." },
+      { t: "Enable Origin Shield in eu-west-1.",
+        why: "Unrelated." },
+      { t: "Add the certificate to the S3 bucket.",
+        why: "Not how CloudFront TLS works." }
+    ],
+    answer: [0],
+    tip: "CloudFront certificates = ACM us-east-1."
+  },
+  {
+    id: "cch-10", domain: "d3", topic: "Caching",
+    q: "The team wants to test a change to CloudFront cache behaviors on about 5% of real production traffic and then roll it out fully, without creating a new domain. Which feature supports this?",
+    options: [
+      { t: "CloudFront continuous deployment with a staging distribution and a traffic-weight (or header-based) policy, then promote the staging configuration.",
+        why: "Correct. Continuous deployment enables safe, gradual CDN configuration changes." },
+      { t: "Create a separate distribution and change DNS for 5% of users manually.",
+        why: "Manual and imprecise." },
+      { t: "Invalidate all objects.",
+        why: "Doesn't test configuration." },
+      { t: "Route 53 geolocation routing.",
+        why: "Routes by location, not a configuration test." }
+    ],
+    answer: [0],
+    tip: "Test CDN config on % traffic = continuous deployment."
+  },
+  {
+    id: "cch-11", domain: "d3", topic: "Caching",
+    q: "At the edge, a company needs to redirect legacy URLs (/old/*) to new paths and add security headers to responses, at very high request rates and lowest cost. No external calls are needed. What should be used?",
+    options: [
+      { t: "CloudFront Functions for the redirects (viewer request) and a response headers policy (or CloudFront Function on viewer response) for headers.",
+        why: "Correct. CloudFront Functions are lightweight and cheapest for simple viewer-side logic." },
+      { t: "Lambda@Edge on origin request.",
+        why: "Works but more expensive and slower than needed." },
+      { t: "An EC2 reverse proxy.",
+        why: "Extra infrastructure." },
+      { t: "API Gateway in front of CloudFront.",
+        why: "Unnecessary." }
+    ],
+    answer: [0],
+    tip: "Simple edge rewrites / headers = CloudFront Functions."
+  },
+  {
+    id: "cch-12", domain: "d3", topic: "Caching",
+    q: "At the edge, each request must be authorized by calling an external token introspection service and then routed to different origins based on the user's subscription tier. Which edge compute option fits?",
+    options: [
+      { t: "Lambda@Edge on viewer / origin request, because it supports network calls and origin selection.",
+        why: "Correct. CloudFront Functions can't make network calls." },
+      { t: "CloudFront Functions.",
+        why: "No network calls or origin request events." },
+      { t: "Geo restriction.",
+        why: "Location-based only." },
+      { t: "Signed URLs only.",
+        why: "Doesn't call external services or select origins." }
+    ],
+    answer: [0],
+    tip: "External calls / origin selection at edge = Lambda@Edge."
+  },
+  {
+    id: "cch-13", domain: "d3", topic: "Caching",
+    q: "A multiplayer game uses UDP and needs static IP addresses for players' firewall allow lists and fast failover between Regions. A team member suggests CloudFront. What is the better choice?",
+    options: [
+      { t: "AWS Global Accelerator, which supports TCP / UDP, static anycast IPs and fast regional failover.",
+        why: "Correct. CloudFront is for cacheable HTTP(S) content." },
+      { t: "CloudFront with Origin Shield.",
+        why: "Doesn't support UDP." },
+      { t: "Route 53 simple routing.",
+        why: "No static anycast IPs or fast failover." },
+      { t: "ElastiCache Global Datastore.",
+        why: "A cache, not network acceleration." }
+    ],
+    answer: [0],
+    tip: "UDP + static IPs = Global Accelerator, not CloudFront."
+  },
+  {
+    id: "cch-14", domain: "d3", topic: "Caching",
+    q: "An Aurora database is overloaded by the same product catalog queries executed thousands of times per minute. The data changes only a few times per hour, and a few minutes of staleness is acceptable. What is the MOST effective solution?",
+    options: [
+      { t: "Add Amazon ElastiCache (Valkey / Redis) with a lazy-loading (cache-aside) pattern and a TTL of a few minutes.",
+        why: "Correct. Caching repeated reads cuts database load; TTL bounds staleness." },
+      { t: "Scale the Aurora writer to a larger instance only.",
+        why: "Expensive and doesn't remove repeated reads." },
+      { t: "Use RDS Proxy.",
+        why: "Pools connections; doesn't cache query results." },
+      { t: "Enable Multi-AZ.",
+        why: "HA, not read offload." }
+    ],
+    answer: [0],
+    tip: "Repeated reads, staleness OK = ElastiCache lazy loading + TTL."
+  },
+  {
+    id: "cch-15", domain: "d3", topic: "Caching",
+    q: "With a lazy-loading cache, users sometimes see outdated account balances right after updates. Business requires the cache to reflect writes immediately while still controlling memory use. What should the team implement?",
+    options: [
+      { t: "Write-through caching (update the cache whenever the database is written) combined with a TTL.",
+        why: "Correct. Write-through keeps cache data current; TTL limits unused data." },
+      { t: "Increase the TTL.",
+        why: "Makes staleness worse." },
+      { t: "Use Memcached instead of Redis.",
+        why: "Engine change doesn't fix staleness." },
+      { t: "Disable the cache.",
+        why: "Loses performance benefits." }
+    ],
+    answer: [0],
+    tip: "Fresh after writes = write-through (+ TTL)."
+  },
+  {
+    id: "cch-16", domain: "d3", topic: "Caching",
+    q: "A web application stores user sessions in instance memory and uses ALB sticky sessions. Users lose their sessions whenever Auto Scaling terminates instances. What is the BEST improvement?",
+    options: [
+      { t: "Store sessions in a shared store such as ElastiCache (Valkey / Redis, Multi-AZ) or DynamoDB and make the app stateless.",
+        why: "Correct. Externalized sessions survive instance replacement and scale evenly." },
+      { t: "Increase the sticky session duration.",
+        why: "Sessions are still lost when instances terminate." },
+      { t: "Disable scale-in.",
+        why: "Wastes cost and doesn't handle failures." },
+      { t: "Use Memcached on each instance.",
+        why: "Still per-instance state." }
+    ],
+    answer: [0],
+    tip: "Sessions lost on scale-in = external session store."
+  },
+  {
+    id: "cch-17", domain: "d3", topic: "Caching",
+    q: "A company needs an in-memory cache that survives a node or AZ failure with automatic failover, supports backups, and uses sorted sets for a leaderboard. Which configuration fits?",
+    options: [
+      { t: "ElastiCache for Valkey / Redis OSS with replicas and Multi-AZ automatic failover enabled (snapshots for backups).",
+        why: "Correct. Redis / Valkey supports replication, failover, snapshots and sorted sets." },
+      { t: "ElastiCache for Memcached.",
+        why: "No replication, failover, backups or sorted sets." },
+      { t: "A single-node Redis cluster without replicas.",
+        why: "No automatic failover." },
+      { t: "DAX.",
+        why: "DynamoDB-specific cache without sorted-set leaderboards." }
+    ],
+    answer: [0],
+    tip: "HA + backups + rich types = Valkey / Redis Multi-AZ."
+  },
+  {
+    id: "cch-18", domain: "d3", topic: "Caching",
+    q: "A Redis cache (cluster mode disabled) is running out of memory and the primary node's CPU is saturated by writes. Adding read replicas didn't help. What should be done?",
+    options: [
+      { t: "Enable cluster mode (sharding) to partition data and writes across multiple shards, using online resharding / scaling.",
+        why: "Correct. Read replicas don't scale writes or memory; shards do." },
+      { t: "Add more read replicas.",
+        why: "Already tried; doesn't scale writes." },
+      { t: "Switch eviction policy to noeviction.",
+        why: "Causes write errors when memory is full." },
+      { t: "Lower the TTL to 1 second.",
+        why: "Increases misses dramatically." }
+    ],
+    answer: [0],
+    tip: "Scale Redis writes / memory = cluster mode enabled (shards)."
+  },
+  {
+    id: "cch-19", domain: "d3", topic: "Caching",
+    q: "CloudWatch shows a high and rising Evictions metric and a falling cache hit rate on an ElastiCache Redis cluster. What does this indicate and what should be done?",
+    options: [
+      { t: "The cache is under memory pressure and evicting keys; scale up / out (larger nodes or more shards) or review TTLs and the eviction policy.",
+        why: "Correct. Evictions occur when memory is full." },
+      { t: "Replication is broken.",
+        why: "That's ReplicationLag." },
+      { t: "Too many connections.",
+        why: "That's CurrConnections." },
+      { t: "Nothing; evictions are always good.",
+        why: "They reduce hit rate." }
+    ],
+    answer: [0],
+    tip: "High Evictions = memory pressure."
+  },
+  {
+    id: "cch-20", domain: "d3", topic: "Caching",
+    q: "A global application uses ElastiCache for Redis in us-east-1. For disaster recovery and low-latency reads, it needs a replicated cache in eu-west-1 that can be promoted quickly if us-east-1 fails. What should be used?",
+    options: [
+      { t: "ElastiCache Global Datastore with a secondary cluster in eu-west-1.",
+        why: "Correct. Global Datastore replicates across Regions and supports promotion." },
+      { t: "A second independent cluster refreshed by a cron job.",
+        why: "Custom and stale." },
+      { t: "Memcached auto discovery.",
+        why: "Single-Region, no replication." },
+      { t: "CloudFront in front of Redis.",
+        why: "CloudFront doesn't cache Redis protocol traffic." }
+    ],
+    answer: [0],
+    tip: "Cross-Region cache = Global Datastore."
+  },
+  {
+    id: "cch-21", domain: "d3", topic: "Caching",
+    q: "A gaming backend uses DynamoDB and needs microsecond read latency for hot items with minimal application code changes. Which solution fits, and what's a key caveat? (Choose the BEST answer.)",
+    options: [
+      { t: "DynamoDB Accelerator (DAX), which is API-compatible; strongly consistent reads bypass the cache and go to DynamoDB.",
+        why: "Correct. DAX provides microsecond reads for eventually consistent requests." },
+      { t: "ElastiCache Memcached with custom code.",
+        why: "Works but requires more code changes." },
+      { t: "DynamoDB global tables.",
+        why: "Replication, not microsecond caching." },
+      { t: "RDS Proxy.",
+        why: "For relational DB connections." }
+    ],
+    answer: [0],
+    tip: "DynamoDB µs reads = DAX (strong reads bypass)."
+  },
+  {
+    id: "cch-22", domain: "d3", topic: "Caching",
+    q: "Many cache keys for a popular product page expire at the same moment, causing a flood of simultaneous database queries (cache stampede) every hour. How can this be mitigated? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Add random jitter to TTLs so keys don't expire simultaneously.",
+        why: "Correct. Spreads expirations over time." },
+      { t: "Use request coalescing / a lock so only one request repopulates a missing key while others wait or get stale data.",
+        why: "Correct. Prevents many concurrent identical DB queries." },
+      { t: "Set every TTL to exactly the same value.",
+        why: "Causes the stampede." },
+      { t: "Remove the cache.",
+        why: "Increases DB load further." },
+      { t: "Use the noeviction policy.",
+        why: "Unrelated to simultaneous expiry." }
+    ],
+    answer: [0, 1],
+    tip: "Cache stampede = TTL jitter + request coalescing / locking."
   }
 ];
+
 
 
 

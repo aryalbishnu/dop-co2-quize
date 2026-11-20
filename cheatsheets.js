@@ -2862,6 +2862,72 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Caching",
+  sections: [
+    { h: "CloudFront core", items: [
+      "Edge + regional caches · origins: **S3 (OAC)**, ALB / EC2 / custom, API GW, Lambda URLs, **VPC origins**",
+      "**Behaviors** by path · **cache policy** (TTL min / default 24 h / max + **cache key**) · **origin request policy** (forward without cache key) · **response headers policy** (CORS, security)",
+      "**Versioned file names > invalidation** (1,000 free paths / month) · invalidation for urgent same-URL fixes",
+      "Hit ratio: **trim cache key**, **Origin Shield**, longer TTL, compression · metrics + **ACM cert in us-east-1**"
+    ]},
+    { h: "CloudFront resilience and security", items: [
+      "**Origin groups**: primary / secondary on 5xx / 403 / 404 / connection errors · **GET / HEAD / OPTIONS only**",
+      "`stale-if-error` / `stale-while-revalidate` · custom error pages · **error caching min TTL**",
+      "**Continuous deployment**: staging distribution, % or header traffic → promote",
+      "**OAC** (KMS ok, replaces OAI) · bucket policy `AWS:SourceArn` · website endpoint = custom origin",
+      "**WAF**, Shield, **geo restriction**, **signed URLs / cookies**, field-level encryption · real-time logs → Kinesis"
+    ]},
+    { h: "Edge compute", table: [
+      ["", "CloudFront Functions", "Lambda@Edge"],
+      ["Events", "Viewer request / response", "+ origin request / response"],
+      ["Power", "Sub-ms JS, **no network**", "Node / Python, **network calls**"],
+      ["Use", "Rewrites, redirects, headers, cache-key normalisation", "Auth lookups, origin selection, response changes"],
+      ["Cost", "Cheapest", "Higher · authored in us-east-1"]
+    ]},
+    { h: "ElastiCache", table: [
+      ["", "Valkey / Redis", "Memcached"],
+      ["Replication / HA", "**Replicas + Multi-AZ failover**", "None"],
+      ["Persistence", "**Snapshots**", "None"],
+      ["Scaling", "**Cluster mode** shards, replicas, auto scaling", "Add nodes, multi-threaded"],
+      ["Cross-Region", "**Global Datastore**", "No"],
+      ["Types", "Sorted sets, hashes, streams, pub/sub", "Key / value"]
+    ]},
+    { h: "Strategies and metrics", items: [
+      "**Lazy loading** (miss penalty, stale until TTL) · **write-through** (fresh, write penalty, unused data) · **TTL** bounds staleness",
+      "**Session store** instead of sticky sessions · stampede → **TTL jitter + request coalescing**",
+      "Eviction: volatile-lru (default), allkeys-lru, allkeys-lfu, noeviction · **Serverless** for spiky load",
+      "Metrics: **hit rate**, **Evictions** (memory pressure), **EngineCPUUtilization**, memory %, connections, ReplicationLag",
+      "**DAX** (DynamoDB µs, strong reads bypass) · **API Gateway cache** (300 s default) · **RDS Proxy** = pooling only"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Slow global S3 content", "CloudFront"],
+      ["Private S3 incl. KMS", "OAC"],
+      ["Old JS after deploy", "Versioned file names"],
+      ["Urgent fix same URL", "Invalidation"],
+      ["Low hit ratio", "Trim cache key + origin request policy"],
+      ["Origin overloaded by edges", "Origin Shield"],
+      ["Serve from replica on failure", "Origin group"],
+      ["POST not failing over", "GET / HEAD / OPTIONS only"],
+      ["Cert not selectable", "ACM us-east-1"],
+      ["Test config on 5%", "Continuous deployment"],
+      ["Redirects / headers cheap", "CloudFront Functions"],
+      ["External auth at edge", "Lambda@Edge"],
+      ["UDP + static IPs", "Global Accelerator"],
+      ["Repeated DB reads", "ElastiCache lazy + TTL"],
+      ["Stale after writes", "Write-through + TTL"],
+      ["Sessions lost on scale-in", "External session store"],
+      ["HA cache + leaderboard", "Valkey / Redis Multi-AZ"],
+      ["Writes / memory saturated", "Cluster mode shards"],
+      ["High Evictions", "Memory pressure"],
+      ["Cross-Region cache", "Global Datastore"],
+      ["DynamoDB µs", "DAX"],
+      ["Cache stampede", "TTL jitter + coalescing"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
