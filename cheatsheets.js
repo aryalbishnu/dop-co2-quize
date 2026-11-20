@@ -2928,6 +2928,69 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "FIS and Resilience Hub",
+  sections: [
+    { h: "Chaos engineering", items: [
+      "**Steady state → hypothesis → inject fault → observe / stop → learn, fix, automate**",
+      "**Limit blast radius**: non-prod first, tags, COUNT / PERCENT, short duration",
+      "**Resilience Hub says** (RTO / RPO, recommendations) · **FIS proves** (real faults)"
+    ]},
+    { h: "FIS templates", items: [
+      "**Actions** (parallel / sequence, `aws:fis:wait`) · **targets** (ARNs, **tags**, filters, ALL / **COUNT** / **PERCENT**)",
+      "**Stop conditions** = CloudWatch alarms → stop + rollback · **IAM role trusts `fis.amazonaws.com`**",
+      "Logs (CloudWatch / S3) · **experiment reports** · **multi-account** experiments (orchestrator + targets)",
+      "**Safety lever** = stop all + block new · governance: tag targets + IAM / SCP on `fis:StartExperiment`",
+      "Automate: **EventBridge Scheduler** / **CI/CD stage** · cost per action-minute"
+    ]},
+    { h: "Key FIS actions", table: [
+      ["Test", "Action"],
+      ["Instance loss", "`aws:ec2:stop / terminate / reboot-instances`"],
+      ["Spot handling", "**`send-spot-instance-interruptions`**"],
+      ["ASG can't launch in AZ", "**`asg-insufficient-instance-capacity-error`**"],
+      ["CPU / memory / latency in instance", "**`aws:ssm:send-command`** AWSFIS-Run-* (**SSM Agent**)"],
+      ["Containers", "ECS stop-task / stress · EKS pod-delete / stress / latency"],
+      ["DB / cache failover", "**`aws:rds:failover-db-cluster`** · ElastiCache AZ power"],
+      ["Storage / replication", "`aws:ebs:pause-volume-io` · S3 / DynamoDB replication pause"],
+      ["Network", "**`aws:network:disrupt-connectivity`** · cross-Region route / TGW"],
+      ["API throttling / errors", "**`aws:fis:inject-api-throttle-error`** (internal / unavailable)"],
+      ["Scenarios", "**AZ Availability: Power Interruption** · **Cross-Region: Connectivity**"]
+    ]},
+    { h: "Resilience Hub", items: [
+      "App from **CloudFormation, Terraform, Resource Groups, AppRegistry, EKS**",
+      "**Resiliency policy**: RTO / RPO per **application, infrastructure, AZ, Region** + tier",
+      "**Assessment** → estimated RTO / RPO, **met / breached**, **resiliency score**",
+      "**Resiliency recommendations** (Multi-AZ, replicas, backups, ASG spread)",
+      "**Operational recommendations**: **alarms**, **SOPs (SSM Automation)**, **FIS templates** → **export CloudFormation**",
+      "**Scheduled assessments / drift** → SNS / EventBridge · **CI/CD gate** fails on breach"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Controlled, logged failure injection", "FIS"],
+      ["Experiment didn't stop on impact", "Stop conditions"],
+      ["Stop all experiments now", "Safety lever"],
+      ["Realistic AZ loss", "AZ Power Interruption scenario"],
+      ["Multi-Region failover test", "Cross-Region: Connectivity"],
+      ["Spot interruption test", "send-spot-instance-interruptions"],
+      ["Aurora failover test", "rds:failover-db-cluster"],
+      ["SSM stress fails on instances", "SSM Agent missing"],
+      ["Test SDK backoff", "inject-api-throttle-error"],
+      ["Only opted-in resources", "Tag targets + IAM / SCP"],
+      ["FIS role trust", "fis.amazonaws.com"],
+      ["One of ten instances", "COUNT(1) / PERCENT"],
+      ["Weekly / pipeline chaos", "EventBridge Scheduler / CI/CD stage"],
+      ["Across accounts", "Multi-account experiment"],
+      ["Meets RTO / RPO?", "Resilience Hub assessment"],
+      ["Policy content", "RTO / RPO per disruption type"],
+      ["Single-AZ DB breach", "Enable Multi-AZ"],
+      ["Alarms + runbooks + tests", "Operational recommendations (CFN)"],
+      ["Resilience regression", "Scheduled assessments + pipeline gate"],
+      ["App sources", "CFN, Terraform, RG, AppRegistry, EKS"],
+      ["Full DR readiness", "Resilience Hub + ARC readiness + FIS + Backup restore testing"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

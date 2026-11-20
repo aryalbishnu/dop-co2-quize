@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -14899,8 +14899,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Cache stampede = TTL jitter + request coalescing / locking."
+  },
+  // ───────────────────────────── Domain 3: FIS and Resilience Hub ─────────────────────────────
+  {
+    id: "fis-01", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A company claims its application tolerates the loss of EC2 instances, but it has never been tested. The team wants a managed, repeatable and logged way to inject failures in a controlled manner, with automatic rollback if customer impact occurs. What should a DevOps engineer use?",
+    options: [
+      { t: "AWS Fault Injection Service experiment templates with targeted actions and CloudWatch alarm stop conditions.",
+        why: "Correct. FIS provides managed chaos experiments with guardrails." },
+      { t: "A cron script that terminates random instances.",
+        why: "No guardrails, logging or automatic stop." },
+      { t: "AWS Trusted Advisor.",
+        why: "Checks best practices; doesn't inject faults." },
+      { t: "Amazon Inspector.",
+        why: "Vulnerability scanning." }
+    ],
+    answer: [0],
+    tip: "Controlled fault injection = AWS FIS."
+  },
+  {
+    id: "fis-02", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "During an FIS experiment in production, the application's error rate rises sharply. The experiment should have ended automatically as soon as customers were affected. What was missing?",
+    options: [
+      { t: "A stop condition referencing a CloudWatch alarm on a customer-impact metric (for example 5XX errors or latency).",
+        why: "Correct. When the alarm enters ALARM, FIS stops the experiment." },
+      { t: "A longer action duration.",
+        why: "Makes impact worse." },
+      { t: "An S3 log destination.",
+        why: "Logging doesn't stop experiments." },
+      { t: "More targets.",
+        why: "Increases blast radius." }
+    ],
+    answer: [0],
+    tip: "Auto-stop on impact = stop conditions (CloudWatch alarms)."
+  },
+  {
+    id: "fis-03", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A real incident occurs while several scheduled FIS experiments are running across the account. The on-call engineer must immediately stop all running experiments and prevent any new ones from starting until the incident is over. What should they use?",
+    options: [
+      { t: "The FIS safety lever for the account.",
+        why: "Correct. The safety lever stops running experiments and blocks new ones." },
+      { t: "Delete each experiment template.",
+        why: "Slow and doesn't stop running experiments immediately." },
+      { t: "Remove CloudWatch alarms.",
+        why: "Stops nothing." },
+      { t: "Disable CloudTrail.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Emergency stop all FIS = safety lever."
+  },
+  {
+    id: "fis-04", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A company wants to validate that its application keeps serving customers if an entire Availability Zone becomes unavailable, including EC2 instances, EBS volumes, RDS failover, ElastiCache and failed Auto Scaling launches in that AZ. What is the MOST complete approach?",
+    options: [
+      { t: "Run the FIS scenario 'AZ Availability: Power Interruption' scoped to the application's resources with stop conditions.",
+        why: "Correct. The scenario combines the actions that simulate losing an AZ." },
+      { t: "Stop two EC2 instances manually.",
+        why: "Doesn't simulate EBS, RDS, ElastiCache, network or ASG effects." },
+      { t: "Reboot the RDS instance.",
+        why: "Only one component." },
+      { t: "Change the ALB to one AZ.",
+        why: "Not a realistic AZ failure test." }
+    ],
+    answer: [0],
+    tip: "Realistic AZ loss = FIS AZ Power Interruption scenario."
+  },
+  {
+    id: "fis-05", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A multi-Region application must be tested to confirm it fails over correctly when network connectivity between the two Regions is lost and S3 / DynamoDB replication pauses. Which FIS capability fits?",
+    options: [
+      { t: "The FIS 'Cross-Region: Connectivity' scenario (route table / Transit Gateway disruption, replication pause actions).",
+        why: "Correct. It simulates inter-Region connectivity loss." },
+      { t: "aws:ec2:stop-instances in one Region only.",
+        why: "Doesn't simulate connectivity or replication loss." },
+      { t: "AWS Resilience Hub assessment only.",
+        why: "Assesses, doesn't inject faults." },
+      { t: "Route 53 weighted records.",
+        why: "Routing, not testing." }
+    ],
+    answer: [0],
+    tip: "Test multi-Region failover = FIS Cross-Region: Connectivity."
+  },
+  {
+    id: "fis-06", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "An Auto Scaling group uses Spot Instances with Capacity Rebalancing. The team wants to verify the application drains and replaces instances correctly when interruption notices arrive. Which FIS action should be used?",
+    options: [
+      { t: "aws:ec2:send-spot-instance-interruptions.",
+        why: "Correct. It sends real Spot interruption notices to targeted instances." },
+      { t: "aws:ec2:reboot-instances.",
+        why: "Reboot isn't a Spot interruption." },
+      { t: "aws:rds:failover-db-cluster.",
+        why: "Database action." },
+      { t: "aws:fis:wait.",
+        why: "Only pauses." }
+    ],
+    answer: [0],
+    tip: "Test Spot handling = send-spot-instance-interruptions."
+  },
+  {
+    id: "fis-07", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Developers claim the application reconnects automatically when the Aurora writer fails over. How can this be validated safely and repeatably?",
+    options: [
+      { t: "An FIS experiment with the aws:rds:failover-db-cluster action, monitored with stop conditions and application metrics.",
+        why: "Correct. FIS triggers an actual Aurora failover in a controlled way." },
+      { t: "Delete the Aurora cluster.",
+        why: "Destructive." },
+      { t: "Lower the Aurora instance class.",
+        why: "Doesn't test failover." },
+      { t: "Enable Performance Insights.",
+        why: "Monitoring only." }
+    ],
+    answer: [0],
+    tip: "Test Aurora failover = aws:rds:failover-db-cluster."
+  },
+  {
+    id: "fis-08", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A team wants to see how their EC2-based service behaves under high CPU load and 2-second network latency, by running stress tools inside the instances. FIS experiments using SSM documents fail to execute on some instances. What is the MOST likely cause?",
+    options: [
+      { t: "Those instances don't have a running SSM Agent / managed instance permissions, which FIS SSM-based actions (aws:ssm:send-command with AWSFIS-Run-* documents) require.",
+        why: "Correct. In-instance faults run through Systems Manager." },
+      { t: "FIS doesn't support CPU stress.",
+        why: "It does via SSM documents." },
+      { t: "The instances are in an Auto Scaling group.",
+        why: "ASG membership doesn't block SSM actions." },
+      { t: "Stop conditions are configured.",
+        why: "Stop conditions don't prevent execution." }
+    ],
+    answer: [0],
+    tip: "FIS stress / latency in instances = SSM documents (needs SSM Agent)."
+  },
+  {
+    id: "fis-09", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "An application calls the EC2 API frequently. The team wants to confirm the SDK retry and exponential backoff logic handles AWS API throttling correctly, without modifying IAM permissions or the code. Which FIS action helps?",
+    options: [
+      { t: "aws:fis:inject-api-throttle-error targeting the application's IAM role for the specific EC2 API operations.",
+        why: "Correct. API fault injection makes calls from the role return throttling errors." },
+      { t: "Remove ec2:Describe* from the role.",
+        why: "Produces AccessDenied, not throttling, and changes IAM." },
+      { t: "aws:ec2:stop-instances.",
+        why: "Unrelated to API throttling." },
+      { t: "Increase service quotas.",
+        why: "Opposite of what's being tested." }
+    ],
+    answer: [0],
+    tip: "Test API throttling handling = inject-api-throttle-error."
+  },
+  {
+    id: "fis-10", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Security requires that FIS experiments can only affect resources that teams have explicitly opted in, and only a specific chaos team role can start experiments. How should this be enforced? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Use tag-based targets (for example chaos=allowed) with filters in experiment templates.",
+        why: "Correct. Targets are limited to opted-in resources." },
+      { t: "Restrict fis:StartExperiment (and template management) with IAM policies / SCPs to the chaos team role.",
+        why: "Correct. Controls who can run experiments." },
+      { t: "Give all developers AdministratorAccess.",
+        why: "Opposite of least privilege." },
+      { t: "Disable CloudWatch alarms.",
+        why: "Removes guardrails." },
+      { t: "Use the root user to run experiments.",
+        why: "Never." }
+    ],
+    answer: [0, 1],
+    tip: "FIS governance = tag targets + IAM / SCP on StartExperiment."
+  },
+  {
+    id: "fis-11", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Which trust policy principal must the IAM role used by an FIS experiment trust?",
+    options: [
+      { t: "fis.amazonaws.com",
+        why: "Correct. FIS assumes the experiment role to perform actions." },
+      { t: "ec2.amazonaws.com",
+        why: "For EC2 instance profiles." },
+      { t: "ssm.amazonaws.com",
+        why: "For Systems Manager roles." },
+      { t: "lambda.amazonaws.com",
+        why: "For Lambda execution roles." }
+    ],
+    answer: [0],
+    tip: "FIS role trusts fis.amazonaws.com."
+  },
+  {
+    id: "fis-12", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A team wants to run an FIS experiment against only one of ten instances in an Auto Scaling group to limit the blast radius. How should the experiment target be configured?",
+    options: [
+      { t: "Use a target selection mode of COUNT(1) (or PERCENT(10)) with tag / state filters.",
+        why: "Correct. Selection modes limit how many resources are affected." },
+      { t: "Selection mode ALL.",
+        why: "Targets all instances." },
+      { t: "Target by Region only.",
+        why: "Too broad." },
+      { t: "Use the safety lever.",
+        why: "Stops experiments; doesn't scope targets." }
+    ],
+    answer: [0],
+    tip: "Limit blast radius = COUNT / PERCENT selection."
+  },
+  {
+    id: "fis-13", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Leadership wants chaos experiments to run automatically every week as game days, and also after each deployment to staging as a pipeline gate. How can this be achieved?",
+    options: [
+      { t: "Schedule experiments with EventBridge Scheduler calling FIS StartExperiment, and add a CI/CD stage (CodeBuild or Lambda) that starts an experiment and checks its result.",
+        why: "Correct. FIS experiments can be automated through the API." },
+      { t: "Run experiments manually from the console.",
+        why: "Not automated." },
+      { t: "Use AWS Config rules.",
+        why: "Config evaluates compliance, doesn't run experiments." },
+      { t: "Enable Trusted Advisor weekly reports.",
+        why: "Not fault injection." }
+    ],
+    answer: [0],
+    tip: "Automate chaos = EventBridge Scheduler / pipeline stage calling FIS."
+  },
+  {
+    id: "fis-14", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "An application spans a networking account and two workload accounts. The team wants a single FIS experiment to inject faults into resources across all three accounts. What should they use?",
+    options: [
+      { t: "A multi-account FIS experiment from an orchestrator account with target account configurations (roles in each target account).",
+        why: "Correct. FIS supports multi-account experiments." },
+      { t: "Three separate experiments started manually at the same time.",
+        why: "Hard to coordinate." },
+      { t: "AWS RAM sharing of FIS templates.",
+        why: "Not the mechanism." },
+      { t: "StackSets to run experiments.",
+        why: "Deploys stacks, doesn't orchestrate experiments." }
+    ],
+    answer: [0],
+    tip: "Cross-account chaos = multi-account experiments."
+  },
+  {
+    id: "fis-15", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Management asks whether a critical application deployed with CloudFormation can meet an RTO of 15 minutes and RPO of 5 minutes for AZ failures, and which architecture changes are needed if not. Which service should be used?",
+    options: [
+      { t: "AWS Resilience Hub: add the application from its CloudFormation stack, attach a resiliency policy with those targets, and run an assessment.",
+        why: "Correct. Resilience Hub estimates RTO / RPO and recommends changes." },
+      { t: "AWS FIS only.",
+        why: "Tests faults but doesn't assess against RTO / RPO policies." },
+      { t: "AWS Budgets.",
+        why: "Cost tracking." },
+      { t: "CloudWatch Synthetics.",
+        why: "Endpoint monitoring." }
+    ],
+    answer: [0],
+    tip: "Meets RTO / RPO? = Resilience Hub assessment."
+  },
+  {
+    id: "fis-16", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Which statement correctly describes a Resilience Hub resiliency policy?",
+    options: [
+      { t: "It defines RTO and RPO targets for each disruption type - application, infrastructure, Availability Zone and (optionally) Region - for an application tier.",
+        why: "Correct. Policies are per disruption type." },
+      { t: "It defines a single RTO for all failures.",
+        why: "Targets are per disruption type." },
+      { t: "It is an IAM policy.",
+        why: "Not an IAM document." },
+      { t: "It lists FIS actions to run.",
+        why: "That's an experiment template." }
+    ],
+    answer: [0],
+    tip: "Resiliency policy = RTO / RPO per disruption type."
+  },
+  {
+    id: "fis-17", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "A Resilience Hub assessment shows 'policy breached' for AZ disruptions because the application's RDS database runs in a single AZ. What will Resilience Hub typically recommend?",
+    options: [
+      { t: "A resiliency recommendation such as enabling RDS Multi-AZ (with estimated RTO / RPO after the change).",
+        why: "Correct. Recommendations address the breached disruption type." },
+      { t: "Increase the RDS instance size.",
+        why: "Doesn't add AZ resilience." },
+      { t: "Disable backups.",
+        why: "Wrong direction." },
+      { t: "Move the database to a public subnet.",
+        why: "Unrelated and insecure." }
+    ],
+    answer: [0],
+    tip: "AZ policy breached by single-AZ DB = enable Multi-AZ."
+  },
+  {
+    id: "fis-18", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Besides architecture changes, the team wants Resilience Hub to provide the CloudWatch alarms, recovery runbooks and resilience tests they should implement, in a deployable form. What does Resilience Hub offer?",
+    options: [
+      { t: "Operational recommendations: CloudWatch alarms, SOPs as Systems Manager Automation documents, and FIS experiment templates, exportable as CloudFormation templates.",
+        why: "Correct. These help detect, recover and test." },
+      { t: "Only a PDF report.",
+        why: "It provides deployable recommendations." },
+      { t: "Automatic changes to production without approval.",
+        why: "You implement recommendations yourself." },
+      { t: "Service Catalog products.",
+        why: "Not the output of Resilience Hub." }
+    ],
+    answer: [0],
+    tip: "Resilience Hub operational recommendations = alarms + SOPs + FIS (CFN)."
+  },
+  {
+    id: "fis-19", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "After a recent change, an engineer accidentally disabled Multi-AZ on a database that Resilience Hub had marked compliant. The team wants to be notified automatically when such resilience regressions occur, and prevent new releases that breach the policy. What should be configured? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable scheduled (daily) Resilience Hub assessments with drift notifications to SNS / EventBridge.",
+        why: "Correct. Drift detection flags reduced resilience." },
+      { t: "Add a CI/CD stage that runs a Resilience Hub assessment and fails the pipeline if the policy is breached.",
+        why: "Correct. Gates releases on resilience compliance." },
+      { t: "Run the assessment once a year.",
+        why: "Too infrequent." },
+      { t: "Delete the resiliency policy.",
+        why: "Removes the measurement." },
+      { t: "Use the FIS safety lever.",
+        why: "Stops experiments; doesn't detect drift." }
+    ],
+    answer: [0, 1],
+    tip: "Catch resilience regressions = scheduled assessments + pipeline gate."
+  },
+  {
+    id: "fis-20", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Which sources can be used to define an application in AWS Resilience Hub?",
+    options: [
+      { t: "CloudFormation stacks, Terraform state files, AWS Resource Groups, AppRegistry / myApplications applications and Amazon EKS clusters.",
+        why: "Correct. Resilience Hub supports multiple input sources." },
+      { t: "Only CloudFormation stacks.",
+        why: "Other sources are supported." },
+      { t: "Only manually listed EC2 instance IDs.",
+        why: "Not the only option." },
+      { t: "Only AWS CDK apps.",
+        why: "CDK synthesizes to CloudFormation, but other sources exist too." }
+    ],
+    answer: [0],
+    tip: "Resilience Hub inputs = CFN, Terraform, Resource Groups, AppRegistry, EKS."
+  },
+  {
+    id: "fis-21", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "What is the relationship between AWS Resilience Hub and AWS FIS?",
+    options: [
+      { t: "Resilience Hub assesses resilience against RTO / RPO targets and recommends fixes, alarms, SOPs and tests; FIS executes fault injection experiments to prove the application actually recovers.",
+        why: "Correct. They're complementary." },
+      { t: "Resilience Hub injects faults directly into resources.",
+        why: "It uses FIS for experiments." },
+      { t: "FIS calculates RTO / RPO compliance scores.",
+        why: "That's Resilience Hub." },
+      { t: "They're the same service.",
+        why: "Different purposes." }
+    ],
+    answer: [0],
+    tip: "Resilience Hub says, FIS proves."
+  },
+  {
+    id: "fis-22", domain: "d3", topic: "FIS and Resilience Hub",
+    q: "Which combination BEST validates end-to-end recovery readiness for a warm standby DR design? (Choose the BEST answer.)",
+    options: [
+      { t: "Resilience Hub assessments against the RTO / RPO policy, ARC readiness checks for DR Region capacity and configuration parity, FIS experiments (e.g. cross-Region connectivity) to rehearse failover, and AWS Backup restore testing for data recovery.",
+        why: "Correct. Each tool validates a different part of recovery." },
+      { t: "Trusted Advisor checks only.",
+        why: "Not sufficient for recovery validation." },
+      { t: "A single manual DR test every few years.",
+        why: "Untested DR drifts." },
+      { t: "CloudTrail logs only.",
+        why: "Audit, not recovery validation." }
+    ],
+    answer: [0],
+    tip: "Recovery readiness = Resilience Hub + ARC readiness + FIS + Backup restore testing."
   }
 ];
+
 
 
 
