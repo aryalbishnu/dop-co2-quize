@@ -2991,6 +2991,64 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d3", topic: "Domain 3 Extras",
+  sections: [
+    { h: "Containers", items: [
+      "**ECS tasks**: Service Auto Scaling target tracking (CPU, memory, **ALBRequestCountPerTarget**), step, scheduled, predictive",
+      "**ECS EC2 capacity**: **capacity provider + managed scaling** (`CapacityProviderReservation`) + managed termination protection · tasks stuck PROVISIONING = no capacity",
+      "Strategy **base + weight** · **Fargate Spot** = 2-min warning (SIGTERM, stopTimeout ≤ 120 s)",
+      "**EKS**: **HPA = pods** · **Cluster Autoscaler** (node-group ASGs) / **Karpenter** (right-sized EC2, consolidation, Spot) **= nodes** · **KEDA** = queue-driven pods"
+    ]},
+    { h: "Lambda and API Gateway", table: [
+      ["Item", "Remember"],
+      ["Concurrency", "**req/s × duration** · **1,000** per Region default · +1,000 per 10 s per function"],
+      ["**Reserved**", "Cap + guarantee · **free** · protects downstream · **0 = off switch**"],
+      ["**Provisioned**", "**No cold starts** · **alias / version** · paid · Application Auto Scaling · spillover metric"],
+      ["Throttles", "Sync **429** · async retried **6 h** → destination / DLQ · SQS ESM **maximum concurrency**"],
+      ["DB connection storms", "Cap concurrency + **RDS Proxy**"],
+      ["API Gateway", "**10,000 rps / 5,000 burst** · stage / method throttles · **usage plans + API keys** (per-client throttle + quota) · keys ≠ auth"]
+    ]},
+    { h: "Data tier", table: [
+      ["Item", "Remember"],
+      ["DynamoDB **on-demand**", "Spiky / unknown traffic, instant (2× previous peak)"],
+      ["Provisioned + auto scaling", "Steady traffic, reacts in **minutes**"],
+      ["**Hot key**", "Per partition **3,000 RCU / 1,000 WCU** → high-cardinality key, **write sharding**, DAX reads"],
+      ["Base table throttled, spare capacity", "**GSI** write capacity"],
+      ["**Aurora Replica auto scaling**", "Target tracking on reader CPU / connections, ≤ 15, reader endpoint"],
+      ["**Aurora Serverless v2**", "ACUs scale in seconds, auto-pause, Multi-AZ, Global DB, mix with provisioned"],
+      ["RDS", "Storage auto scaling · replicas manual (no replica auto scaling)"]
+    ]},
+    { h: "Recovery and limits", items: [
+      "**EC2 recover**: `StatusCheckFailed_System` alarm + recover action (or simplified auto recovery) · keeps **ID, private IP, EIP, EBS** · same AZ · instance check → **reboot**",
+      "**EFS replication** cross-Region, RPO ~minutes, destination **read-only until replication deleted**",
+      "**Service Quotas** usage metrics + alarms · quota templates for new accounts · raise in DR Region",
+      "**Cell-based architecture** + **shuffle sharding** = smaller blast radius"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["ECS tasks stuck PROVISIONING", "Capacity provider managed scaling"],
+      ["Scale ECS on requests", "Target tracking ALBRequestCountPerTarget"],
+      ["Baseline + cheap extra tasks", "Base FARGATE + weight FARGATE_SPOT"],
+      ["EKS pods Pending", "Karpenter / Cluster Autoscaler"],
+      ["EKS pods on queue length", "KEDA"],
+      ["Lambda 429 at peak", "Concurrency quota increase"],
+      ["Cold starts", "Provisioned concurrency (alias)"],
+      ["Lambda overloads RDS", "Max concurrency + RDS Proxy"],
+      ["Stop Lambda now", "Reserved concurrency 0"],
+      ["Async throttled events", "Retried 6 h → DLQ"],
+      ["Free vs paid API tiers", "Usage plans + API keys"],
+      ["DynamoDB viral spikes", "On-demand"],
+      ["One key throttled", "Write sharding / key design"],
+      ["Table throttled, spare capacity", "GSI capacity"],
+      ["Aurora readers busy at month-end", "Aurora Replica auto scaling"],
+      ["Unpredictable relational load", "Aurora Serverless v2"],
+      ["Single EC2 keep IP on hardware fail", "EC2 recover action"],
+      ["EFS DR to another Region", "EFS replication, delete to fail over"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
@@ -3233,7 +3291,8 @@ window.CHEATSHEETS.push({
       ["**DRS**", "Block-level replication of servers · RPO sec / RTO min · TCP 1500 · cheap staging · drill · PIT recovery · Failback Client · not for RDS / migration (MGN)"],
       ["**Decoupling**", "SQS buffer (visibility > processing, 6× Lambda timeout, DLQ maxReceiveCount) · FIFO per group · SNS fan-out · Kinesis order per key, replay, IteratorAge · Step Functions Retry / Catch / saga"],
       ["**Caching**", "CloudFront OAC, versioned files, origin groups (GET only), Origin Shield, ACM us-east-1 · ElastiCache Valkey / Redis HA vs Memcached · lazy vs write-through · DAX"],
-      ["**FIS / Resilience Hub**", "Stop conditions (alarms) · safety lever · AZ Power Interruption / Cross-Region scenarios · Resilience Hub policy → assessment → recommendations · Hub assesses, FIS proves"]
+      ["**FIS / Resilience Hub**", "Stop conditions (alarms) · safety lever · AZ Power Interruption / Cross-Region scenarios · Resilience Hub policy → assessment → recommendations · Hub assesses, FIS proves"],
+      ["**Extras**", "ECS capacity providers + Service Auto Scaling · EKS HPA + Karpenter / KEDA · Lambda reserved (cap, 0 = off) vs provisioned (no cold starts) · API usage plans · DynamoDB on-demand, hot keys, GSI · Aurora replica auto scaling / Serverless v2 · EC2 recover action"]
     ]},
     { h: "Keywords: DR, scaling, ELB", table: [
       ["The question says", "Answer"],
@@ -3298,13 +3357,29 @@ window.CHEATSHEETS.push({
       ["Simulate AZ loss", "AZ Power Interruption"],
       ["Meets RTO / RPO?", "Resilience Hub assessment"]
     ]},
+    { h: "Keywords: extras (containers, serverless, data)", table: [
+      ["The question says", "Answer"],
+      ["ECS tasks stuck PROVISIONING", "Capacity provider managed scaling"],
+      ["EKS pods Pending", "Karpenter / Cluster Autoscaler"],
+      ["Lambda 429 at peak", "Concurrency quota / reserved"],
+      ["Cold starts", "Provisioned concurrency (alias)"],
+      ["Lambda overloads RDS", "Max concurrency + RDS Proxy"],
+      ["Per-customer API limits", "Usage plans + API keys"],
+      ["DynamoDB viral spikes", "On-demand"],
+      ["One key throttled", "Write sharding"],
+      ["Table throttled, spare capacity", "GSI capacity"],
+      ["Aurora readers busy", "Aurora Replica auto scaling"],
+      ["Unpredictable relational load", "Aurora Serverless v2"],
+      ["Single EC2 keep IP", "EC2 recover action"]
+    ]},
     { h: "Numbers to remember", items: [
       "Hook heartbeat **3600 s** (≤ 48 h) · predictive **24 h** history · refresh min healthy **90%**, max **200%**",
       "ELB checks **30 s / 5 / 2** · deregistration **300 s** · ALB idle **60 s** · R53 healthy **> 18%**, multivalue **8**",
       "RDS Multi-AZ **60–120 s** · **15** replicas · Aurora **6 copies / 3 AZs**, Global **< 1 s** lag, RTO **< 1 min**",
       "PITR **35 d** · S3 RTC **15 min** · Backup cold storage **90 d** · Vault Lock cooling-off **72 h** · DRS TCP **1500**",
       "SQS visibility **30 s / 12 h**, retention **4 d / 14 d**, long poll **20 s**, FIFO **300 msg/s**, dedup **5 min**, Lambda **6×**",
-      "Kinesis shard **1 MB/s / 1,000 rec in, 2 MB/s out**, retention **24 h → 365 d** · Step Functions **1 year / 5 min** · CloudFront TTL **24 h**"
+      "Kinesis shard **1 MB/s / 1,000 rec in, 2 MB/s out**, retention **24 h → 365 d** · Step Functions **1 year / 5 min** · CloudFront TTL **24 h**",
+      "Lambda **1,000** concurrency, async retry **6 h** · API Gateway **10,000 / 5,000** burst · DynamoDB partition **3,000 RCU / 1,000 WCU** · Fargate Spot **2 min**"
     ]},
     { h: "Classic wrong answers", items: [
       "Multi-AZ for Region DR ✗ · Multi-AZ standby serves reads ✗ · read replica auto-fails over ✗ · replication instead of backups ✗",
@@ -3312,7 +3387,8 @@ window.CHEATSHEETS.push({
       "ELB across Regions ✗ · EC2 termination protection stops scale-in ✗ · warm pool with Spot ✗ · sticky sessions for HA ✗",
       "CRR copies existing objects ✗ · version deletes replicate ✗ · governance lock stops root ✗ · share aws/ebs key ✗",
       "DRS for RDS / migration ✗ · SNS retains messages ✗ · Firehose replay ✗ · retention fixes duplicates ✗ · Lambda multi-hour ✗",
-      "Origin group fails over POST ✗ · Memcached for HA ✗ · RDS Proxy caches ✗ · Resilience Hub injects faults ✗ · FIS without stop conditions ✗"
+      "Origin group fails over POST ✗ · Memcached for HA ✗ · RDS Proxy caches ✗ · Resilience Hub injects faults ✗ · FIS without stop conditions ✗",
+      "Raise ECS desired count with no capacity ✗ · HPA adds nodes ✗ · reserved concurrency removes cold starts ✗ · DynamoDB auto scaling for spikes ✗ · RDS replica auto scaling ✗ · recover action for OS hang ✗"
     ]}
   ]
   };

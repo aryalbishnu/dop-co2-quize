@@ -11,7 +11,7 @@ window.DOMAINS = [
     topics: ["CodeCommit", "CodeBuild", "CodeArtifact", "ECR", "CodePipeline", "CodeConnections", "CodeGuru", "CI/CD Concepts", "CodeDeploy", "Deployment Patterns", "Elastic Beanstalk", "Lambda Versions and Aliases", "ECS and Fargate", "EKS for CI/CD", "Testing in Pipelines", "EC2 Image Builder"] },
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
-  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub"] },
+  { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
   { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
@@ -15258,8 +15258,304 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "Recovery readiness = Resilience Hub + ARC readiness + FIS + Backup restore testing."
+  },
+  // ───────────────────────────── Domain 3: Domain 3 Extras ─────────────────────────────
+  {
+    id: "d3x-01", domain: "d3", topic: "Domain 3 Extras",
+    q: "An ECS service on the EC2 launch type has Service Auto Scaling configured. During traffic spikes, the desired task count increases but new tasks stay in the PROVISIONING state with the message 'no container instances met all of its requirements'. What should a DevOps engineer do with the LEAST operational overhead?",
+    options: [
+      { t: "Create a capacity provider for the cluster's Auto Scaling group with managed scaling (and managed termination protection) and use it in the service's capacity provider strategy.",
+        why: "Correct. Managed scaling grows the ASG when tasks can't be placed." },
+      { t: "Increase the service's maximum task count.",
+        why: "More tasks still have nowhere to run." },
+      { t: "Add a CloudWatch alarm on CPU to the ASG and manage scaling separately.",
+        why: "Works poorly - CPU doesn't reflect unplaced tasks; capacity providers solve this natively." },
+      { t: "Lower the task CPU and memory reservations to zero.",
+        why: "Breaks placement and resource guarantees." }
+    ],
+    answer: [0],
+    tip: "Tasks can't be placed on EC2 = capacity provider with managed scaling."
+  },
+  {
+    id: "d3x-02", domain: "d3", topic: "Domain 3 Extras",
+    q: "A web service runs on ECS Fargate behind an ALB. The team wants the number of tasks to follow request volume automatically so each task handles about 100 requests per minute. What should be configured?",
+    options: [
+      { t: "ECS Service Auto Scaling with a target tracking policy on ALBRequestCountPerTarget.",
+        why: "Correct. Target tracking keeps requests per task at the target." },
+      { t: "A capacity provider with managed scaling.",
+        why: "Fargate has no cluster capacity to manage; tasks still need scaling." },
+      { t: "Cluster Autoscaler.",
+        why: "Kubernetes node scaler." },
+      { t: "Scheduled scaling only.",
+        why: "Doesn't follow actual request volume." }
+    ],
+    answer: [0],
+    tip: "Scale ECS tasks on requests = Service Auto Scaling target tracking (ALBRequestCountPerTarget)."
+  },
+  {
+    id: "d3x-03", domain: "d3", topic: "Domain 3 Extras",
+    q: "A company wants to cut ECS Fargate costs for a stateless, fault-tolerant service while always keeping at least two tasks on regular Fargate capacity. Which configuration meets this?",
+    options: [
+      { t: "A capacity provider strategy with FARGATE base 2, plus weights splitting the remaining tasks between FARGATE and FARGATE_SPOT; tasks handle SIGTERM within the 2-minute warning.",
+        why: "Correct. Base guarantees regular tasks, weights add Spot savings." },
+      { t: "Run every task on FARGATE_SPOT.",
+        why: "Doesn't guarantee the two regular tasks." },
+      { t: "Use EC2 Reserved Instances for Fargate.",
+        why: "Fargate isn't covered by EC2 RIs (Savings Plans apply)." },
+      { t: "Set minimumHealthyPercent to 200.",
+        why: "Deployment setting, not a cost or capacity strategy." }
+    ],
+    answer: [0],
+    tip: "Guaranteed baseline + Spot savings = base on FARGATE + weight on FARGATE_SPOT."
+  },
+  {
+    id: "d3x-04", domain: "d3", topic: "Domain 3 Extras",
+    q: "On an Amazon EKS cluster, the Horizontal Pod Autoscaler scales a deployment from 5 to 20 pods during peaks, but 12 of the new pods stay Pending with 'insufficient cpu'. The team wants nodes added quickly with right-sized, cost-efficient instance types, including Spot. What should they implement?",
+    options: [
+      { t: "Karpenter with a NodePool allowing multiple instance types and capacity types, with consolidation enabled.",
+        why: "Correct. Karpenter launches right-sized nodes directly for pending pods and consolidates." },
+      { t: "Increase the HPA maximum replicas.",
+        why: "Pods are already pending; more pods won't help." },
+      { t: "Vertical Pod Autoscaler.",
+        why: "Changes pod requests, doesn't add nodes." },
+      { t: "Lower the HPA CPU target.",
+        why: "Creates even more pending pods." }
+    ],
+    answer: [0],
+    tip: "Pending pods = node scaling: Karpenter (or Cluster Autoscaler)."
+  },
+  {
+    id: "d3x-05", domain: "d3", topic: "Domain 3 Extras",
+    q: "Worker pods on EKS process messages from an SQS queue. The team wants pod count to follow the queue length, scaling to zero when the queue is empty. What should be used?",
+    options: [
+      { t: "KEDA with an SQS scaler, plus Karpenter or Cluster Autoscaler for node capacity.",
+        why: "Correct. KEDA scales pods on event sources such as queue length." },
+      { t: "HPA on CPU only.",
+        why: "CPU doesn't reflect queue backlog and can't scale to zero." },
+      { t: "Lambda reserved concurrency.",
+        why: "Unrelated to EKS pods." },
+      { t: "ECS capacity providers.",
+        why: "ECS feature, not EKS." }
+    ],
+    answer: [0],
+    tip: "Queue-driven pods on EKS = KEDA."
+  },
+  {
+    id: "d3x-06", domain: "d3", topic: "Domain 3 Extras",
+    q: "A Lambda function behind API Gateway receives 400 requests per second at peak, and each invocation takes 4 seconds. Users receive 429 errors at peak while the account runs other functions too. What is the root cause and the correct fix?",
+    options: [
+      { t: "The function needs about 1,600 concurrent executions, above the default 1,000 Regional concurrency quota; request a quota increase (and consider reserved concurrency for this function).",
+        why: "Correct. Concurrency = requests per second x duration." },
+      { t: "Increase the function memory to stop throttling.",
+        why: "Memory may shorten duration but throttles are a concurrency limit." },
+      { t: "Enable API Gateway caching for all POST requests.",
+        why: "Doesn't fix the concurrency limit." },
+      { t: "Switch to Lambda@Edge.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Concurrency = req/s x duration; default 1,000 per Region."
+  },
+  {
+    id: "d3x-07", domain: "d3", topic: "Domain 3 Extras",
+    q: "A latency-sensitive Lambda function behind API Gateway suffers slow first requests after scaling out (cold starts). Traffic is predictable during business hours. What is the MOST effective solution?",
+    options: [
+      { t: "Configure provisioned concurrency on a published alias and scale it with Application Auto Scaling (scheduled for business hours or target tracking on utilization).",
+        why: "Correct. Provisioned concurrency keeps environments initialised." },
+      { t: "Configure reserved concurrency.",
+        why: "Caps / guarantees concurrency but doesn't remove cold starts." },
+      { t: "Put provisioned concurrency on $LATEST.",
+        why: "Not supported - only versions or aliases." },
+      { t: "Increase the function timeout.",
+        why: "Doesn't affect initialisation latency." }
+    ],
+    answer: [0],
+    tip: "No cold starts = provisioned concurrency on alias / version."
+  },
+  {
+    id: "d3x-08", domain: "d3", topic: "Domain 3 Extras",
+    q: "A Lambda function triggered by an SQS queue writes to an Amazon RDS for MySQL database. During backlog surges the function scales out and exhausts database connections. Which actions solve this? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Set maximum concurrency on the SQS event source mapping (or reserved concurrency on the function) to cap parallel invocations.",
+        why: "Correct. Caps the load placed on the database." },
+      { t: "Put Amazon RDS Proxy in front of the database for connection pooling.",
+        why: "Correct. Pools and reuses connections." },
+      { t: "Increase the SQS visibility timeout to 12 hours.",
+        why: "Doesn't limit concurrency." },
+      { t: "Configure provisioned concurrency of 1,000.",
+        why: "Adds more concurrency - makes it worse." },
+      { t: "Switch the queue to SNS.",
+        why: "Removes buffering." }
+    ],
+    answer: [0, 1],
+    tip: "Protect a DB from Lambda = cap concurrency + RDS Proxy."
+  },
+  {
+    id: "d3x-09", domain: "d3", topic: "Domain 3 Extras",
+    q: "A buggy Lambda function is causing damage to downstream data. The team needs to stop all invocations immediately without deleting the function or changing its triggers. What is the fastest way?",
+    options: [
+      { t: "Set the function's reserved concurrency to 0.",
+        why: "Correct. All invocations are throttled until it's changed back." },
+      { t: "Set provisioned concurrency to 0.",
+        why: "Only removes pre-warmed capacity; on-demand invocations continue." },
+      { t: "Reduce the memory to 128 MB.",
+        why: "Function still runs." },
+      { t: "Delete the CloudWatch log group.",
+        why: "Doesn't stop invocations." }
+    ],
+    answer: [0],
+    tip: "Lambda emergency off switch = reserved concurrency 0."
+  },
+  {
+    id: "d3x-10", domain: "d3", topic: "Domain 3 Extras",
+    q: "An S3 event invokes a Lambda function asynchronously. During a large upload, the function is throttled. What happens to the throttled events by default?",
+    options: [
+      { t: "Lambda retries them for up to 6 hours, then sends them to the on-failure destination or DLQ if configured.",
+        why: "Correct. Asynchronous invocations are queued and retried." },
+      { t: "They are lost immediately.",
+        why: "Async events are retried." },
+      { t: "S3 returns a 429 error to the uploader.",
+        why: "The upload succeeds; invocation is async." },
+      { t: "They are moved to S3 Glacier.",
+        why: "Not a Lambda behaviour." }
+    ],
+    answer: [0],
+    tip: "Async throttles = retried up to 6 h, then destination / DLQ."
+  },
+  {
+    id: "d3x-11", domain: "d3", topic: "Domain 3 Extras",
+    q: "A company sells API access in Free and Premium tiers. Free customers must be limited to 5 requests per second and 10,000 requests per month; Premium customers get higher limits. The API is on Amazon API Gateway REST APIs. What should be used?",
+    options: [
+      { t: "API Gateway usage plans with API keys, one plan per tier with throttle and quota settings.",
+        why: "Correct. Usage plans meter and throttle per customer key." },
+      { t: "Lambda reserved concurrency per customer.",
+        why: "Not per customer and not a quota." },
+      { t: "AWS WAF rate-based rules only.",
+        why: "Rate limits by IP, no monthly quotas or tiers." },
+      { t: "Use API keys as the authorization mechanism.",
+        why: "API keys aren't for authorization - and alone don't define limits." }
+    ],
+    answer: [0],
+    tip: "Per-customer throttle + quota = usage plans + API keys."
+  },
+  {
+    id: "d3x-12", domain: "d3", topic: "Domain 3 Extras",
+    q: "A new mobile game's DynamoDB table receives unpredictable traffic that can jump 10x within seconds when a promotion goes viral. The provisioned table with auto scaling throttles during these spikes. What should be done?",
+    options: [
+      { t: "Switch the table to on-demand capacity mode.",
+        why: "Correct. On-demand absorbs sudden spikes without capacity planning." },
+      { t: "Lower the auto scaling target utilization to 90%.",
+        why: "Higher target leaves less headroom - worse." },
+      { t: "Add more GSIs.",
+        why: "Unrelated." },
+      { t: "Increase the SDK retry count only.",
+        why: "Masks throttling but doesn't add capacity." }
+    ],
+    answer: [0],
+    tip: "Unpredictable spikes on DynamoDB = on-demand."
+  },
+  {
+    id: "d3x-13", domain: "d3", topic: "Domain 3 Extras",
+    q: "A DynamoDB table uses the event date as the partition key. All writes for the current day go to the same key and are throttled with ProvisionedThroughputExceededException, even though table-level consumed capacity is far below provisioned. How should this be fixed?",
+    options: [
+      { t: "Redesign the key for high cardinality, for example write sharding with a random or calculated suffix on the date key.",
+        why: "Correct. Spreads writes across partitions (per-partition limit 1,000 WCU)." },
+      { t: "Double the table's provisioned WCU.",
+        why: "A single partition key is still limited." },
+      { t: "Enable DAX.",
+        why: "DAX accelerates reads, not writes." },
+      { t: "Enable point-in-time recovery.",
+        why: "Backup feature." }
+    ],
+    answer: [0],
+    tip: "Hot key = key design / write sharding."
+  },
+  {
+    id: "d3x-14", domain: "d3", topic: "Domain 3 Extras",
+    q: "Writes to a DynamoDB base table are being throttled, but the table's write capacity metrics show plenty of headroom. What is the MOST likely cause?",
+    options: [
+      { t: "A global secondary index has insufficient write capacity, and GSI throttling back-pressures writes to the base table.",
+        why: "Correct. GSIs must have enough WCU (or the table uses on-demand)." },
+      { t: "DynamoDB Streams is enabled.",
+        why: "Streams don't throttle writes." },
+      { t: "TTL is enabled.",
+        why: "TTL deletes don't consume write capacity." },
+      { t: "The table uses encryption at rest.",
+        why: "No effect on throughput." }
+    ],
+    answer: [0],
+    tip: "Base table throttled with spare capacity = check GSI capacity."
+  },
+  {
+    id: "d3x-15", domain: "d3", topic: "Domain 3 Extras",
+    q: "An Aurora MySQL cluster's readers hit 90% CPU during month-end reporting, and at other times two readers are idle. The application uses the reader endpoint. What is the MOST operationally efficient solution?",
+    options: [
+      { t: "Configure Aurora Replica auto scaling with a target tracking policy on average reader CPU utilization.",
+        why: "Correct. Replicas are added and removed automatically behind the reader endpoint." },
+      { t: "Manually add replicas each month-end.",
+        why: "Manual work." },
+      { t: "Enable RDS storage auto scaling.",
+        why: "Storage, not reader compute." },
+      { t: "Point reports at the writer endpoint.",
+        why: "Adds load to the writer." }
+    ],
+    answer: [0],
+    tip: "Reader load varies = Aurora Replica auto scaling."
+  },
+  {
+    id: "d3x-16", domain: "d3", topic: "Domain 3 Extras",
+    q: "A SaaS startup's relational workload is unpredictable: near idle at night, sudden bursts during the day, and dev databases unused most of the week. They want MySQL/PostgreSQL compatibility, Multi-AZ support and capacity that follows demand within seconds. What should they use?",
+    options: [
+      { t: "Amazon Aurora Serverless v2.",
+        why: "Correct. Scales in fine-grained ACUs quickly, supports Multi-AZ and can auto-pause." },
+      { t: "RDS for MySQL with storage auto scaling.",
+        why: "Storage only - compute is fixed." },
+      { t: "A larger provisioned Aurora instance.",
+        why: "Pays for peak all the time." },
+      { t: "DynamoDB on-demand.",
+        why: "Not relational / MySQL compatible." }
+    ],
+    answer: [0],
+    tip: "Unpredictable relational load = Aurora Serverless v2."
+  },
+  {
+    id: "d3x-17", domain: "d3", topic: "Domain 3 Extras",
+    q: "A legacy license server runs on a single EC2 instance (EBS only, not in an Auto Scaling group) and must keep its instance ID, private IP and Elastic IP. The team wants it to recover automatically if the underlying hardware fails. What should they configure?",
+    options: [
+      { t: "EC2 automatic recovery - a CloudWatch alarm on StatusCheckFailed_System with the EC2 recover action (or simplified automatic recovery).",
+        why: "Correct. Recovery moves the instance to new hardware, keeping its ID, IPs and EBS volumes." },
+      { t: "A CloudWatch alarm on StatusCheckFailed_Instance with the recover action.",
+        why: "Instance check = OS issue; use reboot. Recover is for system checks." },
+      { t: "An ASG with min = max = 1.",
+        why: "Replaces the instance with a new ID and private IP." },
+      { t: "AWS Backup daily snapshots.",
+        why: "Restores to a new instance; not automatic." }
+    ],
+    answer: [0],
+    tip: "Single instance, keep IDs / IPs, hardware failure = EC2 recover action."
+  },
+  {
+    id: "d3x-18", domain: "d3", topic: "Domain 3 Extras",
+    q: "Which statements about scaling and recovery are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "EFS replication keeps the destination file system read-only until the replication is deleted for failover.",
+        why: "Correct. Deleting the replication makes the destination writable." },
+      { t: "Service Quotas usage metrics with CloudWatch alarms help detect approaching limits before scaling fails.",
+        why: "Correct. Monitor and raise quotas ahead of peaks (and in the DR Region)." },
+      { t: "RDS for PostgreSQL supports read replica auto scaling.",
+        why: "Only Aurora has replica auto scaling." },
+      { t: "Reserved concurrency eliminates Lambda cold starts.",
+        why: "That's provisioned concurrency." },
+      { t: "API Gateway API keys provide secure authorization.",
+        why: "Keys are for usage plans, not authorization." }
+    ],
+    answer: [0, 1],
+    tip: "EFS replica read-only until deleted · watch Service Quotas."
   }
 ];
+
 
 
 
