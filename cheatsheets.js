@@ -3201,3 +3201,122 @@ window.CHEATSHEETS.push({
   const i = list.findIndex(c => c.domain === "d2");
   if (i < 0) list.push(sheet); else list.splice(i, 0, sheet);
 })();
+
+// Domain 3 master sheet: placed first among the Domain 3 cheat sheets.
+(function () {
+  const sheet = {
+  domain: "d3", topic: "Domain 3 Master Sheet",
+  sections: [
+    { h: "How to pick the answer", items: [
+      "Domain 3 = **15%** · **3.1** high availability · **3.2** scalability · **3.3** automated recovery to meet RTO / RPO",
+      "Read the **RTO / RPO** first → pick the **cheapest strategy that meets both**",
+      "**HA** (Multi-AZ) ≠ **DR** (another Region) ≠ **backups** (corruption, deletion, ransomware) · **replication copies the damage**",
+      "**Data plane over control plane**: ARC routing controls, pre-scaled capacity (static stability), Global Accelerator",
+      "Least overhead = managed feature: target tracking, Aurora Global DB, DynamoDB global tables, AWS Backup, DRS, zonal autoshift"
+    ]},
+    { h: "DR strategies", table: [
+      ["Strategy", "RPO / RTO", "DR Region"],
+      ["**Backup & restore**", "Hours / hours · cheapest", "Backups + IaC"],
+      ["**Pilot light**", "Minutes / tens of min", "Data live, compute off"],
+      ["**Warm standby**", "Sec-min / minutes", "Small stack running → scale out"],
+      ["**Active/active**", "~0 / ~0 · most expensive", "Full stacks serving"]
+    ]},
+    { h: "Services in one line", table: [
+      ["Service", "Remember"],
+      ["**Auto Scaling**", "Target tracking default · scheduled / predictive · lifecycle hooks (3600 s, complete-lifecycle-action) · warm pools · instance refresh + AutoRollback · ELB health check type"],
+      ["**ELB**", "ALB L7 (routing, WAF, auth) · NLB L4 (static IP, source IP, PrivateLink) · GWLB appliances · deregistration 300 s · cross-zone ALB on / NLB off · 502 / 503 / 504"],
+      ["**Route 53**", "Failover (primary health check) · weighted · latency · geolocation (default record) · geoproximity bias · alias at apex · alarm-based checks for private · low TTL"],
+      ["**ARC / GA**", "Zonal shift / autoshift · routing controls (5 endpoints, safety rules) · readiness checks · Region switch · Global Accelerator seconds, no DNS cache"],
+      ["**RDS / Aurora**", "Multi-AZ sync, not readable, auto 60–120 s · replicas async, manual promote · Aurora Global < 1 s, RTO < 1 min, switchover RPO 0, write forwarding"],
+      ["**DynamoDB / S3**", "Global tables multi-active, last writer wins (MRSC strong) · PITR 35 d · CRR versioning both, new objects only (Batch Replication), RTC 15 min, MRAP"],
+      ["**AWS Backup**", "Plans + tag assignment + vaults · copy cross-Region / cross-account (org + vault policy + shared CMK) · Vault Lock governance vs compliance (72 h) · air-gapped vault · Audit Manager · restore testing"],
+      ["**DRS**", "Block-level replication of servers · RPO sec / RTO min · TCP 1500 · cheap staging · drill · PIT recovery · Failback Client · not for RDS / migration (MGN)"],
+      ["**Decoupling**", "SQS buffer (visibility > processing, 6× Lambda timeout, DLQ maxReceiveCount) · FIFO per group · SNS fan-out · Kinesis order per key, replay, IteratorAge · Step Functions Retry / Catch / saga"],
+      ["**Caching**", "CloudFront OAC, versioned files, origin groups (GET only), Origin Shield, ACM us-east-1 · ElastiCache Valkey / Redis HA vs Memcached · lazy vs write-through · DAX"],
+      ["**FIS / Resilience Hub**", "Stop conditions (alarms) · safety lever · AZ Power Interruption / Cross-Region scenarios · Resilience Hub policy → assessment → recommendations · Hub assesses, FIS proves"]
+    ]},
+    { h: "Keywords: DR, scaling, ELB", table: [
+      ["The question says", "Answer"],
+      ["Lowest cost, hours", "Backup and restore"],
+      ["Data live, no compute", "Pilot light"],
+      ["Small prod copy running", "Warm standby"],
+      ["Near-zero RTO / RPO", "Active/active"],
+      ["Corruption replicated", "PITR + immutable backups"],
+      ["DR launch hits limits", "Pre-raise quotas"],
+      ["On-prem servers, RPO seconds", "AWS DRS"],
+      ["Known peak", "Scheduled scaling"],
+      ["Recurring pattern, scale ahead", "Predictive + target tracking"],
+      ["Workers on queue", "Backlog per instance"],
+      ["Script before traffic / logs before termination", "Lifecycle hooks"],
+      ["Scale-out stuck 1 hour", "No complete-lifecycle-action"],
+      ["Long boot, scale fast", "Warm pool"],
+      ["ALB-unhealthy not replaced", "ASG ELB health check"],
+      ["New AMI with rollback", "Instance refresh + alarms"],
+      ["Static IP + path routing", "NLB → ALB / Global Accelerator"],
+      ["Deploys slow 5 min", "Deregistration delay"],
+      ["Sessions lost on scale-in", "External session store"]
+    ]},
+    { h: "Keywords: routing and data", table: [
+      ["The question says", "Answer"],
+      ["Active/passive Regions", "Failover routing + health check"],
+      ["10% to new version", "Weighted"],
+      ["Country must use one Region", "Geolocation + default"],
+      ["Health check private resource", "CloudWatch alarm-based"],
+      ["Checks always fail", "Allow checker IPs"],
+      ["Failover in seconds, no DNS", "Global Accelerator"],
+      ["Impaired AZ", "ARC zonal shift / autoshift"],
+      ["Manual Region switch during outage", "ARC routing controls"],
+      ["DR capacity parity", "ARC readiness checks"],
+      ["AZ failure, same endpoint", "RDS Multi-AZ"],
+      ["Cross-Region RDS, RPO seconds", "Cross-Region replica + promote"],
+      ["Relational < 1 s, RTO < 1 min", "Aurora Global Database"],
+      ["Planned move, no loss", "Aurora switchover"],
+      ["Multi-Region read / write", "DynamoDB global tables"],
+      ["Existing objects not replicated", "S3 Batch Replication"],
+      ["Replication SLA 15 min", "S3 RTC"],
+      ["KMS objects not replicating", "KMS replication + destination key"]
+    ]},
+    { h: "Keywords: backup, decoupling, caching, chaos", table: [
+      ["The question says", "Answer"],
+      ["New resources backed up", "Tag-based assignment"],
+      ["Backups in another account", "Cross-account copy + vault policy"],
+      ["EBS / RDS copy fails", "Share customer managed KMS key"],
+      ["Even root can't delete", "Vault Lock compliance"],
+      ["Prove backups restore", "Restore testing"],
+      ["Test DR, replication continues", "DRS drill"],
+      ["Message processed twice", "Raise visibility timeout"],
+      ["Poison message", "DLQ + maxReceiveCount → redrive"],
+      ["Order per customer", "SQS FIFO MessageGroupId"],
+      ["Fan-out", "SNS → SQS"],
+      ["Replay, many consumers", "Kinesis Data Streams"],
+      ["Workflow with compensation", "Step Functions saga"],
+      ["Old JS after deploy", "Versioned file names"],
+      ["Backup origin on failure", "CloudFront origin group"],
+      ["Repeated DB reads", "ElastiCache lazy + TTL"],
+      ["µs DynamoDB reads", "DAX"],
+      ["Stop experiment on impact", "FIS stop conditions"],
+      ["Simulate AZ loss", "AZ Power Interruption"],
+      ["Meets RTO / RPO?", "Resilience Hub assessment"]
+    ]},
+    { h: "Numbers to remember", items: [
+      "Hook heartbeat **3600 s** (≤ 48 h) · predictive **24 h** history · refresh min healthy **90%**, max **200%**",
+      "ELB checks **30 s / 5 / 2** · deregistration **300 s** · ALB idle **60 s** · R53 healthy **> 18%**, multivalue **8**",
+      "RDS Multi-AZ **60–120 s** · **15** replicas · Aurora **6 copies / 3 AZs**, Global **< 1 s** lag, RTO **< 1 min**",
+      "PITR **35 d** · S3 RTC **15 min** · Backup cold storage **90 d** · Vault Lock cooling-off **72 h** · DRS TCP **1500**",
+      "SQS visibility **30 s / 12 h**, retention **4 d / 14 d**, long poll **20 s**, FIFO **300 msg/s**, dedup **5 min**, Lambda **6×**",
+      "Kinesis shard **1 MB/s / 1,000 rec in, 2 MB/s out**, retention **24 h → 365 d** · Step Functions **1 year / 5 min** · CloudFront TTL **24 h**"
+    ]},
+    { h: "Classic wrong answers", items: [
+      "Multi-AZ for Region DR ✗ · Multi-AZ standby serves reads ✗ · read replica auto-fails over ✗ · replication instead of backups ✗",
+      "Health checks on private IPs ✗ (alarm-based) · CNAME at apex ✗ · simple routing with health checks ✗ · edit DNS in outage ✗ (ARC)",
+      "ELB across Regions ✗ · EC2 termination protection stops scale-in ✗ · warm pool with Spot ✗ · sticky sessions for HA ✗",
+      "CRR copies existing objects ✗ · version deletes replicate ✗ · governance lock stops root ✗ · share aws/ebs key ✗",
+      "DRS for RDS / migration ✗ · SNS retains messages ✗ · Firehose replay ✗ · retention fixes duplicates ✗ · Lambda multi-hour ✗",
+      "Origin group fails over POST ✗ · Memcached for HA ✗ · RDS Proxy caches ✗ · Resilience Hub injects faults ✗ · FIS without stop conditions ✗"
+    ]}
+  ]
+  };
+  const list = window.CHEATSHEETS;
+  const i = list.findIndex(c => c.domain === "d3");
+  if (i < 0) list.push(sheet); else list.splice(i, 0, sheet);
+})();

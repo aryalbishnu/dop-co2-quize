@@ -50,5 +50,6 @@ window.MATERIALS = [
   { domain: "d3", topics: ["DRS"], title: "Week 5 notes - AWS Elastic Disaster Recovery (DRS) (traps, lab, check yourself)", file: "pdfs/Week5_DRS.pdf" },
   { domain: "d3", topics: ["Decoupling"], title: "Week 5 notes - Decoupling: SQS (DLQ, visibility timeout), SNS, Kinesis, Step Functions (traps, lab, check yourself)", file: "pdfs/Week5_Decoupling.pdf" },
   { domain: "d3", topics: ["Caching"], title: "Week 5 notes - Caching: CloudFront, ElastiCache (traps, lab, check yourself)", file: "pdfs/Week5_Caching.pdf" },
-  { domain: "d3", topics: ["FIS and Resilience Hub"], title: "Week 5 notes - AWS FIS and Resilience Hub (traps, lab, check yourself)", file: "pdfs/Week5_FIS_and_Resilience_Hub.pdf" }
+  { domain: "d3", topics: ["FIS and Resilience Hub"], title: "Week 5 notes - AWS FIS and Resilience Hub (traps, lab, check yourself)", file: "pdfs/Week5_FIS_and_Resilience_Hub.pdf" },
+  { domain: "d3", topics: [], title: "Domain 3 master cheat sheet and keyword list (Resilient Cloud Solutions)", file: "pdfs/Domain3_Master_Cheat_Sheet.pdf" }
 ];
