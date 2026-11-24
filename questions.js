@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -15912,8 +15912,368 @@ window.QUESTIONS = [
     ],
     answer: [0],
     tip: "One dashboard for many resources = dashboard variables."
+  },
+  // ───────────────────────────── Domain 4: CloudWatch Alarms ─────────────────────────────
+  {
+    id: "cwa-01", domain: "d4", topic: "CloudWatch Alarms",
+    q: "An application publishes a custom Errors metric only when an error occurs. The alarm on this metric spends most of its time in INSUFFICIENT_DATA, which confuses the on-call team. How should the alarm be configured?",
+    options: [
+      { t: "Set the alarm's missing data treatment to notBreaching.",
+        why: "Correct. Missing data points are treated as good when the metric is only sent on errors." },
+      { t: "Set missing data to breaching.",
+        why: "The alarm would fire whenever there are no errors." },
+      { t: "Increase the period to 1 day.",
+        why: "Still missing data most of the time and much slower." },
+      { t: "Switch to high-resolution alarms.",
+        why: "Doesn't address missing data." }
+    ],
+    answer: [0],
+    tip: "Metric only sent on errors = notBreaching."
+  },
+  {
+    id: "cwa-02", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A nightly ETL job publishes a JobSucceeded metric with value 1 when it finishes. Last week the job silently failed to start, no metric was published, and no alarm fired. How should the alarm be changed?",
+    options: [
+      { t: "Treat missing data as breaching (alarm when Sum < 1 over the job's period).",
+        why: "Correct. For heartbeat metrics, no data means the job didn't run." },
+      { t: "Treat missing data as notBreaching.",
+        why: "That hides exactly this failure." },
+      { t: "Treat missing data as ignore.",
+        why: "Keeps the previous OK state." },
+      { t: "Use an anomaly detection alarm.",
+        why: "No data to evaluate either." }
+    ],
+    answer: [0],
+    tip: "Heartbeat stopped = missing data breaching."
+  },
+  {
+    id: "cwa-03", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A CPU alarm with a 1-minute period and 1 evaluation period pages the on-call engineer several times a day for short spikes that resolve on their own. The team wants alerts only for sustained problems. What should be changed?",
+    options: [
+      { t: "Configure datapoints to alarm as M out of N, for example 3 out of 5 evaluation periods.",
+        why: "Correct. Short spikes no longer trigger the alarm." },
+      { t: "Lower the threshold.",
+        why: "Increases alarms." },
+      { t: "Set missing data to breaching.",
+        why: "Unrelated to spikes." },
+      { t: "Use a 10-second high-resolution alarm.",
+        why: "Makes it more sensitive." }
+    ],
+    answer: [0],
+    tip: "Flapping = M out of N datapoints."
+  },
+  {
+    id: "cwa-04", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A standalone EC2 instance (EBS-backed, not in an Auto Scaling group) must automatically move to healthy hardware if the underlying AWS host fails, keeping its instance ID, private IP address and Elastic IP. Which alarm should be created?",
+    options: [
+      { t: "An alarm on StatusCheckFailed_System with the EC2 recover action.",
+        why: "Correct. Recovery keeps the instance ID, IPs and EBS volumes." },
+      { t: "An alarm on StatusCheckFailed_Instance with the recover action.",
+        why: "Instance check is an OS problem - use reboot." },
+      { t: "An alarm on CPUUtilization with the terminate action.",
+        why: "Destroys the instance." },
+      { t: "An alarm with an SNS action only.",
+        why: "Notifies but doesn't recover." }
+    ],
+    answer: [0],
+    tip: "Host failure = system check + recover."
+  },
+  {
+    id: "cwa-05", domain: "d4", topic: "CloudWatch Alarms",
+    q: "An EC2 instance occasionally becomes unresponsive because of an OS-level kernel issue, and the instance status check fails while the system status check passes. What alarm action resolves this automatically?",
+    options: [
+      { t: "An alarm on StatusCheckFailed_Instance with the EC2 reboot action.",
+        why: "Correct. A reboot fixes OS-level problems." },
+      { t: "An alarm on StatusCheckFailed_System with the recover action.",
+        why: "The system check passes; hardware isn't the problem." },
+      { t: "An Auto Scaling scaling policy.",
+        why: "The instance isn't in an ASG." },
+      { t: "An OpsItem action only.",
+        why: "Tracks but doesn't fix." }
+    ],
+    answer: [0],
+    tip: "OS problem = instance check + reboot."
+  },
+  {
+    id: "cwa-06", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Developers often leave test EC2 instances running overnight. The company wants instances with CPU below 5% for 4 hours to be stopped automatically to save cost, with the LEAST effort. What should be done?",
+    options: [
+      { t: "Create a CloudWatch alarm per instance on CPUUtilization < 5% over 4 hours with the EC2 stop action.",
+        why: "Correct. Built-in EC2 alarm actions need no code." },
+      { t: "Write a Lambda that checks CPU hourly and stops instances.",
+        why: "Works, but more code than a built-in action." },
+      { t: "Use the terminate action.",
+        why: "Destroys developer work." },
+      { t: "Use AWS Config.",
+        why: "Config evaluates configuration, not CPU usage." }
+    ],
+    answer: [0],
+    tip: "Idle instance = alarm + EC2 stop action."
+  },
+  {
+    id: "cwa-07", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Instances in an Auto Scaling group behind an ALB sometimes fail health checks. An engineer proposes EC2 recover alarm actions on each instance. What is the BEST approach?",
+    options: [
+      { t: "Use the Auto Scaling group's ELB health check type so the ASG replaces unhealthy instances.",
+        why: "Correct. The ASG handles replacement; per-instance actions don't fit dynamic fleets." },
+      { t: "Create recover alarms on every instance.",
+        why: "Instances come and go; ASG replacement is the native design." },
+      { t: "Create reboot alarms on every instance.",
+        why: "Same problem; doesn't follow the fleet." },
+      { t: "Disable health checks.",
+        why: "Removes protection." }
+    ],
+    answer: [0],
+    tip: "ASG instances = ASG replacement, not EC2 alarm actions."
+  },
+  {
+    id: "cwa-08", domain: "d4", topic: "CloudWatch Alarms",
+    q: "After an engineer deleted two CloudWatch alarms named TargetTracking-my-asg-AlarmHigh and AlarmLow, the Auto Scaling group stopped scaling. What should have been done instead?",
+    options: [
+      { t: "Leave the alarms alone and change or recreate the target tracking scaling policy, which manages its own alarms.",
+        why: "Correct. Target tracking alarms are managed by Auto Scaling." },
+      { t: "Recreate the alarms manually with different thresholds.",
+        why: "Manual alarms aren't managed by the policy." },
+      { t: "Convert to scheduled scaling.",
+        why: "Different behaviour; not the fix." },
+      { t: "Add an SNS action to the ASG.",
+        why: "Notifications don't scale." }
+    ],
+    answer: [0],
+    tip: "Don't edit / delete target tracking alarms."
+  },
+  {
+    id: "cwa-09", domain: "d4", topic: "CloudWatch Alarms",
+    q: "When the shared database fails, more than 40 service alarms fire at once and flood the on-call team. They want one meaningful page for real outages and no individual symptom pages. What should a DevOps engineer implement?",
+    options: [
+      { t: "A composite alarm combining the relevant alarms with AND / OR rules, with actions removed from the underlying alarms.",
+        why: "Correct. Composite alarms reduce alert noise." },
+      { t: "Increase each alarm's threshold.",
+        why: "Hides real issues." },
+      { t: "Send all alarms to one SNS topic.",
+        why: "Still 40 notifications." },
+      { t: "Disable all alarms.",
+        why: "No alerting." }
+    ],
+    answer: [0],
+    tip: "Alert storm = composite alarm, children without actions."
+  },
+  {
+    id: "cwa-10", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A composite alarm pages on-call during the weekly maintenance window when services are restarted intentionally. The team wants alerts suppressed automatically during the window without disabling alarms manually. What should they configure?",
+    options: [
+      { t: "An actions suppressor on the composite alarm, pointing to a maintenance alarm, with appropriate wait and extension periods.",
+        why: "Correct. Actions are suppressed while the suppressor alarm is in ALARM." },
+      { t: "Delete the composite alarm each week.",
+        why: "Manual and error-prone." },
+      { t: "Set missing data to ignore.",
+        why: "Doesn't suppress actions." },
+      { t: "Lower the evaluation periods.",
+        why: "More alerts, not fewer." }
+    ],
+    answer: [0],
+    tip: "Silence during maintenance = actions suppressor."
+  },
+  {
+    id: "cwa-11", domain: "d4", topic: "CloudWatch Alarms",
+    q: "An engineer wants a composite alarm to scale out an Auto Scaling group when both CPU and latency alarms are in ALARM. The action can't be added. Why?",
+    options: [
+      { t: "Composite alarms support only SNS, Lambda and Systems Manager (OpsItem / incident) actions - not EC2 or Auto Scaling actions.",
+        why: "Correct. Use a metric alarm (or metric math) for scaling." },
+      { t: "Composite alarms can't use AND.",
+        why: "They support AND / OR / NOT." },
+      { t: "The ASG must be in another Region.",
+        why: "Unrelated." },
+      { t: "Composite alarms need high resolution.",
+        why: "Not a requirement." }
+    ],
+    answer: [0],
+    tip: "Composite actions = SNS, Lambda, SSM only."
+  },
+  {
+    id: "cwa-12", domain: "d4", topic: "CloudWatch Alarms",
+    q: "When a disk-space alarm fires on an EC2 instance, the company wants an automated multi-step remediation: snapshot the volume, clean temporary files with a script, verify free space and notify the team. What is the BEST design?",
+    options: [
+      { t: "Create an EventBridge rule on the CloudWatch Alarm State Change event that starts an SSM Automation runbook performing the steps.",
+        why: "Correct. EventBridge routes alarm state changes to multi-step automation." },
+      { t: "Add the EC2 reboot action.",
+        why: "Doesn't free disk space." },
+      { t: "Add an SNS email action and let operators fix it.",
+        why: "Not automated." },
+      { t: "Increase the alarm threshold.",
+        why: "Ignores the problem." }
+    ],
+    answer: [0],
+    tip: "Multi-step remediation = EventBridge -> SSM Automation."
+  },
+  {
+    id: "cwa-13", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Critical production alarms must automatically page the on-call engineer, escalate if unacknowledged, open a chat channel and attach a runbook. Which alarm action should be used?",
+    options: [
+      { t: "Start an AWS Systems Manager Incident Manager incident using a response plan.",
+        why: "Correct. Response plans include engagements, escalation, chat and runbooks." },
+      { t: "Create an OpsCenter OpsItem.",
+        why: "Tracks issues but doesn't page / escalate." },
+      { t: "Email via SNS.",
+        why: "No escalation or runbook orchestration." },
+      { t: "EC2 reboot action.",
+        why: "Not paging." }
+    ],
+    answer: [0],
+    tip: "Page + escalate + chat + runbook = Incident Manager."
+  },
+  {
+    id: "cwa-14", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Operations wants every warning-level alarm to create a trackable work item, with related resources and suggested runbooks, without paging anyone. Which action fits?",
+    options: [
+      { t: "A Systems Manager OpsCenter OpsItem action on the alarm.",
+        why: "Correct. OpsItems track operational work with runbooks." },
+      { t: "Incident Manager.",
+        why: "For paging critical incidents." },
+      { t: "EC2 terminate action.",
+        why: "Destructive." },
+      { t: "AWS Trusted Advisor.",
+        why: "Not an alarm action." }
+    ],
+    answer: [0],
+    tip: "Trackable work item = OpsItem."
+  },
+  {
+    id: "cwa-15", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Alarm notifications stopped arriving after the security team enabled encryption on the alarm's SNS topic using a customer managed KMS key. What is the MOST likely fix?",
+    options: [
+      { t: "Update the KMS key policy to allow cloudwatch.amazonaws.com to use the key (kms:Decrypt and kms:GenerateDataKey*).",
+        why: "Correct. CloudWatch must be able to use the key to publish." },
+      { t: "Disable the alarm and re-enable it.",
+        why: "Doesn't fix permissions." },
+      { t: "Use an SQS queue instead of email.",
+        why: "Publishing still fails." },
+      { t: "Switch the alarm to high resolution.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Encrypted SNS topic = KMS key policy must allow CloudWatch."
+  },
+  {
+    id: "cwa-16", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A finance team creates a billing alarm on EstimatedCharges in eu-west-1, but the metric can't be found. What should they do?",
+    options: [
+      { t: "Enable billing alerts in the account preferences and create the alarm in us-east-1, where billing metrics are published.",
+        why: "Correct. Billing metrics exist only in us-east-1." },
+      { t: "Enable detailed monitoring.",
+        why: "Unrelated to billing." },
+      { t: "Use a metric math expression in eu-west-1.",
+        why: "Metrics still aren't in that Region." },
+      { t: "Wait 24 hours.",
+        why: "They'll never appear in eu-west-1." }
+    ],
+    answer: [0],
+    tip: "Billing alarms = us-east-1."
+  },
+  {
+    id: "cwa-17", domain: "d4", topic: "CloudWatch Alarms",
+    q: "A team wants an alarm when a Route 53 health check for their application becomes unhealthy. They can't find the HealthCheckStatus metric in ap-southeast-1, where the app runs. Why?",
+    options: [
+      { t: "Route 53 health check metrics are published in us-east-1, so the alarm must be created there.",
+        why: "Correct. Route 53 is global; its metrics are in us-east-1." },
+      { t: "Health checks don't publish metrics.",
+        why: "They publish HealthCheckStatus." },
+      { t: "They need a private hosted zone.",
+        why: "Unrelated." },
+      { t: "Detailed monitoring must be enabled.",
+        why: "Not related to Route 53." }
+    ],
+    answer: [0],
+    tip: "Route 53 health check alarms = us-east-1."
+  },
+  {
+    id: "cwa-18", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Before go-live, the team must verify that an alarm's SNS notifications, Lambda function and OK actions all work, without causing a real incident. What is the simplest method?",
+    options: [
+      { t: "Use aws cloudwatch set-alarm-state to set the alarm to ALARM temporarily; it returns to its real state on the next evaluation.",
+        why: "Correct. Triggers actions safely." },
+      { t: "Stop the production database.",
+        why: "Causes a real incident." },
+      { t: "Delete and recreate the alarm.",
+        why: "Doesn't trigger actions." },
+      { t: "Lower the threshold to 0 permanently.",
+        why: "Constant false alarms." }
+    ],
+    answer: [0],
+    tip: "Test alarm actions = set-alarm-state."
+  },
+  {
+    id: "cwa-19", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Auditors ask for a record of all production alarm state changes for the past 12 months. CloudWatch shows only recent history. What should have been in place?",
+    options: [
+      { t: "An EventBridge rule capturing CloudWatch Alarm State Change events and archiving them (for example to CloudWatch Logs or S3 via Firehose), because alarm history is kept only 30 days.",
+        why: "Correct. Archive events for long-term audit." },
+      { t: "Increase alarm history retention to 1 year.",
+        why: "Not configurable." },
+      { t: "Enable CloudTrail data events.",
+        why: "Doesn't record alarm state changes." },
+      { t: "Use high-resolution alarms.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Alarm history = 30 days; archive EventBridge events."
+  },
+  {
+    id: "cwa-20", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Which services can use CloudWatch alarms to automatically roll back or stop a change? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "AWS CodeDeploy deployment groups (automatic rollback when an alarm fires).",
+        why: "Correct." },
+      { t: "AWS CloudFormation rollback triggers.",
+        why: "Correct. Up to 5 alarms monitored during and after updates." },
+      { t: "Amazon S3 Lifecycle rules.",
+        why: "No alarm integration." },
+      { t: "AWS Organizations SCPs.",
+        why: "Policies, no alarm integration." },
+      { t: "IAM Access Analyzer.",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "Alarms drive CodeDeploy / CloudFormation / AppConfig / ECS rollbacks."
+  },
+  {
+    id: "cwa-21", domain: "d4", topic: "CloudWatch Alarms",
+    q: "An alarm must invoke a Lambda function directly when it enters ALARM, without SNS in between. The action fails. What is required?",
+    options: [
+      { t: "Add a resource-based policy to the Lambda function allowing the CloudWatch alarms service principal (lambda.alarms.cloudwatch.amazonaws.com) to invoke it.",
+        why: "Correct. Lambda must permit CloudWatch to invoke it." },
+      { t: "Give the alarm an IAM user.",
+        why: "Alarms don't use IAM users." },
+      { t: "Lambda can only be invoked via SNS.",
+        why: "Direct Lambda alarm actions are supported." },
+      { t: "Enable X-Ray on the function.",
+        why: "Tracing, not permissions." }
+    ],
+    answer: [0],
+    tip: "Direct Lambda action = Lambda resource policy for CloudWatch."
+  },
+  {
+    id: "cwa-22", domain: "d4", topic: "CloudWatch Alarms",
+    q: "Which statements about CloudWatch alarms are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "An alarm evaluates metrics only in its own Region.",
+        why: "Correct. Alarms are Regional." },
+      { t: "Every alarm state change emits an event to Amazon EventBridge that can trigger any supported target.",
+        why: "Correct." },
+      { t: "Composite alarms can stop and terminate EC2 instances.",
+        why: "Composite actions are SNS, Lambda and SSM only." },
+      { t: "EC2 recovery preserves instance store data.",
+        why: "Instance store is lost; EBS-backed only." },
+      { t: "Alarm history is kept for 15 months.",
+        why: "30 days." }
+    ],
+    answer: [0, 1],
+    tip: "Alarms are Regional · state changes go to EventBridge."
   }
 ];
+
 
 
 

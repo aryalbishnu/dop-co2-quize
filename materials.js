@@ -53,5 +53,6 @@ window.MATERIALS = [
   { domain: "d3", topics: ["FIS and Resilience Hub"], title: "Week 5 notes - AWS FIS and Resilience Hub (traps, lab, check yourself)", file: "pdfs/Week5_FIS_and_Resilience_Hub.pdf" },
   { domain: "d3", topics: [], title: "Domain 3 master cheat sheet and keyword list (Resilient Cloud Solutions, incl. extras)", file: "pdfs/Domain3_Master_Cheat_Sheet.pdf" },
   { domain: "d3", topics: ["Domain 3 Extras"], title: "Week 5 notes - Domain 3 extras: scaling containers, serverless and data (traps, lab, check yourself)", file: "pdfs/Week5_Domain3_Extras.pdf" },
-  { domain: "d4", topics: ["CloudWatch Metrics"], title: "Week 6 notes - CloudWatch Metrics (traps, lab, check yourself)", file: "pdfs/Week6_CloudWatch_Metrics.pdf" }
+  { domain: "d4", topics: ["CloudWatch Metrics"], title: "Week 6 notes - CloudWatch Metrics (traps, lab, check yourself)", file: "pdfs/Week6_CloudWatch_Metrics.pdf" },
+  { domain: "d4", topics: ["CloudWatch Alarms"], title: "Week 6 notes - CloudWatch Alarms (traps, lab, check yourself)", file: "pdfs/Week6_CloudWatch_Alarms.pdf" }
 ];

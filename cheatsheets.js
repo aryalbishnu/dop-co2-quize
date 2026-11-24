@@ -3107,6 +3107,66 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "CloudWatch Alarms",
+  sections: [
+    { h: "Types, states, evaluation", items: [
+      "Types: **static**, **anomaly detection**, **metric math** (≤ 10 metrics), **Metrics Insights**, **composite**",
+      "States **OK / ALARM / INSUFFICIENT_DATA** · actions on each (OK action = resolved)",
+      "Period (10 / 30 s high-res or × 60 s) · **M out of N** datapoints stops flapping · p99 for latency",
+      "Missing data: **missing** (default) · **notBreaching** = error-only metrics · **breaching** = heartbeats · **ignore** = keep state"
+    ]},
+    { h: "Actions", table: [
+      ["Action", "Remember"],
+      ["**SNS**", "Email, SMS, Lambda, SQS, HTTPS, chat (Q Developer) · encrypted topic → KMS policy allows **cloudwatch.amazonaws.com**"],
+      ["**Lambda**", "Direct action · resource policy for `lambda.alarms.cloudwatch.amazonaws.com`"],
+      ["**EC2 stop / terminate**", "Idle instances (cost) · per-instance metric"],
+      ["**EC2 reboot**", "**StatusCheckFailed_Instance** (OS problem)"],
+      ["**EC2 recover**", "**StatusCheckFailed_System** (host) · keeps **ID, private IP, EIP, EBS** · instance store lost"],
+      ["**Auto Scaling**", "Step / simple policies · **don't edit target tracking alarms** · ASG instances → ASG replaces"],
+      ["**OpsItem**", "OpsCenter work item, severity, runbooks"],
+      ["**Incident Manager**", "Response plan: page, escalate, chat, runbook"],
+      ["**EventBridge**", "Every state change → any target (**SSM Automation**, Step Functions)"]
+    ]},
+    { h: "Composite alarms", items: [
+      "Rule: `ALARM(\"a\") AND (ALARM(\"b\") OR ALARM(\"c\"))` · OK(), INSUFFICIENT_DATA(), NOT, TRUE / FALSE · nesting",
+      "**Children have no actions** → one meaningful page (alert fatigue)",
+      "**Actions suppressor** alarm + wait / extension period → maintenance windows, parent outage",
+      "Actions: **SNS, Lambda, SSM only** - **no EC2 / Auto Scaling**",
+      "IaC: `AWS::CloudWatch::Alarm` · `AWS::CloudWatch::CompositeAlarm`"
+    ]},
+    { h: "Operations", items: [
+      "**Regional** · **billing** (`EstimatedCharges`) and **Route 53 health check** alarms in **us-east-1**",
+      "**set-alarm-state** = safe test · **disable-alarm-actions** = mute · history **30 days** → archive EventBridge events",
+      "High-res and anomaly alarms cost more · recommended alarms per service",
+      "Alarms drive **CodeDeploy**, **CloudFormation rollback triggers**, **AppConfig**, **ECS**, instance refresh rollbacks, **FIS stop conditions**, Route 53 alarm health checks"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Error-only metric, INSUFFICIENT_DATA", "notBreaching"],
+      ["Heartbeat stopped, no alarm", "breaching"],
+      ["Short spikes page on-call", "M out of N"],
+      ["Host hardware failure, keep IP", "System check + recover"],
+      ["OS kernel hang", "Instance check + reboot"],
+      ["Stop idle instances", "EC2 stop action"],
+      ["ASG instance unhealthy", "ASG ELB health check"],
+      ["Deleted target tracking alarms", "Recreate the policy"],
+      ["40 alerts for one outage", "Composite alarm"],
+      ["Quiet during maintenance", "Actions suppressor"],
+      ["Composite can't scale ASG", "SNS / Lambda / SSM only"],
+      ["Multi-step remediation", "EventBridge → SSM Automation"],
+      ["Page, escalate, chat, runbook", "Incident Manager"],
+      ["Trackable work item", "OpsItem"],
+      ["Encrypted SNS gets nothing", "KMS key policy for CloudWatch"],
+      ["Billing alarm not found", "us-east-1 + billing alerts"],
+      ["Route 53 health check alarm", "us-east-1"],
+      ["Test actions safely", "set-alarm-state"],
+      ["12 months of alarm history", "Archive EventBridge events"],
+      ["Lambda action fails", "Lambda resource policy"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
