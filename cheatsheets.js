@@ -3049,6 +3049,64 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "CloudWatch Metrics",
+  sections: [
+    { h: "Basics and retention", items: [
+      "Namespace (custom can't start `AWS/`) · metric · **dimensions ≤ 30** · **each unique combination = separate billed metric** · Regional",
+      "Retention: **< 60 s → 3 h** · **1 min → 15 days** · **5 min → 63 days** · **1 h → 15 months** · metrics **can't be deleted**",
+      "EC2 basic **5 min** (free) · detailed **1 min** (paid) · **no memory / disk** without the agent",
+      "Statistics: Avg, Sum, Min, Max, SampleCount, **percentiles** (need raw values), trimmed mean"
+    ]},
+    { h: "Getting custom metrics", table: [
+      ["Method", "Use"],
+      ["**PutMetricData**", "Apps / scripts · statistic sets · timestamps −2 weeks / +2 h"],
+      ["**CloudWatch agent**", "**Memory, disk**, procstat, StatsD / collectd → **CWAgent** · config in **Parameter Store**, deploy with **State Manager**"],
+      ["**EMF**", "JSON logs → metrics, no API calls · **Lambda** / containers"],
+      ["**Metric filters**", "Log patterns → metrics · **new events only**"],
+      ["**High resolution**", "`StorageResolution=1` · custom only · 1 s data **3 h** · alarms **10 / 30 s**"]
+    ]},
+    { h: "Metric math, Insights, anomaly detection", items: [
+      "**Metric math**: `100*m1/m2` error rate, `FILL`, `SUM(METRICS())`, `RATE`, `IF` · **alarm on expressions** (≤ 10 metrics)",
+      "**SEARCH** = dynamic graphs (new instances) · **can't alarm on SEARCH** → **Metrics Insights** SQL query alarm (top-N, changing fleets)",
+      "**Anomaly detection**: ML band with **seasonality**, width in **std devs** (default 2) · above / below / outside · **exclude time ranges** · works on metric math",
+      "Noisy → wider band + **M-of-N** · missing data: missing / notBreaching / breaching / ignore · composite alarms"
+    ]},
+    { h: "Dashboards and cross-account", items: [
+      "Dashboards **global, multi-Region** · widgets: line, number, gauge, text, **alarm status**, **Logs Insights**, custom",
+      "**Variables** (one dashboard, many resources) · **as code**: `PutDashboard`, **`AWS::CloudWatch::Dashboard`** · **3 free**",
+      "**Share**: emails (Cognito), **SSO**, public link - no IAM users",
+      "**Cross-account observability (OAM)**: monitoring account **sink** + source **links** · metrics, logs, **traces**, App Signals · **StackSets** auto-deploy · **per Region**",
+      "Legacy: cross-account cross-Region console (`CloudWatch-CrossAccountSharingRole`)",
+      "**Metric streams** → **Data Firehose** → S3 / Datadog / Splunk · JSON / **OpenTelemetry** · filter namespaces · replaces polling GetMetricData"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Memory / disk on EC2", "CloudWatch agent"],
+      ["Agent on 2,000 instances + new", "Parameter Store + State Manager"],
+      ["Alarm within 10-20 s", "High-res metric + 10 s alarm"],
+      ["1 s data from last week", "Gone after 3 h → metric stream to S3"],
+      ["5-minute data retention", "63 days"],
+      ["Lambda PutMetricData throttled", "EMF"],
+      ["Bill jumped after new dimension", "High cardinality"],
+      ["Metric filter missing old errors", "Not retroactive"],
+      ["Error rate alarm, no new metric", "Metric math alarm"],
+      ["Graph includes new instances", "SEARCH / Metrics Insights"],
+      ["Alarm on changing fleet max", "Metrics Insights query alarm"],
+      ["Daily / weekly pattern", "Anomaly detection"],
+      ["Model learned a load test", "Exclude time range"],
+      ["Noisy anomaly alarm", "Wider band + M-of-N"],
+      ["Dashboard in every account, reviewed", "AWS::CloudWatch::Dashboard"],
+      ["Two Regions on one dashboard", "Dashboards are global"],
+      ["Viewers without AWS accounts", "Share via email / SSO"],
+      ["Central monitoring, 200 accounts", "Cross-account observability (OAM)"],
+      ["Works in one Region only", "OAM is Regional"],
+      ["Metrics to Splunk / Datadog", "Metric streams"],
+      ["One dashboard, pick the service", "Dashboard variables"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

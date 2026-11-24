@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: [] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -15553,8 +15553,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "EFS replica read-only until deleted · watch Service Quotas."
+  },
+  // ───────────────────────────── Domain 4: CloudWatch Metrics ─────────────────────────────
+  {
+    id: "cwm-01", domain: "d4", topic: "CloudWatch Metrics",
+    q: "An operations team wants to alarm when memory utilization on a fleet of Amazon Linux EC2 instances exceeds 85%. They enabled detailed monitoring but can't find a memory metric. What should a DevOps engineer do with the LEAST operational overhead?",
+    options: [
+      { t: "Install and configure the CloudWatch agent on the instances using Systems Manager (config in Parameter Store), then alarm on mem_used_percent in the CWAgent namespace.",
+        why: "Correct. Memory is an OS-level metric that only the agent can collect." },
+      { t: "Wait for detailed monitoring to start publishing MemoryUtilization.",
+        why: "Detailed monitoring only changes the interval to 1 minute; EC2 never publishes memory." },
+      { t: "Write a cron script on each instance that calls PutMetricData.",
+        why: "Works, but more custom code to maintain than the managed agent." },
+      { t: "Enable VPC Flow Logs.",
+        why: "Network metadata, not memory." }
+    ],
+    answer: [0],
+    tip: "Memory / disk on EC2 = CloudWatch agent (CWAgent namespace)."
+  },
+  {
+    id: "cwm-02", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A company must deploy the CloudWatch agent with a standard configuration to 2,000 EC2 instances across accounts, and new instances must get the same configuration automatically. Which approach is MOST operationally efficient?",
+    options: [
+      { t: "Store the agent configuration in SSM Parameter Store and use Systems Manager State Manager associations (AWS-ConfigureAWSPackage and AmazonCloudWatch-ManageAgent) targeting instances by tag.",
+        why: "Correct. State Manager keeps instances, including new ones, configured." },
+      { t: "SSH into each instance and run the configuration wizard.",
+        why: "Manual and doesn't cover new instances." },
+      { t: "Use Run Command once.",
+        why: "Run Command is one-time; new instances are missed." },
+      { t: "Bake the wizard into user data that prompts for input.",
+        why: "Interactive wizard can't run unattended." }
+    ],
+    answer: [0],
+    tip: "Agent at scale = Parameter Store config + State Manager."
+  },
+  {
+    id: "cwm-03", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A trading application must detect latency spikes and alarm within 10 to 20 seconds. The application publishes latency as a custom metric every second. What should be configured? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Publish the metric with StorageResolution set to 1 (high resolution).",
+        why: "Correct. Stores 1-second data points." },
+      { t: "Create a high-resolution alarm with a 10-second period.",
+        why: "Correct. High-resolution alarms support 10 s and 30 s periods." },
+      { t: "Enable EC2 detailed monitoring.",
+        why: "Affects EC2 metrics at 1-minute granularity only." },
+      { t: "Create a standard alarm with a 60-second period and 1 datapoint.",
+        why: "Can't detect within 10-20 seconds." },
+      { t: "Use a 1-hour period with the Maximum statistic.",
+        why: "Far too slow." }
+    ],
+    answer: [0, 1],
+    tip: "Seconds-level alerting = high-res custom metric + 10 s alarm."
+  },
+  {
+    id: "cwm-04", domain: "d4", topic: "CloudWatch Metrics",
+    q: "An engineer investigating an incident from 10 days ago wants to see a high-resolution custom metric at 1-second granularity. Only 1-minute data points are available. Why, and how can raw data be kept in the future?",
+    options: [
+      { t: "Sub-minute data is retained for only 3 hours before rollup; use a CloudWatch metric stream to Amazon S3 to keep raw data long-term.",
+        why: "Correct. Retention: <60 s 3 h, 1 min 15 days, 5 min 63 days, 1 h 15 months." },
+      { t: "High-resolution data is deleted after 24 hours; enable CloudTrail.",
+        why: "Wrong retention, and CloudTrail doesn't store metrics." },
+      { t: "The metric was deleted; recreate it.",
+        why: "Metrics aren't deleted; data was rolled up." },
+      { t: "Increase the metric retention setting to 1 year.",
+        why: "Metric retention isn't configurable." }
+    ],
+    answer: [0],
+    tip: "1 s data lasts 3 hours; keep raw data with metric streams to S3."
+  },
+  {
+    id: "cwm-05", domain: "d4", topic: "CloudWatch Metrics",
+    q: "How long does CloudWatch keep 5-minute metric data points?",
+    options: [
+      { t: "63 days.",
+        why: "Correct. 1-minute = 15 days, 5-minute = 63 days, 1-hour = 455 days." },
+      { t: "15 days.",
+        why: "That's 1-minute data." },
+      { t: "3 hours.",
+        why: "That's sub-minute data." },
+      { t: "Forever.",
+        why: "Max is 15 months." }
+    ],
+    answer: [0],
+    tip: "3 h / 15 d / 63 d / 15 months."
+  },
+  {
+    id: "cwm-06", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A high-traffic Lambda function calls PutMetricData on every invocation to record an orders metric. Latency has increased and the calls are being throttled. What is the BEST way to publish the metric?",
+    options: [
+      { t: "Write the metric in CloudWatch Embedded Metric Format (EMF) to the function's logs so CloudWatch extracts it asynchronously.",
+        why: "Correct. No synchronous API calls or throttling." },
+      { t: "Retry PutMetricData with exponential backoff.",
+        why: "Still adds latency and API cost." },
+      { t: "Increase Lambda memory.",
+        why: "Doesn't fix API throttling." },
+      { t: "Publish to an SQS queue and poll it from EC2 to call PutMetricData.",
+        why: "Complex; EMF does this natively." }
+    ],
+    answer: [0],
+    tip: "Metrics from Lambda at scale = EMF."
+  },
+  {
+    id: "cwm-07", domain: "d4", topic: "CloudWatch Metrics",
+    q: "After a developer added a RequestId dimension to a custom latency metric, the CloudWatch bill increased dramatically. What explains this, and what is the fix?",
+    options: [
+      { t: "Each unique dimension combination is a separate billed metric; remove high-cardinality dimensions and keep request IDs in logs or EMF properties instead.",
+        why: "Correct. High cardinality multiplies metrics." },
+      { t: "Dimensions double the API cost; batch calls.",
+        why: "The cost is per metric, driven by cardinality." },
+      { t: "High-resolution was enabled automatically.",
+        why: "Dimensions don't change resolution." },
+      { t: "Delete the extra metrics.",
+        why: "Metrics can't be deleted - stop publishing them." }
+    ],
+    answer: [0],
+    tip: "Unique dimension values = separate metrics = cost."
+  },
+  {
+    id: "cwm-08", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A team creates a CloudWatch Logs metric filter to count ERROR lines and expects the metric to show the errors from last week's outage. The metric shows no data for last week. Why?",
+    options: [
+      { t: "Metric filters only evaluate log events ingested after the filter is created.",
+        why: "Correct. Use Logs Insights to analyse past logs." },
+      { t: "Metric filters run once a week.",
+        why: "They run continuously on new events." },
+      { t: "The log group is encrypted.",
+        why: "Encryption doesn't block filters." },
+      { t: "Metric filters need high resolution.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Metric filters are not retroactive."
+  },
+  {
+    id: "cwm-09", domain: "d4", topic: "CloudWatch Metrics",
+    q: "The team wants an alarm when the Application Load Balancer's target 5XX error rate exceeds 2% of requests, without publishing any new custom metrics. What should they do?",
+    options: [
+      { t: "Create an alarm on a metric math expression: 100 * HTTPCode_Target_5XX_Count / RequestCount, greater than 2.",
+        why: "Correct. Alarms support metric math expressions." },
+      { t: "Write a Lambda that computes the rate every minute and publishes it.",
+        why: "Unnecessary custom metric and code." },
+      { t: "Alarm on HTTPCode_Target_5XX_Count > 2.",
+        why: "That's a count, not a rate." },
+      { t: "Enable ALB access logs and alarm on them.",
+        why: "Access logs don't create alarms directly." }
+    ],
+    answer: [0],
+    tip: "Rates / ratios = metric math alarm."
+  },
+  {
+    id: "cwm-10", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A dashboard graph must automatically include CPUUtilization for every EC2 instance, including instances launched later, without editing the dashboard. Which feature should be used?",
+    options: [
+      { t: "A metric math SEARCH expression (or a Metrics Insights query) in the widget.",
+        why: "Correct. They match metrics dynamically." },
+      { t: "Manually add each instance ID.",
+        why: "New instances are missed." },
+      { t: "A composite alarm.",
+        why: "Combines alarms, not graphs." },
+      { t: "An automatic dashboard per instance.",
+        why: "Not a single dynamic graph." }
+    ],
+    answer: [0],
+    tip: "Dynamic graphs = SEARCH / Metrics Insights."
+  },
+  {
+    id: "cwm-11", domain: "d4", topic: "CloudWatch Metrics",
+    q: "An engineer tries to create an alarm on a SEARCH expression that covers all instances in an Auto Scaling fleet, but CloudWatch rejects it. The goal is to alarm when the highest CPU in the changing fleet exceeds 90%. What should be used?",
+    options: [
+      { t: "An alarm based on a CloudWatch Metrics Insights query, for example SELECT MAX(CPUUtilization) FROM SCHEMA(\"AWS/EC2\", InstanceId).",
+        why: "Correct. Metrics Insights alarms track dynamic sets of resources." },
+      { t: "One alarm per instance created manually.",
+        why: "Doesn't follow the changing fleet." },
+      { t: "An anomaly detection band on one instance.",
+        why: "Only one instance." },
+      { t: "Increase the period to 1 day.",
+        why: "Doesn't make SEARCH alarmable." }
+    ],
+    answer: [0],
+    tip: "Alarms can't use SEARCH; use a Metrics Insights query alarm."
+  },
+  {
+    id: "cwm-12", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A retail website's request count follows a strong daily and weekly pattern. Static threshold alarms either fire every night or miss real drops during the day. What should a DevOps engineer implement?",
+    options: [
+      { t: "A CloudWatch anomaly detection alarm that triggers when the metric goes outside (or below) the expected band.",
+        why: "Correct. The model learns seasonality - no static threshold." },
+      { t: "Two static alarms for day and night.",
+        why: "Brittle and still misses weekly patterns." },
+      { t: "A composite alarm on CPU.",
+        why: "Doesn't solve seasonality." },
+      { t: "Increase evaluation periods to 24.",
+        why: "Slows detection without adapting to patterns." }
+    ],
+    answer: [0],
+    tip: "Seasonal metrics = anomaly detection."
+  },
+  {
+    id: "cwm-13", domain: "d4", topic: "CloudWatch Metrics",
+    q: "After a load test and a one-off Black Friday event, an anomaly detection model now treats very high traffic as normal and misses real anomalies. What should be done?",
+    options: [
+      { t: "Exclude those time periods from the anomaly detection model's training data.",
+        why: "Correct. Excluded periods aren't learned as normal behaviour." },
+      { t: "Delete the metric.",
+        why: "Metrics can't be deleted." },
+      { t: "Lower the band to 0 standard deviations.",
+        why: "Would alarm constantly." },
+      { t: "Switch to a 1-hour period.",
+        why: "Doesn't remove the bad training data." }
+    ],
+    answer: [0],
+    tip: "Bad training data = exclude time ranges."
+  },
+  {
+    id: "cwm-14", domain: "d4", topic: "CloudWatch Metrics",
+    q: "An anomaly detection alarm on API latency triggers too often for small deviations. How can the team reduce false alarms while keeping anomaly detection?",
+    options: [
+      { t: "Increase the band width (number of standard deviations) and / or require more datapoints to alarm (M out of N).",
+        why: "Correct. A wider band and M-of-N reduce noise." },
+      { t: "Replace it with a static threshold of 0.",
+        why: "Opposite of the goal." },
+      { t: "Disable the alarm actions permanently.",
+        why: "Loses alerting." },
+      { t: "Use the SampleCount statistic.",
+        why: "Changes what's measured, not noise." }
+    ],
+    answer: [0],
+    tip: "Noisy anomaly alarm = wider band + M-of-N."
+  },
+  {
+    id: "cwm-15", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A platform team wants the same CloudWatch dashboard deployed in every environment account, version-controlled and reviewed through pull requests. What should they use?",
+    options: [
+      { t: "Define the dashboard as AWS::CloudWatch::Dashboard in CloudFormation (or CDK) and deploy it through the pipeline or StackSets.",
+        why: "Correct. Dashboards as code." },
+      { t: "Build dashboards by hand in each account.",
+        why: "Not version-controlled." },
+      { t: "Take screenshots of the dashboard into Git.",
+        why: "Not deployable." },
+      { t: "Use automatic dashboards only.",
+        why: "Can't be customised and reviewed as code." }
+    ],
+    answer: [0],
+    tip: "Dashboards as code = AWS::CloudWatch::Dashboard / PutDashboard."
+  },
+  {
+    id: "cwm-16", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A single dashboard must show the application's metrics from us-east-1 and eu-west-1 side by side. What is true?",
+    options: [
+      { t: "CloudWatch dashboards are global; widgets can display metrics from multiple Regions in one dashboard.",
+        why: "Correct. Each widget can specify its Region." },
+      { t: "A separate dashboard is required in each Region.",
+        why: "Dashboards aren't Regional." },
+      { t: "Metrics must be copied to one Region first.",
+        why: "Not needed." },
+      { t: "Only possible with a third-party tool.",
+        why: "Native feature." }
+    ],
+    answer: [0],
+    tip: "Dashboards are global and multi-Region."
+  },
+  {
+    id: "cwm-17", domain: "d4", topic: "CloudWatch Metrics",
+    q: "Business stakeholders without AWS accounts need read-only access to a CloudWatch dashboard. Security doesn't want IAM users created for them. What should be done?",
+    options: [
+      { t: "Share the dashboard with specific email addresses (Cognito sign-in) or through SSO.",
+        why: "Correct. Dashboard sharing works without AWS accounts." },
+      { t: "Create IAM users with CloudWatchReadOnlyAccess.",
+        why: "Security wants to avoid this." },
+      { t: "Export the dashboard to PDF weekly.",
+        why: "Not live." },
+      { t: "Give them the root credentials.",
+        why: "Never." }
+    ],
+    answer: [0],
+    tip: "Share dashboards via email / SSO / public link."
+  },
+  {
+    id: "cwm-18", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A company with 200 AWS accounts in AWS Organizations wants a central monitoring account where engineers can search, graph and alarm on metrics, logs and traces from all accounts, including accounts created in the future, with the LEAST effort. What should they do?",
+    options: [
+      { t: "Set up CloudWatch cross-account observability: create a sink in the monitoring account allowing the Organization, and deploy source-account links with a CloudFormation StackSet with auto-deployment.",
+        why: "Correct. OAM sinks and links share metrics, logs and traces." },
+      { t: "Use Lambda in every account to copy metrics to the monitoring account.",
+        why: "Custom code and extra cost." },
+      { t: "Create IAM users in every account for engineers.",
+        why: "No central view." },
+      { t: "Use AWS Config aggregators.",
+        why: "Config data, not metrics / logs / traces." }
+    ],
+    answer: [0],
+    tip: "Central monitoring account = cross-account observability (OAM)."
+  },
+  {
+    id: "cwm-19", domain: "d4", topic: "CloudWatch Metrics",
+    q: "Cross-account observability works for us-east-1, but engineers in the monitoring account can't see source-account metrics from ap-southeast-2. What is the MOST likely reason?",
+    options: [
+      { t: "OAM sinks and links are Regional; a sink and links must also be configured in ap-southeast-2.",
+        why: "Correct. Repeat the setup per Region." },
+      { t: "ap-southeast-2 doesn't support CloudWatch.",
+        why: "It does." },
+      { t: "Metrics older than 15 days aren't shared.",
+        why: "Unrelated." },
+      { t: "The monitoring account needs X-Ray enabled.",
+        why: "Unrelated to metric sharing." }
+    ],
+    answer: [0],
+    tip: "OAM is per Region."
+  },
+  {
+    id: "cwm-20", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A company uses a third-party observability platform and needs all CloudWatch metrics from selected namespaces delivered in near real time, in OpenTelemetry format. Polling GetMetricData is slow and expensive. What should be used?",
+    options: [
+      { t: "A CloudWatch metric stream through Amazon Data Firehose to the partner endpoint, filtered by namespace, using OpenTelemetry output.",
+        why: "Correct. Metric streams push continuously." },
+      { t: "Scheduled Lambda calling GetMetricData every minute.",
+        why: "What they want to avoid." },
+      { t: "CloudWatch Logs subscription filters.",
+        why: "For logs, not metrics." },
+      { t: "Export dashboards as JSON.",
+        why: "Exports widget definitions, not metric data." }
+    ],
+    answer: [0],
+    tip: "Metrics to third parties / S3 = metric streams via Firehose."
+  },
+  {
+    id: "cwm-21", domain: "d4", topic: "CloudWatch Metrics",
+    q: "Which statements about CloudWatch custom metrics are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Accurate percentile statistics (such as p99) require publishing raw values, not only statistic sets.",
+        why: "Correct. Statistic sets can't reconstruct percentiles." },
+      { t: "Custom metrics can't be deleted; they expire after 15 months without new data.",
+        why: "Correct." },
+      { t: "Custom namespaces can start with AWS/.",
+        why: "Reserved for AWS services." },
+      { t: "AWS service metrics such as AWS/EC2 can be switched to 1-second resolution.",
+        why: "High resolution is for custom metrics only." },
+      { t: "Data points can be published with timestamps up to one year in the past.",
+        why: "Up to 2 weeks in the past." }
+    ],
+    answer: [0, 1],
+    tip: "Percentiles need raw values · metrics expire after 15 months."
+  },
+  {
+    id: "cwm-22", domain: "d4", topic: "CloudWatch Metrics",
+    q: "A NOC team uses one dashboard for 50 identical microservices and keeps cloning it for each service. They want one dashboard where they pick the service from a dropdown and every widget updates. What should they use?",
+    options: [
+      { t: "Dashboard variables that change the dimension value (service name) across all widgets.",
+        why: "Correct. Variables make one dashboard reusable." },
+      { t: "50 separate dashboards.",
+        why: "What they want to avoid." },
+      { t: "Composite alarms.",
+        why: "Not a dashboard feature." },
+      { t: "Metric streams.",
+        why: "Delivery, not visualisation." }
+    ],
+    answer: [0],
+    tip: "One dashboard for many resources = dashboard variables."
   }
 ];
+
 
 
 
