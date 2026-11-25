@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -16633,8 +16633,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Metrics + logs anywhere · AdminPolicy only for the config writer."
+  },
+  // ───────────────────────────── Domain 4: CloudWatch Logs ─────────────────────────────
+  {
+    id: "cwl-01", domain: "d4", topic: "CloudWatch Logs",
+    q: "A team creates a CloudWatch Logs metric filter for ERROR messages after an outage that happened yesterday. The new metric shows no data for yesterday. How can they analyse yesterday's errors?",
+    options: [
+      { t: "Run a CloudWatch Logs Insights query over yesterday's time range; metric filters only apply to events ingested after creation.",
+        why: "Correct. Metric filters aren't retroactive; Logs Insights searches stored logs." },
+      { t: "Wait 24 hours for the metric filter to backfill.",
+        why: "Metric filters never backfill." },
+      { t: "Recreate the metric filter with a start time.",
+        why: "There's no backfill option." },
+      { t: "Enable high-resolution metrics.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Past log analysis = Logs Insights (metric filters aren't retroactive)."
+  },
+  {
+    id: "cwl-02", domain: "d4", topic: "CloudWatch Logs",
+    q: "An alarm on an error-count metric created by a metric filter remains in INSUFFICIENT_DATA whenever no errors occur. What is the BEST fix?",
+    options: [
+      { t: "Set the metric filter's default value to 0 so a value is published when no events match.",
+        why: "Correct. Removes gaps in the metric." },
+      { t: "Set missing data to breaching.",
+        why: "Would alarm when there are no errors." },
+      { t: "Add more dimensions to the metric filter.",
+        why: "Increases cost, doesn't fix gaps." },
+      { t: "Export the logs to S3.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Metric filter gaps = default value 0."
+  },
+  {
+    id: "cwl-03", domain: "d4", topic: "CloudWatch Logs",
+    q: "A company's CloudWatch Logs storage cost grows every month. Hundreds of Lambda log groups were created automatically with no retention setting, and new functions are added weekly. What should a DevOps engineer do? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Set retention on existing log groups with put-retention-policy, using the AWS Config rule cw-loggroup-retention-period-check to find non-compliant groups.",
+        why: "Correct. Fixes current groups and detects drift." },
+      { t: "Create an EventBridge rule for the CreateLogGroup API call that invokes Lambda or SSM Automation to set retention automatically (and define retention in IaC).",
+        why: "Correct. New log groups get retention without manual work." },
+      { t: "Delete all log groups every month.",
+        why: "Loses data and isn't controlled." },
+      { t: "Switch all metrics to high resolution.",
+        why: "Unrelated." },
+      { t: "Disable Lambda logging.",
+        why: "Loses observability." }
+    ],
+    answer: [0, 1],
+    tip: "Never-expire log groups = retention policy + auto-fix new groups."
+  },
+  {
+    id: "cwl-04", domain: "d4", topic: "CloudWatch Logs",
+    q: "The security team wants an alarm whenever the root user signs in or someone makes unauthorized API calls in an account. CloudTrail is already enabled. What is the MOST straightforward solution?",
+    options: [
+      { t: "Send the CloudTrail trail to CloudWatch Logs, create metric filters for root sign-in and AccessDenied / UnauthorizedOperation events, and alarm on the metrics.",
+        why: "Correct. The classic CIS benchmark monitoring pattern." },
+      { t: "Export CloudTrail logs to S3 daily and review them.",
+        why: "Not real-time alerting." },
+      { t: "Enable VPC Flow Logs.",
+        why: "Network data, not API calls." },
+      { t: "Use Logs Insights saved queries.",
+        why: "Ad-hoc, not alerting." }
+    ],
+    answer: [0],
+    tip: "CloudTrail security alarms = CloudTrail -> CloudWatch Logs -> metric filter -> alarm."
+  },
+  {
+    id: "cwl-05", domain: "d4", topic: "CloudWatch Logs",
+    q: "A developer adds userId as a dimension in a metric filter on a high-traffic application log to graph errors per user. The CloudWatch bill increases sharply. Why?",
+    options: [
+      { t: "Each unique userId value creates a separate custom metric, so high-cardinality dimensions multiply metric costs.",
+        why: "Correct. Keep high-cardinality values in logs and query with Logs Insights." },
+      { t: "Metric filters are billed per pattern character.",
+        why: "Not how billing works." },
+      { t: "The log group switched to Infrequent Access.",
+        why: "That reduces cost." },
+      { t: "Dimensions enable high resolution.",
+        why: "No." }
+    ],
+    answer: [0],
+    tip: "Metric filter dimensions with high cardinality = cost explosion."
+  },
+  {
+    id: "cwl-06", domain: "d4", topic: "CloudWatch Logs",
+    q: "Application logs from many log groups must be delivered continuously to Amazon S3 within a few minutes for analysis with Athena, without writing code. What should be used?",
+    options: [
+      { t: "Subscription filters (or an account-level subscription filter policy) delivering to Amazon Data Firehose with an S3 destination.",
+        why: "Correct. Firehose provides managed, near-real-time delivery." },
+      { t: "A CreateExportTask every 5 minutes.",
+        why: "Export is batch, up to 12 h, and one task at a time." },
+      { t: "A Lambda subscription that writes each event to S3.",
+        why: "Requires code and scales poorly." },
+      { t: "Logs Insights scheduled queries.",
+        why: "Not a delivery mechanism." }
+    ],
+    answer: [0],
+    tip: "Continuous logs to S3 = subscription filter -> Firehose."
+  },
+  {
+    id: "cwl-07", domain: "d4", topic: "CloudWatch Logs",
+    q: "A compliance team needs last quarter's logs from one log group archived once to an S3 bucket. Which approach is simplest and cheapest?",
+    options: [
+      { t: "Create a CloudWatch Logs export task for the time range to an S3 bucket in the same Region with a bucket policy allowing the CloudWatch Logs service principal.",
+        why: "Correct. Export tasks suit one-off archives." },
+      { t: "Build a Kinesis Data Streams pipeline.",
+        why: "Overkill for a one-off archive." },
+      { t: "Copy log events manually.",
+        why: "Not practical." },
+      { t: "Use Logs Insights to download results.",
+        why: "Limited and manual." }
+    ],
+    answer: [0],
+    tip: "One-off archive = export task."
+  },
+  {
+    id: "cwl-08", domain: "d4", topic: "CloudWatch Logs",
+    q: "A CloudWatch Logs export task to an S3 bucket fails. The bucket is in the same Region and encrypted with SSE-S3. What is the MOST likely cause?",
+    options: [
+      { t: "The bucket policy doesn't allow the CloudWatch Logs service principal (logs.<region>.amazonaws.com) to call s3:GetBucketAcl and s3:PutObject.",
+        why: "Correct. The bucket policy must allow CloudWatch Logs." },
+      { t: "Export tasks only work with Glacier.",
+        why: "They target S3 buckets." },
+      { t: "The log group must be Infrequent Access.",
+        why: "Unrelated." },
+      { t: "The log group needs a subscription filter.",
+        why: "Not required for export." }
+    ],
+    answer: [0],
+    tip: "Export access denied = bucket policy for logs principal."
+  },
+  {
+    id: "cwl-09", domain: "d4", topic: "CloudWatch Logs",
+    q: "A company needs every CloudWatch log event in a central Splunk deployment in near real time from one account. They don't want to manage servers or write code. What is the BEST design?",
+    options: [
+      { t: "Subscription filters (or an account-level subscription policy) to Amazon Data Firehose with the Splunk destination.",
+        why: "Correct. Firehose delivers to Splunk natively." },
+      { t: "Lambda subscription that calls the Splunk HTTP Event Collector.",
+        why: "Requires code and can throttle at volume." },
+      { t: "Hourly export tasks to S3 and a Splunk forwarder on EC2.",
+        why: "Not near real time; servers to manage." },
+      { t: "CloudWatch metric streams.",
+        why: "For metrics, not logs." }
+    ],
+    answer: [0],
+    tip: "Logs to Splunk / OpenSearch without code = Firehose."
+  },
+  {
+    id: "cwl-10", domain: "d4", topic: "CloudWatch Logs",
+    q: "A log group already has two subscription filters (one to Lambda, one to Firehose). A third team needs the same log stream in real time. What can be done?",
+    options: [
+      { t: "Send the logs to a Kinesis Data Stream and let multiple consumers (including the new team) read from it, because a log group supports a maximum of two subscription filters.",
+        why: "Correct. Kinesis allows fan-out to many consumers." },
+      { t: "Add a third subscription filter.",
+        why: "Limit is 2 per log group." },
+      { t: "Create a duplicate log group manually.",
+        why: "Sources still write to one group." },
+      { t: "Use an export task.",
+        why: "Not real time." }
+    ],
+    answer: [0],
+    tip: "Max 2 subscription filters - fan out with Kinesis."
+  },
+  {
+    id: "cwl-11", domain: "d4", topic: "CloudWatch Logs",
+    q: "A Lambda function subscribed to a log group receives events but fails to parse them as JSON. What is the reason?",
+    options: [
+      { t: "Subscription data is delivered base64-encoded and gzip-compressed; the function must decode and decompress it first.",
+        why: "Correct." },
+      { t: "Subscription filters only send plain text.",
+        why: "They send compressed batches." },
+      { t: "The log group is encrypted.",
+        why: "Delivered data is decrypted." },
+      { t: "Lambda needs a VPC.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Subscription payload = base64 + gzip."
+  },
+  {
+    id: "cwl-12", domain: "d4", topic: "CloudWatch Logs",
+    q: "A platform team wants all existing and future log groups in an account streamed to Firehose without creating a subscription filter on each log group. What should they use?",
+    options: [
+      { t: "An account-level subscription filter policy (put-account-policy with type SUBSCRIPTION_FILTER_POLICY), with exclusions as needed.",
+        why: "Correct. One policy covers all log groups including new ones." },
+      { t: "A Lambda that adds subscription filters every hour.",
+        why: "Custom and laggy." },
+      { t: "An export task for each log group.",
+        why: "Batch and limited." },
+      { t: "CloudWatch metric streams.",
+        why: "Metrics only." }
+    ],
+    answer: [0],
+    tip: "All log groups = account-level subscription filter policy."
+  },
+  {
+    id: "cwl-13", domain: "d4", topic: "CloudWatch Logs",
+    q: "A security team must collect all CloudWatch logs from 300 member accounts, including future accounts, into an immutable S3 bucket in a central log archive account. Which design meets this with the LEAST operational overhead?",
+    options: [
+      { t: "In the central account create a Firehose stream to S3 (Object Lock), an IAM role and a CloudWatch Logs destination whose access policy allows the Organization; deploy account-level subscription filter policies to every account with service-managed StackSets (auto-deployment), per Region.",
+        why: "Correct. Destinations accept cross-account subscriptions; StackSets cover new accounts." },
+      { t: "Export tasks in every account to the central bucket nightly.",
+        why: "Batch, limited, manual scheduling." },
+      { t: "Give every account write access to the central bucket and run custom scripts.",
+        why: "Custom and insecure." },
+      { t: "Cross-account observability (OAM) only.",
+        why: "OAM gives a view, not an immutable copy." }
+    ],
+    answer: [0],
+    tip: "Central immutable log copy = destination + Firehose + StackSets."
+  },
+  {
+    id: "cwl-14", domain: "d4", topic: "CloudWatch Logs",
+    q: "A source account's subscription filter can't deliver to the central account's Kinesis stream when the stream ARN is used directly. What should be used instead?",
+    options: [
+      { t: "A CloudWatch Logs destination in the central account that points to the stream, with a destination access policy allowing the source account (or Organization).",
+        why: "Correct. Cross-account subscriptions target a destination." },
+      { t: "Make the Kinesis stream public.",
+        why: "Not possible and insecure." },
+      { t: "Use an export task.",
+        why: "Not real time." },
+      { t: "Move the stream to the source account.",
+        why: "Defeats centralization." }
+    ],
+    answer: [0],
+    tip: "Cross-account log streaming = CloudWatch Logs destination."
+  },
+  {
+    id: "cwl-15", domain: "d4", topic: "CloudWatch Logs",
+    q: "Cross-account log streaming works from us-east-1 but log groups in eu-west-1 can't subscribe to the destination in us-east-1. Why?",
+    options: [
+      { t: "CloudWatch Logs destinations are Regional; create a destination in eu-west-1 (it can feed the same central pipeline).",
+        why: "Correct." },
+      { t: "eu-west-1 doesn't support subscription filters.",
+        why: "It does." },
+      { t: "Log groups must be in the central account.",
+        why: "Not required." },
+      { t: "The destination policy must allow AWS Regions.",
+        why: "Policies allow principals, not Regions." }
+    ],
+    answer: [0],
+    tip: "Destinations are Regional."
+  },
+  {
+    id: "cwl-16", domain: "d4", topic: "CloudWatch Logs",
+    q: "Engineers want to search and run Logs Insights queries across application logs from 50 workload accounts from a single monitoring account. There is no requirement to keep a separate copy of the data. What is the LEAST effort solution?",
+    options: [
+      { t: "Configure CloudWatch cross-account observability (OAM) with the monitoring account sink and source account links sharing logs.",
+        why: "Correct. Query logs centrally without copying." },
+      { t: "Stream all logs to a central account with subscription filters.",
+        why: "Works but copies data and costs more." },
+      { t: "Export logs daily to a shared bucket.",
+        why: "Not interactive or current." },
+      { t: "Create IAM users in each account.",
+        why: "No central view." }
+    ],
+    answer: [0],
+    tip: "Central view without copy = OAM."
+  },
+  {
+    id: "cwl-17", domain: "d4", topic: "CloudWatch Logs",
+    q: "An on-call engineer needs the count of ERROR log lines per service in 5-minute buckets for the last 3 hours across several log groups. Which tool and query approach fits?",
+    options: [
+      { t: "CloudWatch Logs Insights: filter for ERROR, then stats count(*) by bin(5m), service.",
+        why: "Correct. Ad-hoc aggregation across log groups." },
+      { t: "Create a metric filter and wait.",
+        why: "Not retroactive." },
+      { t: "Export to S3 and wait for Athena.",
+        why: "Slow for on-call." },
+      { t: "CloudTrail Lake.",
+        why: "For CloudTrail events." }
+    ],
+    answer: [0],
+    tip: "Ad-hoc aggregation = Logs Insights stats ... by bin()."
+  },
+  {
+    id: "cwl-18", domain: "d4", topic: "CloudWatch Logs",
+    q: "Monthly Logs Insights charges are high because engineers query 'last 30 days' across all log groups for every investigation. How can costs be reduced?",
+    options: [
+      { t: "Narrow the time range and the selected log groups, because Logs Insights is billed per GB scanned.",
+        why: "Correct." },
+      { t: "Increase log retention.",
+        why: "Doesn't reduce scanning." },
+      { t: "Use more metric filter dimensions.",
+        why: "Adds metric cost." },
+      { t: "Switch queries to high resolution.",
+        why: "Not a concept for queries." }
+    ],
+    answer: [0],
+    tip: "Logs Insights cost = GB scanned."
+  },
+  {
+    id: "cwl-19", domain: "d4", topic: "CloudWatch Logs",
+    q: "A payments application sometimes writes credit card numbers into its CloudWatch logs. Compliance requires that most users never see these values, while a small security group can view them. What should be implemented?",
+    options: [
+      { t: "A CloudWatch Logs data protection policy on the log group using financial data identifiers; grant logs:Unmask only to the security group.",
+        why: "Correct. Sensitive data is masked for everyone without logs:Unmask." },
+      { t: "KMS-encrypt the log group.",
+        why: "Encryption at rest doesn't mask values for readers." },
+      { t: "Delete the log group daily.",
+        why: "Loses logs." },
+      { t: "Use a metric filter to count card numbers.",
+        why: "Doesn't hide them." }
+    ],
+    answer: [0],
+    tip: "Mask PII in logs = data protection policy + logs:Unmask."
+  },
+  {
+    id: "cwl-20", domain: "d4", topic: "CloudWatch Logs",
+    q: "After associating a customer managed KMS key with a log group, applications fail to write logs. What is the MOST likely fix?",
+    options: [
+      { t: "Update the KMS key policy to allow the CloudWatch Logs service principal (logs.<region>.amazonaws.com) to use the key.",
+        why: "Correct. CloudWatch Logs must be able to use the key." },
+      { t: "Grant the applications kms:CreateKey.",
+        why: "Unrelated." },
+      { t: "Change the log class to Infrequent Access.",
+        why: "Doesn't fix KMS permissions." },
+      { t: "Disable the subscription filters.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "KMS log group = key policy allows logs principal."
+  },
+  {
+    id: "cwl-21", domain: "d4", topic: "CloudWatch Logs",
+    q: "The operations team wants a continuously updated view of the top 10 client IP addresses generating HTTP 5xx errors from ALB-style application logs, without writing ad-hoc queries each time. Which feature fits?",
+    options: [
+      { t: "CloudWatch Contributor Insights rules on the log group.",
+        why: "Correct. Shows top-N contributors over time." },
+      { t: "A metric filter with IP as a dimension.",
+        why: "High cardinality and costly." },
+      { t: "Live Tail.",
+        why: "Real-time view, not top-N aggregation." },
+      { t: "Export tasks.",
+        why: "Batch archive." }
+    ],
+    answer: [0],
+    tip: "Top-N contributors = Contributor Insights."
+  },
+  {
+    id: "cwl-22", domain: "d4", topic: "CloudWatch Logs",
+    q: "Which statements about CloudWatch Logs are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Log groups never expire by default; retention can be set from 1 day to 10 years.",
+        why: "Correct." },
+      { t: "Export tasks are batch operations that can take up to 12 hours and only one can run at a time per account.",
+        why: "Correct." },
+      { t: "Metric filters are supported on the Infrequent Access log class.",
+        why: "Infrequent Access doesn't support metric filters." },
+      { t: "A log group can have up to 10 subscription filters.",
+        why: "Maximum is 2." },
+      { t: "Export tasks can write to a bucket in any Region.",
+        why: "Same Region only." }
+    ],
+    answer: [0, 1],
+    tip: "Never expire by default · export = batch, 12 h, one at a time."
   }
 ];
+
 
 
 

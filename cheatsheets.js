@@ -3227,6 +3227,64 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "CloudWatch Logs",
+  sections: [
+    { h: "Basics and retention", items: [
+      "Log group (settings) → streams → events (**256 KB**) · retention **never expire** by default, **1 day – 10 years**",
+      "KMS per log group → key policy allows **`logs.<region>.amazonaws.com`** · **Standard** vs **Infrequent Access** (cheaper, no metric filters / Live Tail)",
+      "Cost: **ingestion per GB**, storage, **Insights per GB scanned**",
+      "Retention at scale: Config **`cw-loggroup-retention-period-check`** · **EventBridge CreateLogGroup → Lambda / SSM** · IaC `RetentionInDays`"
+    ]},
+    { h: "Metric filters and subscription filters", table: [
+      ["Feature", "Remember"],
+      ["**Metric filter**", "Pattern (`ERROR`, `{ $.status = 500 }`, `[ip, ..., status=5*]`) → metric → alarm · **not retroactive** · **default value 0** · ≤ 3 dimensions (cardinality)"],
+      ["CloudTrail security alarms", "Trail → CloudWatch Logs → metric filters (root login, AccessDenied, SG / IAM changes)"],
+      ["**Subscription filter**", "Real time → **Lambda / Kinesis / Firehose** (OpenSearch via console) · **max 2** per log group · **base64 + gzip**"],
+      ["**Account-level policy**", "`SUBSCRIPTION_FILTER_POLICY` covers **all log groups** incl. new ones"],
+      ["Lambda", "Custom, small volume · resource policy for logs"],
+      ["Kinesis Data Streams", "Many consumers, replay, fan-out"],
+      ["**Firehose**", "No-code delivery to **S3, OpenSearch, Splunk**, Redshift, HTTP"]
+    ]},
+    { h: "Insights, export, extras", items: [
+      "**Logs Insights**: `fields | filter | stats count(*) by bin(5m) | sort | limit`, `parse`, `pattern` · many groups / accounts · **past data** · narrow time range to save cost",
+      "**Live Tail** (real time) · **Contributor Insights** (top N) · **log anomaly detection** · **data protection** (mask PII, `logs:Unmask`)",
+      "**Export task**: batch, **up to 12 h**, **one at a time**, **same Region**, bucket policy for logs principal, SSE-KMS ok → one-off archive",
+      "Continuous / near real time to S3 → **subscription → Firehose**"
+    ]},
+    { h: "Cross-account aggregation", items: [
+      "**Copy**: central **Firehose / Kinesis** + role + **CloudWatch Logs destination** (access policy for org `aws:PrincipalOrgID`) ← source subscription / **account policy** via **StackSets** · **destinations are Regional**",
+      "→ central **S3** (Object Lock, lifecycle, Athena) or **Splunk / OpenSearch**",
+      "**View without copy**: **OAM** cross-account observability (Insights, Live Tail, alarms on source logs)",
+      "Newer: org **log centralization rules** · CloudTrail all accounts → **organization trail**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Yesterday's errors, new filter empty", "Logs Insights"],
+      ["Error alarm INSUFFICIENT_DATA", "Default value 0"],
+      ["Storage cost keeps growing", "Retention + auto-fix new groups"],
+      ["Root login / unauthorized API alarms", "CloudTrail → metric filter"],
+      ["userId dimension bill", "High cardinality"],
+      ["Continuous to S3, no code", "Subscription → Firehose"],
+      ["Archive last quarter once", "Export task"],
+      ["Export access denied", "Bucket policy for logs principal"],
+      ["Logs to Splunk", "Firehose"],
+      ["Third consumer", "Kinesis fan-out (max 2 filters)"],
+      ["Lambda can't parse", "base64 + gzip"],
+      ["All log groups incl. new", "Account-level subscription policy"],
+      ["300 accounts → immutable S3", "Destination + Firehose + StackSets"],
+      ["Direct Kinesis ARN cross-account fails", "Logs destination"],
+      ["Other Region can't subscribe", "Destinations are Regional"],
+      ["Query all accounts, no copy", "OAM"],
+      ["Errors per service per 5 min", "stats count(*) by bin(5m)"],
+      ["Insights too expensive", "Narrow time range / groups"],
+      ["Mask card numbers", "Data protection + logs:Unmask"],
+      ["KMS log group write fails", "Key policy for logs principal"],
+      ["Top 10 IPs causing 5xx", "Contributor Insights"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
