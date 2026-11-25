@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -16271,8 +16271,371 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Alarms are Regional · state changes go to EventBridge."
+  },
+  // ───────────────────────────── Domain 4: CloudWatch Agent ─────────────────────────────
+  {
+    id: "cag-01", domain: "d4", topic: "CloudWatch Agent",
+    q: "A company needs memory utilization and free disk space for its Windows and Linux EC2 instances, plus application log files, in CloudWatch. Which solution should a DevOps engineer recommend?",
+    options: [
+      { t: "Install and configure the unified CloudWatch agent on the instances.",
+        why: "Correct. It collects OS-level metrics and log files on Linux and Windows." },
+      { t: "Enable EC2 detailed monitoring.",
+        why: "Only changes the interval to 1 minute; no memory, disk or logs." },
+      { t: "Install the legacy CloudWatch Logs agent (awslogs).",
+        why: "Deprecated and logs only - no memory or disk metrics." },
+      { t: "Enable VPC Flow Logs.",
+        why: "Network traffic metadata only." }
+    ],
+    answer: [0],
+    tip: "Memory + disk + log files = unified CloudWatch agent."
+  },
+  {
+    id: "cag-02", domain: "d4", topic: "CloudWatch Agent",
+    q: "A DevOps engineer creates an IAM role for 500 EC2 instances that will run the CloudWatch agent with a configuration stored in Parameter Store. Following least privilege, which managed policy should the fleet's role include?",
+    options: [
+      { t: "CloudWatchAgentServerPolicy (plus AmazonSSMManagedInstanceCore for Systems Manager).",
+        why: "Correct. Allows publishing metrics / logs and reading AmazonCloudWatch-* parameters." },
+      { t: "CloudWatchAgentAdminPolicy.",
+        why: "Includes ssm:PutParameter - only for the instance that writes the config." },
+      { t: "AdministratorAccess.",
+        why: "Far too broad." },
+      { t: "CloudWatchReadOnlyAccess.",
+        why: "Can't publish metrics or logs." }
+    ],
+    answer: [0],
+    tip: "Fleet = ServerPolicy; wizard instance = AdminPolicy."
+  },
+  {
+    id: "cag-03", domain: "d4", topic: "CloudWatch Agent",
+    q: "An engineer stores the CloudWatch agent configuration in Parameter Store as 'prod-cw-config'. Instances using CloudWatchAgentServerPolicy fail to load the configuration with an access denied error. What is the simplest fix?",
+    options: [
+      { t: "Rename the parameter so it starts with AmazonCloudWatch- (for example AmazonCloudWatch-prod).",
+        why: "Correct. The managed ServerPolicy only allows reading parameters with that prefix." },
+      { t: "Make the parameter a SecureString.",
+        why: "Doesn't change the name-based permission." },
+      { t: "Attach CloudWatchAgentAdminPolicy to all instances.",
+        why: "Over-privileged." },
+      { t: "Move the config to S3.",
+        why: "Unnecessary; the prefix is the issue." }
+    ],
+    answer: [0],
+    tip: "Agent config parameter name = AmazonCloudWatch-*."
+  },
+  {
+    id: "cag-04", domain: "d4", topic: "CloudWatch Agent",
+    q: "A company wants every EC2 instance tagged Monitoring=standard, including instances launched in the future by Auto Scaling, to have the CloudWatch agent installed and running the standard configuration from Parameter Store. What is the MOST operationally efficient approach?",
+    options: [
+      { t: "Create Systems Manager State Manager associations for AWS-ConfigureAWSPackage (AmazonCloudWatchAgent) and AmazonCloudWatch-ManageAgent targeting the tag.",
+        why: "Correct. Associations apply automatically to new matching instances." },
+      { t: "Use Run Command once against the current instances.",
+        why: "New instances are missed." },
+      { t: "SSH into each instance and run the configuration wizard.",
+        why: "Manual and doesn't scale." },
+      { t: "Use AWS Config remediation to install the agent.",
+        why: "Config is for compliance, and State Manager is the native fit." }
+    ],
+    answer: [0],
+    tip: "Agent on fleet incl. new instances = State Manager by tag."
+  },
+  {
+    id: "cag-05", domain: "d4", topic: "CloudWatch Agent",
+    q: "After updating the CloudWatch agent configuration in Parameter Store to add a new log file, the instances still don't send the new log. What must be done?",
+    options: [
+      { t: "Re-run AmazonCloudWatch-ManageAgent (or the State Manager association) so the agent fetches the updated configuration.",
+        why: "Correct. The agent doesn't watch the parameter for changes." },
+      { t: "Wait 24 hours for the agent to poll the parameter.",
+        why: "It doesn't poll automatically." },
+      { t: "Reboot CloudWatch.",
+        why: "Not a thing." },
+      { t: "Create a new log group manually.",
+        why: "The agent hasn't loaded the new config." }
+    ],
+    answer: [0],
+    tip: "Config change = fetch-config again."
+  },
+  {
+    id: "cag-06", domain: "d4", topic: "CloudWatch Agent",
+    q: "A team wants an Auto Scaling group to scale out based on average memory utilization across the group. The CloudWatch agent publishes mem_used_percent per instance. What configuration is needed?",
+    options: [
+      { t: "Add AutoScalingGroupName to append_dimensions and aggregation_dimensions in the agent config, then create a target tracking policy with a customized metric on mem_used_percent for the group.",
+        why: "Correct. Aggregation produces a group-level metric for scaling." },
+      { t: "Use the predefined ASGAverageCPUUtilization metric.",
+        why: "CPU, not memory." },
+      { t: "Enable detailed monitoring on the ASG.",
+        why: "Doesn't add memory metrics." },
+      { t: "Create one alarm per instance.",
+        why: "Doesn't drive group-level scaling." }
+    ],
+    answer: [0],
+    tip: "Scale on memory = ASG aggregation dimension + custom metric target tracking."
+  },
+  {
+    id: "cag-07", domain: "d4", topic: "CloudWatch Agent",
+    q: "EC2 instances in private subnets with no NAT gateway run the CloudWatch agent with correct IAM permissions, but no metrics or logs reach CloudWatch. What should be added?",
+    options: [
+      { t: "VPC interface endpoints for CloudWatch (monitoring) and CloudWatch Logs (logs), plus SSM endpoints if Systems Manager manages the agent.",
+        why: "Correct. Gives private access to the APIs." },
+      { t: "An S3 gateway endpoint only.",
+        why: "Doesn't cover CloudWatch APIs." },
+      { t: "An internet gateway attached to private subnets.",
+        why: "Private subnets don't route to an IGW; insecure design." },
+      { t: "Larger instance types.",
+        why: "Network path is the problem." }
+    ],
+    answer: [0],
+    tip: "Private subnet agent = VPC endpoints for monitoring + logs."
+  },
+  {
+    id: "cag-08", domain: "d4", topic: "CloudWatch Agent",
+    q: "The CloudWatch agent is running on an instance but no data appears. The agent log shows AccessDeniedException for PutMetricData. What is the cause?",
+    options: [
+      { t: "The instance profile role is missing CloudWatchAgentServerPolicy (or there is no instance profile).",
+        why: "Correct. The agent needs permission to publish." },
+      { t: "The metrics collection interval is too short.",
+        why: "Doesn't cause AccessDenied." },
+      { t: "The log group has no retention set.",
+        why: "Unrelated." },
+      { t: "Detailed monitoring is disabled.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "AccessDenied in agent log = role missing ServerPolicy."
+  },
+  {
+    id: "cag-09", domain: "d4", topic: "CloudWatch Agent",
+    q: "Operations wants an alarm whenever the nginx process stops running on any web server. What is the BEST solution?",
+    options: [
+      { t: "Configure the agent's procstat plugin for nginx with pid_count, and alarm when pid_count < 1 with missing data treated as breaching.",
+        why: "Correct. procstat monitors individual processes." },
+      { t: "Alarm on CPUUtilization < 1%.",
+        why: "Indirect and unreliable." },
+      { t: "Enable ALB access logs.",
+        why: "Doesn't detect the process directly." },
+      { t: "Use Trusted Advisor.",
+        why: "Not process monitoring." }
+    ],
+    answer: [0],
+    tip: "Process running? = procstat pid_count."
+  },
+  {
+    id: "cag-10", domain: "d4", topic: "CloudWatch Agent",
+    q: "The security team needs Windows Security event logs (failed logons) from all Windows EC2 instances in a central CloudWatch Logs log group. How should this be done?",
+    options: [
+      { t: "Add a windows_events section collecting the Security log to the CloudWatch agent configuration and distribute it through Parameter Store and Systems Manager.",
+        why: "Correct. The agent collects Windows Event Logs." },
+      { t: "Enable CloudTrail data events.",
+        why: "API activity, not OS event logs." },
+      { t: "Use VPC Flow Logs.",
+        why: "Network metadata." },
+      { t: "Enable detailed monitoring.",
+        why: "Metric interval only." }
+    ],
+    answer: [0],
+    tip: "Windows Event Logs = agent windows_events."
+  },
+  {
+    id: "cag-11", domain: "d4", topic: "CloudWatch Agent",
+    q: "Application logs collected by the CloudWatch agent show each Java exception stack trace split into dozens of separate log events, making searches difficult. What should be changed?",
+    options: [
+      { t: "Set multi_line_start_pattern (with timestamp_format) for that file in the agent's collect_list.",
+        why: "Correct. Lines are grouped until the next line matching the start pattern." },
+      { t: "Increase the log retention period.",
+        why: "Retention doesn't merge lines." },
+      { t: "Use a metric filter.",
+        why: "Doesn't change how events are created." },
+      { t: "Change the log stream name to {hostname}.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Split stack traces = multi_line_start_pattern."
+  },
+  {
+    id: "cag-12", domain: "d4", topic: "CloudWatch Agent",
+    q: "A platform team maintains a standard CloudWatch agent configuration for OS metrics, while each application team needs to add its own log files on the same instances without editing the platform config. What should they use?",
+    options: [
+      { t: "Store each team's config in its own AmazonCloudWatch-* parameter and load the app configs with the agent's append-config action.",
+        why: "Correct. append-config layers multiple configuration files." },
+      { t: "Have every team edit the same parameter.",
+        why: "Risk of overwriting each other." },
+      { t: "Run two copies of the agent.",
+        why: "Not supported / unnecessary." },
+      { t: "Send app logs with a separate deprecated awslogs agent.",
+        why: "Deprecated." }
+    ],
+    answer: [0],
+    tip: "Multiple team configs = append-config."
+  },
+  {
+    id: "cag-13", domain: "d4", topic: "CloudWatch Agent",
+    q: "A company wants to send memory metrics and syslog from on-premises Linux servers to CloudWatch using the same tooling as EC2. Which steps are required? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Provide AWS credentials to the agent, for example by registering the servers with an SSM hybrid activation or using IAM Roles Anywhere.",
+        why: "Correct. On-premises servers don't have instance roles." },
+      { t: "Start the agent in onPremise mode (-m onPremise) with the Region configured.",
+        why: "Correct. EC2 mode relies on instance metadata." },
+      { t: "Attach an EC2 instance profile to the on-premises servers.",
+        why: "Impossible outside EC2." },
+      { t: "Enable EC2 detailed monitoring.",
+        why: "Not applicable on premises." },
+      { t: "Use VPC Flow Logs.",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "On-prem agent = credentials (hybrid activation / Roles Anywhere) + onPremise mode."
+  },
+  {
+    id: "cag-14", domain: "d4", topic: "CloudWatch Agent",
+    q: "After rolling out the CloudWatch agent, the monthly CloudWatch bill increased sharply. The config collects per-core CPU, every disk partition and every process at a 1-second interval. What should be changed? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Limit collected resources (total CPU only, specific mount points, specific processes) to reduce metric cardinality.",
+        why: "Correct. Each core / disk / process is a separate billed metric." },
+      { t: "Increase metrics_collection_interval to 60 seconds unless high resolution is required.",
+        why: "Correct. 1-second collection creates high-resolution metrics and more data." },
+      { t: "Disable IAM for the agent.",
+        why: "Breaks publishing." },
+      { t: "Move all metrics to the AWS/EC2 namespace.",
+        why: "Not allowed and doesn't reduce cost." },
+      { t: "Enable detailed monitoring.",
+        why: "Adds cost." }
+    ],
+    answer: [0, 1],
+    tip: "Agent cost = cardinality + interval (+ log retention / filters)."
+  },
+  {
+    id: "cag-15", domain: "d4", topic: "CloudWatch Agent",
+    q: "Log groups created by the CloudWatch agent are growing indefinitely and costing more each month. What is the simplest way to control this for new and existing agent log groups?",
+    options: [
+      { t: "Set retention_in_days in the agent's logs collect_list (or set retention on the log groups); the default is never expire.",
+        why: "Correct. The agent can set log group retention." },
+      { t: "Delete the log groups every week.",
+        why: "Manual and loses data unexpectedly." },
+      { t: "Switch to high-resolution metrics.",
+        why: "Unrelated." },
+      { t: "Stop collecting logs.",
+        why: "Loses visibility." }
+    ],
+    answer: [0],
+    tip: "Agent logs grow forever = set retention_in_days."
+  },
+  {
+    id: "cag-16", domain: "d4", topic: "CloudWatch Agent",
+    q: "The CloudWatch agent sends /var/log/messages but not /var/log/secure from the same instance. Both paths are in the config. What is the MOST likely cause?",
+    options: [
+      { t: "The agent runs as a non-root user (run_as_user, for example cwagent) that can't read /var/log/secure.",
+        why: "Correct. Fix file permissions or the run_as_user setting." },
+      { t: "CloudWatch Logs doesn't accept security logs.",
+        why: "It does." },
+      { t: "The log group name is too long.",
+        why: "Would fail differently." },
+      { t: "The instance needs detailed monitoring.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "One file missing = run_as_user can't read it."
+  },
+  {
+    id: "cag-17", domain: "d4", topic: "CloudWatch Agent",
+    q: "An engineer can't find mem_used_percent under the AWS/EC2 namespace even though the CloudWatch agent is working. Where should they look?",
+    options: [
+      { t: "In the CWAgent namespace (or the custom namespace set in the agent config).",
+        why: "Correct. Agent metrics are custom metrics." },
+      { t: "In AWS/EC2 after enabling detailed monitoring.",
+        why: "Agent metrics never appear there." },
+      { t: "In AWS/Logs.",
+        why: "That's CloudWatch Logs service metrics." },
+      { t: "In CloudTrail.",
+        why: "API activity." }
+    ],
+    answer: [0],
+    tip: "Agent metrics live in CWAgent."
+  },
+  {
+    id: "cag-18", domain: "d4", topic: "CloudWatch Agent",
+    q: "A developer wants to send custom application metrics (counters and timers) from a legacy app that already emits StatsD, without changing code to use the AWS SDK. What is the simplest option?",
+    options: [
+      { t: "Enable the StatsD listener in the CloudWatch agent (UDP 8125) so the agent forwards the metrics to CloudWatch.",
+        why: "Correct. The agent supports StatsD and collectd." },
+      { t: "Rewrite the app to call PutMetricData.",
+        why: "Requires code changes." },
+      { t: "Use CloudTrail Insights.",
+        why: "API anomaly detection, not app metrics." },
+      { t: "Use a metric stream.",
+        why: "Streams metrics out of CloudWatch, not in." }
+    ],
+    answer: [0],
+    tip: "StatsD / collectd app metrics = agent listeners."
+  },
+  {
+    id: "cag-19", domain: "d4", topic: "CloudWatch Agent",
+    q: "A company builds golden AMIs with EC2 Image Builder and wants every instance launched from them to start sending standard metrics and logs at boot, with configuration managed centrally. What is the BEST approach?",
+    options: [
+      { t: "Install the agent in the AMI with an Image Builder component and have user data (or a State Manager association) run fetch-config from the AmazonCloudWatch-* parameter at boot.",
+        why: "Correct. Binary in the image, config from Parameter Store." },
+      { t: "Bake a hard-coded config file into the AMI only.",
+        why: "Changing config requires new AMIs." },
+      { t: "Install the agent manually after launch.",
+        why: "Not automated." },
+      { t: "Use Lambda Insights.",
+        why: "For Lambda functions." }
+    ],
+    answer: [0],
+    tip: "Golden AMI = agent in image + config fetched from Parameter Store."
+  },
+  {
+    id: "cag-20", domain: "d4", topic: "CloudWatch Agent",
+    q: "A team wants Container Insights metrics and container logs for an Amazon EKS cluster with minimal setup. What should they use?",
+    options: [
+      { t: "The Amazon CloudWatch Observability EKS add-on, which deploys the CloudWatch agent (and Fluent Bit) as a DaemonSet.",
+        why: "Correct. Managed way to enable Container Insights on EKS." },
+      { t: "Install the CloudWatch agent on a single bastion host.",
+        why: "Doesn't see pods on nodes." },
+      { t: "Lambda Insights.",
+        why: "For Lambda." },
+      { t: "EC2 detailed monitoring on nodes.",
+        why: "No container-level metrics." }
+    ],
+    answer: [0],
+    tip: "EKS Container Insights = CloudWatch Observability add-on (agent DaemonSet)."
+  },
+  {
+    id: "cag-21", domain: "d4", topic: "CloudWatch Agent",
+    q: "Where should an engineer look first to troubleshoot a CloudWatch agent on Amazon Linux that isn't sending data?",
+    options: [
+      { t: "The agent's own log file at /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log (and amazon-cloudwatch-agent-ctl -a status).",
+        why: "Correct. Shows permission, network and config errors." },
+      { t: "CloudTrail management events only.",
+        why: "Won't show local agent errors." },
+      { t: "The ALB access logs.",
+        why: "Unrelated." },
+      { t: "AWS Health Dashboard.",
+        why: "Account / service events only." }
+    ],
+    answer: [0],
+    tip: "Troubleshoot = agent log + ctl status."
+  },
+  {
+    id: "cag-22", domain: "d4", topic: "CloudWatch Agent",
+    q: "Which statements about the CloudWatch agent are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "It can collect both metrics and log files from EC2 and on-premises servers running Linux or Windows.",
+        why: "Correct." },
+      { t: "Only the instance that writes the configuration to Parameter Store needs CloudWatchAgentAdminPolicy.",
+        why: "Correct. The rest of the fleet uses CloudWatchAgentServerPolicy." },
+      { t: "It automatically reloads its configuration whenever the parameter changes.",
+        why: "Must re-run fetch-config." },
+      { t: "It is required to collect Lambda function memory metrics.",
+        why: "Lambda uses Lambda Insights." },
+      { t: "It publishes memory metrics into the AWS/EC2 namespace.",
+        why: "CWAgent namespace by default." }
+    ],
+    answer: [0, 1],
+    tip: "Metrics + logs anywhere · AdminPolicy only for the config writer."
   }
 ];
+
 
 
 

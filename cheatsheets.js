@@ -3167,6 +3167,66 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "CloudWatch Agent",
+  sections: [
+    { h: "What it is", items: [
+      "**Unified agent** = metrics + logs (+ traces) · **EC2 and on-prem** · Linux, Windows, macOS · replaces **awslogs** (deprecated)",
+      "Only way to get **memory, disk %, swap, processes, log files** · namespace **`CWAgent`**",
+      "Collects: `mem_used_percent`, `disk used_percent`, cpu per core, **procstat** (`pid_count`), **StatsD (UDP 8125)** / collectd, **Windows Event Logs** + perf counters",
+      "EKS: **CloudWatch Observability add-on** (DaemonSet) → Container Insights · Lambda → Lambda Insights, not the agent"
+    ]},
+    { h: "IAM and config", table: [
+      ["Item", "Remember"],
+      ["**CloudWatchAgentServerPolicy**", "Whole fleet · publish metrics / logs · read **`AmazonCloudWatch-*`** parameters"],
+      ["**CloudWatchAgentAdminPolicy**", "Only the wizard instance (**ssm:PutParameter**)"],
+      ["`AmazonSSMManagedInstanceCore`", "SSM install / configure"],
+      ["**append / aggregation dimensions**", "**AutoScalingGroupName** → scale ASG on memory (custom metric target tracking)"],
+      ["`resources`, interval", "Limit cores / disks / processes · 60 s default (1–10 s = high-res, cost)"],
+      ["Logs", "`file_path`, `{instance_id}` streams, **`retention_in_days`** (default never), **`multi_line_start_pattern`**, regex `filters`, `windows_events`"],
+      ["`run_as_user`", "Must read the log files"]
+    ]},
+    { h: "Fleet rollout", items: [
+      "Wizard once → **Parameter Store** `AmazonCloudWatch-linux` (prefix required)",
+      "**`AWS-ConfigureAWSPackage`** (install) + **`AmazonCloudWatch-ManageAgent`** (configure) via **State Manager by tag** → new instances covered",
+      "Run Command = one-off · golden AMI via **Image Builder** + fetch at boot · multi-account via Quick Setup / StackSets",
+      "`amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:NAME` · **append-config** layers team configs · **re-fetch after parameter changes**",
+      "On-prem: **hybrid activation / Roles Anywhere / profile** + **`-m onPremise`** + Region"
+    ]},
+    { h: "Troubleshooting", items: [
+      "**AccessDenied** → role missing ServerPolicy / no instance profile",
+      "Config won't load → parameter not **`AmazonCloudWatch-*`**, wrong Region",
+      "**Private subnet** → VPC endpoints **monitoring + logs** (+ ssm, ssmmessages, ec2messages) or NAT",
+      "One file missing → **run_as_user** permissions · split stack traces → **multi-line pattern**",
+      "Bill jumped → cardinality (per-core / disk / process), short interval, no retention / filters",
+      "Agent log: `/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log` · `-a status`"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Memory + disk + log files", "Unified CloudWatch agent"],
+      ["Fleet IAM policy", "CloudWatchAgentServerPolicy"],
+      ["Config parameter access denied", "Prefix AmazonCloudWatch-"],
+      ["New tagged instances configured", "State Manager associations"],
+      ["Updated parameter, no change", "Re-run ManageAgent / fetch-config"],
+      ["Scale ASG on memory", "ASG aggregation dimension + custom metric"],
+      ["Private subnet, no data", "VPC endpoints monitoring + logs"],
+      ["AccessDenied in agent log", "Add ServerPolicy"],
+      ["Is nginx running?", "procstat pid_count"],
+      ["Windows Security logs", "windows_events"],
+      ["Stack traces split", "multi_line_start_pattern"],
+      ["Two teams' configs", "append-config"],
+      ["On-prem servers", "Hybrid activation / Roles Anywhere + onPremise"],
+      ["Bill jumped", "Limit resources + 60 s interval"],
+      ["Logs grow forever", "retention_in_days"],
+      ["One log file missing", "run_as_user permissions"],
+      ["Memory not in AWS/EC2", "CWAgent namespace"],
+      ["Legacy StatsD app", "Agent StatsD listener"],
+      ["Golden AMI", "Agent in image + fetch config at boot"],
+      ["EKS Container Insights", "CloudWatch Observability add-on"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
