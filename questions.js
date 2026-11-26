@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -17351,8 +17351,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Canaries = Lambda + S3 artifacts · ECS Container Insights = no agent."
+  },
+  // ───────────────────────────── Domain 4: X-Ray and ADOT ─────────────────────────────
+  {
+    id: "xry-01", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A request passes through API Gateway, three Lambda functions, SQS and DynamoDB. Users report occasional 5-second responses, and the team needs to identify which component adds the latency. What should they use?",
+    options: [
+      { t: "AWS X-Ray tracing across the services, then analyse the trace map and slow traces.",
+        why: "Correct. X-Ray shows per-service and per-call latency in a distributed request." },
+      { t: "CloudWatch Logs metric filters.",
+        why: "Can't follow one request across services." },
+      { t: "Lambda Insights.",
+        why: "System metrics per function, not request paths." },
+      { t: "VPC Flow Logs.",
+        why: "Network metadata only." }
+    ],
+    answer: [0],
+    tip: "Which service in the request is slow = X-Ray."
+  },
+  {
+    id: "xry-02", domain: "d4", topic: "X-Ray and ADOT",
+    q: "Developers need to search X-Ray traces for requests from a specific customer ID and order type. How should these values be recorded?",
+    options: [
+      { t: "As annotations, which are indexed and can be used in filter expressions.",
+        why: "Correct. Annotations are searchable." },
+      { t: "As metadata.",
+        why: "Metadata isn't indexed or searchable." },
+      { t: "In the segment name.",
+        why: "Breaks the service map." },
+      { t: "In CloudWatch Logs only.",
+        why: "Not linked to trace search." }
+    ],
+    answer: [0],
+    tip: "Searchable trace attributes = annotations."
+  },
+  {
+    id: "xry-03", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A team enables X-Ray in a Lambda function's code using the SDK, but no traces appear. Which actions are required? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Enable active tracing on the Lambda function.",
+        why: "Correct. Lambda must send trace data." },
+      { t: "Grant the execution role AWSXRayDaemonWriteAccess (xray:PutTraceSegments and related actions).",
+        why: "Correct. Permissions to send segments." },
+      { t: "Install the X-Ray daemon on the Lambda function.",
+        why: "Lambda has the daemon built in." },
+      { t: "Place the function behind an ALB.",
+        why: "Not required." },
+      { t: "Enable Lambda Insights.",
+        why: "Separate feature." }
+    ],
+    answer: [0, 1],
+    tip: "Lambda tracing = active tracing + AWSXRayDaemonWriteAccess."
+  },
+  {
+    id: "xry-04", domain: "d4", topic: "X-Ray and ADOT",
+    q: "An application on EC2 is instrumented with the X-Ray SDK. The X-Ray daemon is running, but its log shows AccessDeniedException when calling PutTraceSegments. What should be done?",
+    options: [
+      { t: "Attach the AWSXRayDaemonWriteAccess managed policy to the instance profile role.",
+        why: "Correct. The daemon needs write permissions." },
+      { t: "Open TCP port 2000 in the security group.",
+        why: "The daemon uses UDP 2000 locally, and the error is IAM." },
+      { t: "Enable active tracing on EC2.",
+        why: "Active tracing is a Lambda setting." },
+      { t: "Increase the sampling rate.",
+        why: "Doesn't fix permissions." }
+    ],
+    answer: [0],
+    tip: "Daemon AccessDenied = AWSXRayDaemonWriteAccess."
+  },
+  {
+    id: "xry-05", domain: "d4", topic: "X-Ray and ADOT",
+    q: "On which port and protocol does the X-Ray daemon listen for segment data from the SDK by default?",
+    options: [
+      { t: "UDP 2000.",
+        why: "Correct." },
+      { t: "TCP 2000.",
+        why: "Segments are sent over UDP." },
+      { t: "TCP 443.",
+        why: "That's the daemon's outbound API call." },
+      { t: "UDP 8125.",
+        why: "That's StatsD." }
+    ],
+    answer: [0],
+    tip: "X-Ray daemon = UDP 2000."
+  },
+  {
+    id: "xry-06", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A containerised application on Amazon ECS (awsvpc network mode) must send X-Ray traces. What is the recommended setup?",
+    options: [
+      { t: "Add the X-Ray daemon (or ADOT collector) as a sidecar container in the task definition, give the task role X-Ray write permissions, and have the app send to localhost:2000.",
+        why: "Correct. Sidecars share the task network namespace." },
+      { t: "Install the daemon on the developer laptop.",
+        why: "Not reachable from tasks." },
+      { t: "Enable active tracing on the ECS cluster.",
+        why: "Not an ECS setting." },
+      { t: "Use the ALB to send segments.",
+        why: "ALB only adds the header." }
+    ],
+    answer: [0],
+    tip: "ECS tracing = daemon / ADOT sidecar + task role."
+  },
+  {
+    id: "xry-07", domain: "d4", topic: "X-Ray and ADOT",
+    q: "An application's X-Ray SDK must send segments to a daemon running in a separate container at 10.0.1.25. How is this configured without code changes?",
+    options: [
+      { t: "Set the AWS_XRAY_DAEMON_ADDRESS environment variable to 10.0.1.25:2000.",
+        why: "Correct. The SDK reads this variable." },
+      { t: "Change the sampling rules.",
+        why: "Unrelated to the address." },
+      { t: "Modify the ALB listener.",
+        why: "Unrelated." },
+      { t: "Set XRayEnabled on the task.",
+        why: "That's an Elastic Beanstalk option." }
+    ],
+    answer: [0],
+    tip: "Daemon address = AWS_XRAY_DAEMON_ADDRESS."
+  },
+  {
+    id: "xry-08", domain: "d4", topic: "X-Ray and ADOT",
+    q: "How do you enable X-Ray tracing for an application deployed with AWS Elastic Beanstalk with the LEAST effort?",
+    options: [
+      { t: "Enable the XRayEnabled option setting (console or .ebextensions) so Beanstalk runs the daemon, and grant the instance profile X-Ray write access.",
+        why: "Correct." },
+      { t: "SSH into each instance and install the daemon.",
+        why: "Manual and lost on replacement." },
+      { t: "Enable active tracing.",
+        why: "Lambda setting." },
+      { t: "Use RUM.",
+        why: "Browser monitoring." }
+    ],
+    answer: [0],
+    tip: "Beanstalk = XRayEnabled option."
+  },
+  {
+    id: "xry-09", domain: "d4", topic: "X-Ray and ADOT",
+    q: "The X-Ray service map shows Lambda and DynamoDB but not API Gateway, even though requests come through a REST API. What should be done?",
+    options: [
+      { t: "Enable X-Ray tracing on the API Gateway stage.",
+        why: "Correct. API Gateway then appears as a node." },
+      { t: "Add an ALB in front of API Gateway.",
+        why: "ALB doesn't send segments." },
+      { t: "Increase Lambda memory.",
+        why: "Unrelated." },
+      { t: "Use metadata in the Lambda function.",
+        why: "Doesn't add the API node." }
+    ],
+    answer: [0],
+    tip: "API Gateway in the map = stage tracing."
+  },
+  {
+    id: "xry-10", domain: "d4", topic: "X-Ray and ADOT",
+    q: "An Application Load Balancer sits in front of an instrumented service. Why doesn't the ALB appear as a node in the X-Ray trace map?",
+    options: [
+      { t: "The ALB adds or updates the X-Amzn-Trace-Id header but doesn't send segments to X-Ray.",
+        why: "Correct." },
+      { t: "ALB tracing must be enabled on the listener.",
+        why: "There's no such setting." },
+      { t: "The daemon must run on the ALB.",
+        why: "Not possible." },
+      { t: "Sampling excluded the ALB.",
+        why: "ALB isn't a traced service." }
+    ],
+    answer: [0],
+    tip: "ALB only adds the trace header."
+  },
+  {
+    id: "xry-11", domain: "d4", topic: "X-Ray and ADOT",
+    q: "With X-Ray's default sampling rule, what is recorded?",
+    options: [
+      { t: "The first request each second (reservoir of 1) plus 5% of additional requests.",
+        why: "Correct." },
+      { t: "100% of requests.",
+        why: "Default samples." },
+      { t: "1% of requests.",
+        why: "Wrong rate." },
+      { t: "Only requests with errors.",
+        why: "Sampling is decided at the start of the request." }
+    ],
+    answer: [0],
+    tip: "Default sampling = 1/s + 5%."
+  },
+  {
+    id: "xry-12", domain: "d4", topic: "X-Ray and ADOT",
+    q: "X-Ray costs are high because load balancer health checks call /health thousands of times per minute, while the team wants all POST /checkout requests traced. They want to change this without redeploying the application. What should they do?",
+    options: [
+      { t: "Create centralized X-Ray sampling rules: a high-priority rule with fixed rate 0 for /health and a rule with fixed rate 1.0 for POST /checkout*.",
+        why: "Correct. SDKs / daemons pull rules from X-Ray." },
+      { t: "Change the sampling configuration in code and redeploy.",
+        why: "They want no redeploy." },
+      { t: "Disable X-Ray entirely.",
+        why: "Loses checkout traces." },
+      { t: "Use metadata to mark health checks.",
+        why: "Doesn't stop sampling." }
+    ],
+    answer: [0],
+    tip: "Change sampling without deploy = centralized sampling rules."
+  },
+  {
+    id: "xry-13", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A front-end service samples a request out (Sampled=0). What happens in the downstream services instrumented with X-Ray?",
+    options: [
+      { t: "They follow the upstream sampling decision carried in the X-Amzn-Trace-Id header and don't record the request.",
+        why: "Correct. The first instrumented service decides." },
+      { t: "Each service makes its own independent decision.",
+        why: "They respect the propagated decision." },
+      { t: "Downstream services always record 100%.",
+        why: "No." },
+      { t: "The trace is split into separate traces.",
+        why: "No." }
+    ],
+    answer: [0],
+    tip: "Upstream sampling decision propagates."
+  },
+  {
+    id: "xry-14", domain: "d4", topic: "X-Ray and ADOT",
+    q: "The operations team wants a CloudWatch alarm on the fault rate of only the checkout service's traces in X-Ray. What should they configure?",
+    options: [
+      { t: "An X-Ray group with a filter expression such as service(\"checkout\") { fault = true }, then alarm on the group's CloudWatch metrics.",
+        why: "Correct. Groups generate their own metrics." },
+      { t: "A metric filter on the API Gateway access logs only.",
+        why: "Not trace-based and limited." },
+      { t: "Annotations on every trace.",
+        why: "Annotations alone don't create metrics." },
+      { t: "Increase sampling to 100%.",
+        why: "Doesn't create an alarm." }
+    ],
+    answer: [0],
+    tip: "Trace-based alarm for a subset = X-Ray group."
+  },
+  {
+    id: "xry-15", domain: "d4", topic: "X-Ray and ADOT",
+    q: "The team wants to be notified automatically when X-Ray detects an unusual increase in fault rates for a service, without manually defining thresholds. What should they enable?",
+    options: [
+      { t: "X-Ray Insights with notifications delivered through Amazon EventBridge.",
+        why: "Correct. Insights detects anomalies and emits events." },
+      { t: "A static CloudWatch alarm on Lambda Errors.",
+        why: "Requires thresholds and misses trace context." },
+      { t: "AWS Config.",
+        why: "Configuration tracking." },
+      { t: "CloudTrail Insights.",
+        why: "API call volume anomalies, not trace faults." }
+    ],
+    answer: [0],
+    tip: "Automatic trace anomaly alerts = X-Ray Insights."
+  },
+  {
+    id: "xry-16", domain: "d4", topic: "X-Ray and ADOT",
+    q: "In X-Ray, how are HTTP 4xx, 5xx and 429 responses classified?",
+    options: [
+      { t: "4xx = error, 5xx = fault, 429 = throttle.",
+        why: "Correct." },
+      { t: "4xx = fault, 5xx = error, 429 = error.",
+        why: "Reversed." },
+      { t: "All are faults.",
+        why: "They're distinguished." },
+      { t: "Only 5xx are recorded.",
+        why: "All are recorded with flags." }
+    ],
+    answer: [0],
+    tip: "Error 4xx · fault 5xx · throttle 429."
+  },
+  {
+    id: "xry-17", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A company wants vendor-neutral instrumentation for its microservices so it can send traces to AWS X-Ray today and also to a third-party observability vendor, without instrumenting the code twice. What should they use?",
+    options: [
+      { t: "AWS Distro for OpenTelemetry (OpenTelemetry SDKs / auto-instrumentation) with the ADOT Collector exporting to X-Ray and the vendor.",
+        why: "Correct. Instrument once, export to multiple backends." },
+      { t: "The X-Ray SDK plus the vendor's SDK in every service.",
+        why: "Double instrumentation." },
+      { t: "CloudWatch RUM.",
+        why: "Browser monitoring." },
+      { t: "CloudWatch metric streams.",
+        why: "Metrics only, not traces." }
+    ],
+    answer: [0],
+    tip: "Vendor-neutral, multi-backend = ADOT."
+  },
+  {
+    id: "xry-18", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A Java application team wants distributed tracing without modifying application code. Which option fits?",
+    options: [
+      { t: "Attach the ADOT Java auto-instrumentation agent (or enable Application Signals, which uses it).",
+        why: "Correct. Auto-instrumentation requires no code changes." },
+      { t: "Manually add X-Ray SDK subsegments in every method.",
+        why: "Requires code changes." },
+      { t: "Enable Lambda Insights.",
+        why: "Not for Java on containers / EC2 and no traces." },
+      { t: "Enable VPC Flow Logs.",
+        why: "No traces." }
+    ],
+    answer: [0],
+    tip: "Tracing without code changes = ADOT auto-instrumentation."
+  },
+  {
+    id: "xry-19", domain: "d4", topic: "X-Ray and ADOT",
+    q: "On Amazon EKS, a team wants one managed collector that receives OpenTelemetry traces and scrapes Prometheus metrics, exporting traces to X-Ray and metrics to Amazon Managed Service for Prometheus. What should they deploy?",
+    options: [
+      { t: "The ADOT Collector, installed through the ADOT EKS add-on.",
+        why: "Correct. Supports OTLP receivers, Prometheus scraping and multiple exporters." },
+      { t: "The X-Ray daemon only.",
+        why: "Doesn't scrape Prometheus metrics." },
+      { t: "CloudWatch Synthetics.",
+        why: "Synthetic tests." },
+      { t: "Fluent Bit only.",
+        why: "Logs, not traces / metrics." }
+    ],
+    answer: [0],
+    tip: "Traces + Prometheus on EKS = ADOT Collector add-on."
+  },
+  {
+    id: "xry-20", domain: "d4", topic: "X-Ray and ADOT",
+    q: "Instances in private subnets without a NAT gateway run the X-Ray daemon with correct IAM permissions, but no traces arrive. What is the fix?",
+    options: [
+      { t: "Create an interface VPC endpoint for AWS X-Ray (or provide a NAT gateway).",
+        why: "Correct. The daemon must reach the X-Ray API." },
+      { t: "Open UDP 2000 inbound from the internet.",
+        why: "Inbound internet access isn't needed and is insecure." },
+      { t: "Enable active tracing.",
+        why: "Lambda setting." },
+      { t: "Lower the sampling rate.",
+        why: "Doesn't fix connectivity." }
+    ],
+    answer: [0],
+    tip: "Private subnet X-Ray = VPC endpoint or NAT."
+  },
+  {
+    id: "xry-21", domain: "d4", topic: "X-Ray and ADOT",
+    q: "A security team in a central monitoring account wants to view X-Ray traces, metrics and logs from all workload accounts in one place. What should be configured?",
+    options: [
+      { t: "CloudWatch cross-account observability (OAM) with traces shared from source accounts to the monitoring account.",
+        why: "Correct. OAM shares traces along with metrics and logs." },
+      { t: "Copy traces with Lambda every hour.",
+        why: "Custom and unnecessary." },
+      { t: "Increase trace retention to 1 year.",
+        why: "Retention is 30 days and unrelated." },
+      { t: "Use AWS Config aggregators.",
+        why: "Configuration data." }
+    ],
+    answer: [0],
+    tip: "Central trace view = OAM."
+  },
+  {
+    id: "xry-22", domain: "d4", topic: "X-Ray and ADOT",
+    q: "Which statements about X-Ray are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Subsegments record downstream calls such as AWS SDK requests, HTTP calls and SQL queries.",
+        why: "Correct." },
+      { t: "Trace data is retained for 30 days.",
+        why: "Correct." },
+      { t: "Metadata can be searched with filter expressions.",
+        why: "Only annotations are indexed." },
+      { t: "The X-Ray daemon must be installed manually inside Lambda functions.",
+        why: "Built in." },
+      { t: "Every request is traced by default.",
+        why: "Default sampling is 1/s + 5%." }
+    ],
+    answer: [0, 1],
+    tip: "Subsegments = downstream calls · traces kept 30 days."
   }
 ];
+
 
 
 

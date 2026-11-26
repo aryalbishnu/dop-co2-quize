@@ -3343,6 +3343,66 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "X-Ray and ADOT",
+  sections: [
+    { h: "Concepts", items: [
+      "**Trace** (header **`X-Amzn-Trace-Id`**) → **segments** (per service) → **subsegments** (AWS SDK, HTTP, SQL)",
+      "**Annotations = indexed, searchable** (≤ 50) · **metadata = not indexed** · error 4xx · fault 5xx · throttle 429 · kept **30 days** · KMS optional",
+      "Trace map · **filter expressions** (`service(\"x\") { fault = true }`, `annotation.tier = \"gold\"`, `responsetime > 3`)",
+      "**Groups** → own map + CloudWatch metrics → alarms · **Insights** → anomalies → **EventBridge** · Transaction Search (100% spans) · **OAM** cross-account"
+    ]},
+    { h: "Instrumenting", table: [
+      ["Service", "How"],
+      ["**Lambda**", "**Active tracing** + **`AWSXRayDaemonWriteAccess`** · daemon built in"],
+      ["**API Gateway**", "**Stage** X-Ray tracing"],
+      ["EC2 / on-prem", "SDK / ADOT + **daemon** (or CloudWatch agent / ADOT collector) + role"],
+      ["**ECS**", "Daemon / ADOT **sidecar** · task role · localhost:2000 (awsvpc)"],
+      ["**EKS**", "DaemonSet or **ADOT / Observability add-on**"],
+      ["**Beanstalk**", "**`XRayEnabled: true`** option"],
+      ["Step Functions / SNS / SQS", "Enable tracing / propagate header"],
+      ["**ALB**", "Only **adds the header**, no segments"]
+    ]},
+    { h: "Sampling and daemon", items: [
+      "Default: **first request per second (reservoir 1) + 5%**",
+      "**Centralized rules** (priority, reservoir, fixed rate, service, host, method, URL path, ARN) → **no redeploy** · e.g. 0% `/health`, 100% `POST /checkout`",
+      "**First service decides**, downstream follows `Sampled` flag",
+      "Daemon: **UDP 2000**, buffers / batches → `PutTraceSegments`, pulls sampling rules · **`AWS_XRAY_DAEMON_ADDRESS`** · needs **AWSXRayDaemonWriteAccess**",
+      "No traces → IAM, daemon / UDP, active tracing off, not instrumented, sampling, **X-Ray VPC endpoint**"
+    ]},
+    { h: "ADOT (OpenTelemetry)", items: [
+      "AWS-supported **OpenTelemetry**: **vendor-neutral** traces, metrics, logs · X-Ray SDK / daemon heading to **maintenance**",
+      "**Auto-instrumentation agents** (Java, Python, .NET, Node.js) · **ADOT Collector** · **Lambda layer** · **OTLP**",
+      "Exporters: **X-Ray**, **CloudWatch (EMF)**, **Managed Prometheus**, **third parties** → instrument once, many backends",
+      "Deploy: **EKS add-on**, ECS sidecar, EC2 · scrapes Prometheus · powers **Application Signals**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Which service adds latency", "X-Ray trace map"],
+      ["Search by customer ID", "Annotations"],
+      ["Lambda no traces", "Active tracing + write policy"],
+      ["Daemon AccessDenied", "AWSXRayDaemonWriteAccess"],
+      ["Daemon port", "UDP 2000"],
+      ["ECS tracing", "Sidecar + task role"],
+      ["Daemon at another address", "AWS_XRAY_DAEMON_ADDRESS"],
+      ["Beanstalk tracing", "XRayEnabled"],
+      ["API Gateway missing from map", "Stage tracing"],
+      ["ALB not a node", "Only adds header"],
+      ["Default sampling", "1/s + 5%"],
+      ["Exclude /health, no redeploy", "Centralized sampling rules"],
+      ["Downstream sampling", "Follows upstream"],
+      ["Alarm on checkout faults only", "X-Ray group"],
+      ["Auto anomaly alerts", "X-Ray Insights"],
+      ["4xx / 5xx / 429", "Error / fault / throttle"],
+      ["X-Ray + third party, no double code", "ADOT"],
+      ["Java tracing, no code", "ADOT Java agent"],
+      ["Traces + Prometheus on EKS", "ADOT Collector add-on"],
+      ["Private subnet no traces", "X-Ray VPC endpoint"],
+      ["Central trace view", "OAM"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
