@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -16992,8 +16992,368 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Never expire by default · export = batch, 12 h, one at a time."
+  },
+  // ───────────────────────────── Domain 4: Synthetics, RUM and Insights ─────────────────────────────
+  {
+    id: "sri-01", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "An e-commerce company wants to know within minutes if its login and checkout flow breaks, including overnight when there is almost no customer traffic. What should a DevOps engineer implement?",
+    options: [
+      { t: "CloudWatch Synthetics canaries that script the login and checkout journey on a 1-minute schedule, with an alarm on SuccessPercent.",
+        why: "Correct. Canaries generate synthetic traffic, so they detect failures even without users." },
+      { t: "CloudWatch RUM.",
+        why: "RUM needs real user traffic." },
+      { t: "Route 53 health checks.",
+        why: "Simple checks; can't script multi-step journeys." },
+      { t: "Container Insights.",
+        why: "Infrastructure metrics, not user journeys." }
+    ],
+    answer: [0],
+    tip: "Proactive journey testing with no traffic = Synthetics canaries."
+  },
+  {
+    id: "sri-02", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Product managers want to understand the actual page load experience of website users, including Core Web Vitals and JavaScript errors broken down by browser, device and country. What should be used?",
+    options: [
+      { t: "CloudWatch RUM with an app monitor and the JavaScript snippet added to the web pages.",
+        why: "Correct. RUM collects data from real user sessions." },
+      { t: "Synthetics canaries from several Regions.",
+        why: "Synthetic traffic, not real users' devices and browsers." },
+      { t: "ALB access logs.",
+        why: "Server-side only; no browser metrics." },
+      { t: "Lambda Insights.",
+        why: "For Lambda functions." }
+    ],
+    answer: [0],
+    tip: "Real users' browser experience = RUM."
+  },
+  {
+    id: "sri-03", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A Synthetics canary that tests an internal API runs in private subnets of a VPC with no NAT gateway. The canary executes, but no screenshots, logs or CloudWatch metrics are stored. What should be done?",
+    options: [
+      { t: "Add VPC endpoints for S3, CloudWatch (monitoring) and CloudWatch Logs, or provide a NAT gateway.",
+        why: "Correct. VPC canaries need a path to store artifacts and publish metrics." },
+      { t: "Move the canary out of the VPC.",
+        why: "Then it can't reach the internal API." },
+      { t: "Increase the canary timeout.",
+        why: "Network path is the problem." },
+      { t: "Enable active X-Ray tracing.",
+        why: "Doesn't fix connectivity." }
+    ],
+    answer: [0],
+    tip: "VPC canary artifacts missing = NAT or VPC endpoints."
+  },
+  {
+    id: "sri-04", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A canary must log in to an application with a test user. Security prohibits credentials in code. Where should the canary obtain the password?",
+    options: [
+      { t: "From AWS Secrets Manager, with the canary's IAM role allowed to read that secret.",
+        why: "Correct." },
+      { t: "Hard-coded in the canary script.",
+        why: "Prohibited." },
+      { t: "From a public S3 object.",
+        why: "Insecure." },
+      { t: "From the canary's tags.",
+        why: "Tags aren't for secrets." }
+    ],
+    answer: [0],
+    tip: "Canary credentials = Secrets Manager."
+  },
+  {
+    id: "sri-05", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "After a CSS change, the home page loaded with HTTP 200 but its layout was broken, and the heartbeat canary didn't catch it. How can such regressions be detected automatically?",
+    options: [
+      { t: "Use a canary with visual monitoring that compares screenshots against a baseline and fails when the difference exceeds a threshold.",
+        why: "Correct. Visual monitoring detects layout changes." },
+      { t: "Add a Route 53 string-match health check.",
+        why: "Only checks response text." },
+      { t: "Use RUM sampling at 100%.",
+        why: "Doesn't compare layouts." },
+      { t: "Alarm on ALB 5XX errors.",
+        why: "No errors occurred." }
+    ],
+    answer: [0],
+    tip: "Broken layout = canary visual monitoring."
+  },
+  {
+    id: "sri-06", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A team wants their CodeDeploy deployment to roll back automatically if the critical user journey fails after a new version is released. What is the BEST approach?",
+    options: [
+      { t: "Run a Synthetics canary against the journey and add an alarm on its SuccessPercent metric to the deployment group's rollback alarms.",
+        why: "Correct. Alarm-based rollback using real journey checks." },
+      { t: "Add RUM and review it manually after each release.",
+        why: "Manual and needs users." },
+      { t: "Enable Lambda Insights.",
+        why: "Unrelated to the journey." },
+      { t: "Increase deployment bake time only.",
+        why: "Doesn't detect failures." }
+    ],
+    answer: [0],
+    tip: "Rollback on broken journey = canary alarm in CodeDeploy."
+  },
+  {
+    id: "sri-07", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "An engineer wants a canary to run every 10 seconds. What is true?",
+    options: [
+      { t: "The minimum canary schedule is once per minute; for faster checks use other mechanisms (for example Route 53 health checks at 10-second intervals).",
+        why: "Correct. Canaries run at most every minute." },
+      { t: "Canaries support 1-second schedules.",
+        why: "Minimum is 1 minute." },
+      { t: "Use high-resolution metrics to run canaries faster.",
+        why: "Doesn't change the schedule." },
+      { t: "Set rate(10 seconds).",
+        why: "Not supported." }
+    ],
+    answer: [0],
+    tip: "Canary minimum = 1 minute."
+  },
+  {
+    id: "sri-08", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Canaries that worked for a year suddenly can't be updated, and AWS notifications mention their runtime. What is the likely issue?",
+    options: [
+      { t: "The canary runtime version is deprecated; update the canaries to a supported Synthetics runtime.",
+        why: "Correct. Runtimes are retired over time." },
+      { t: "Canaries expire after one year.",
+        why: "They don't expire." },
+      { t: "The S3 bucket is full.",
+        why: "S3 has no size limit." },
+      { t: "The canary needs detailed monitoring.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Old canary problems = runtime deprecation."
+  },
+  {
+    id: "sri-09", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A developer adds the CloudWatch RUM snippet to a website, but no data appears in the app monitor. What is MOST likely missing?",
+    options: [
+      { t: "Authorization for the browser to send events - typically a Cognito identity pool whose unauthenticated role allows rum:PutRumEvents (or a resource-based policy).",
+        why: "Correct. The web client needs credentials to send data." },
+      { t: "The CloudWatch agent on the web server.",
+        why: "RUM runs in the browser." },
+      { t: "A Synthetics canary.",
+        why: "Separate feature." },
+      { t: "An ALB in front of the site.",
+        why: "Not required." }
+    ],
+    answer: [0],
+    tip: "RUM auth = Cognito identity pool (or resource policy)."
+  },
+  {
+    id: "sri-10", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A high-traffic site's CloudWatch RUM costs are higher than expected. How can the team reduce cost while still seeing representative data?",
+    options: [
+      { t: "Lower the app monitor's session sample rate (for example to 10%).",
+        why: "Correct. Only a percentage of sessions is recorded." },
+      { t: "Disable Core Web Vitals.",
+        why: "Removes key data." },
+      { t: "Increase data retention.",
+        why: "Increases cost." },
+      { t: "Add more canaries.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "RUM cost = session sample rate."
+  },
+  {
+    id: "sri-11", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "An auditor wants 12 months of RUM data for trend analysis. RUM only shows the last 30 days. What should have been configured?",
+    options: [
+      { t: "Send RUM data to CloudWatch Logs from the app monitor and set the log group retention to 12 months or more.",
+        why: "Correct. RUM itself keeps data 30 days." },
+      { t: "Increase RUM retention to 1 year.",
+        why: "Not configurable in RUM." },
+      { t: "Enable CloudTrail.",
+        why: "API activity only." },
+      { t: "Use Synthetics artifacts.",
+        why: "Different data." }
+    ],
+    answer: [0],
+    tip: "Keep RUM longer = CloudWatch Logs delivery."
+  },
+  {
+    id: "sri-12", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "An ECS service on Fargate keeps restarting tasks, and the team needs historical CPU and memory metrics at the task and service level. What should they do?",
+    options: [
+      { t: "Enable Container Insights on the ECS cluster (containerInsights set to enabled or enhanced).",
+        why: "Correct. ECS needs only the cluster setting, including for Fargate." },
+      { t: "Install the CloudWatch agent on each Fargate task host.",
+        why: "No host access on Fargate and not needed." },
+      { t: "Enable Lambda Insights.",
+        why: "For Lambda." },
+      { t: "Use RUM.",
+        why: "Browser data." }
+    ],
+    answer: [0],
+    tip: "ECS task / service metrics = Container Insights cluster setting."
+  },
+  {
+    id: "sri-13", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A company turned on the account-level default for Container Insights, but an existing ECS cluster still shows no Container Insights data. Why?",
+    options: [
+      { t: "The account default applies to newly created clusters; the existing cluster's setting must be updated (update-cluster-settings).",
+        why: "Correct." },
+      { t: "Container Insights takes 7 days to appear.",
+        why: "Data appears within minutes." },
+      { t: "Fargate isn't supported.",
+        why: "It is supported." },
+      { t: "The cluster needs a NAT gateway.",
+        why: "Not the cause." }
+    ],
+    answer: [0],
+    tip: "Account default = new clusters only."
+  },
+  {
+    id: "sri-14", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A team needs pod- and node-level CPU and memory metrics, container restart counts and container logs for an Amazon EKS cluster with minimal setup. What should they install?",
+    options: [
+      { t: "The Amazon CloudWatch Observability EKS add-on (CloudWatch agent and Fluent Bit) to enable Container Insights.",
+        why: "Correct. Managed add-on for EKS observability." },
+      { t: "Lambda Insights.",
+        why: "For Lambda." },
+      { t: "A Synthetics canary per pod.",
+        why: "Not infrastructure metrics." },
+      { t: "Nothing - EKS publishes pod metrics by default.",
+        why: "Pod metrics need Container Insights." }
+    ],
+    answer: [0],
+    tip: "EKS Container Insights = CloudWatch Observability add-on."
+  },
+  {
+    id: "sri-15", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Microservices on EKS already expose Prometheus metrics. The team wants to keep using PromQL dashboards in Grafana with minimal operational overhead. What should they use?",
+    options: [
+      { t: "Amazon Managed Service for Prometheus with Amazon Managed Grafana.",
+        why: "Correct. Managed, Prometheus-compatible storage and Grafana." },
+      { t: "CloudWatch RUM.",
+        why: "Browser monitoring." },
+      { t: "Self-managed Prometheus on EC2.",
+        why: "More operational overhead." },
+      { t: "Lambda Insights.",
+        why: "Lambda only." }
+    ],
+    answer: [0],
+    tip: "Prometheus / Grafana compatibility = AMP + AMG."
+  },
+  {
+    id: "sri-16", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "A Lambda function is configured with 3,008 MB of memory and the team suspects it is over-provisioned. They also want to see cold-start (init) duration trends. What should they enable?",
+    options: [
+      { t: "Lambda Insights, by adding the Lambda Insights extension layer and attaching CloudWatchLambdaInsightsExecutionRolePolicy to the execution role.",
+        why: "Correct. Shows memory used, CPU time and init duration." },
+      { t: "The CloudWatch agent on the Lambda function.",
+        why: "Agents don't run on Lambda." },
+      { t: "Container Insights.",
+        why: "For containers." },
+      { t: "RUM.",
+        why: "Browser data." }
+    ],
+    answer: [0],
+    tip: "Lambda memory / CPU / cold starts = Lambda Insights."
+  },
+  {
+    id: "sri-17", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "After adding the Lambda Insights layer to a function, no data appears in the LambdaInsights namespace. What is the MOST likely cause?",
+    options: [
+      { t: "The function's execution role lacks CloudWatchLambdaInsightsExecutionRolePolicy.",
+        why: "Correct. The extension needs permission to write performance logs." },
+      { t: "Lambda Insights requires a VPC.",
+        why: "Not required." },
+      { t: "The function must use provisioned concurrency.",
+        why: "Not required." },
+      { t: "X-Ray must be enabled.",
+        why: "Separate feature." }
+    ],
+    answer: [0],
+    tip: "Lambda Insights = layer + execution role policy."
+  },
+  {
+    id: "sri-18", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Leadership wants each critical API operation to have a 99.9% availability objective over 30 days, with error budget tracking and burn-rate alerts. Services run on EKS and Lambda, and the team wants no code changes. What should be used?",
+    options: [
+      { t: "CloudWatch Application Signals with automatic instrumentation and SLOs on the operations.",
+        why: "Correct. Application Signals provides SLOs, error budgets and burn-rate alarms." },
+      { t: "Custom metric math alarms built manually for each operation.",
+        why: "No error budget tracking; heavy effort." },
+      { t: "Synthetics canaries only.",
+        why: "Synthetic checks, not SLO tracking on real traffic." },
+      { t: "Container Insights.",
+        why: "Infrastructure metrics." }
+    ],
+    answer: [0],
+    tip: "SLOs + error budgets = Application Signals."
+  },
+  {
+    id: "sri-19", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "An engineering team wants an automatically discovered map of their services and dependencies (DynamoDB, SQS, downstream APIs), with latency, faults and errors per operation, without modifying application code. What should they enable?",
+    options: [
+      { t: "CloudWatch Application Signals (auto-instrumented with AWS Distro for OpenTelemetry).",
+        why: "Correct. Provides the application map and per-operation metrics." },
+      { t: "CloudWatch Logs metric filters.",
+        why: "Manual and no dependency map." },
+      { t: "Lambda Insights.",
+        why: "System metrics only." },
+      { t: "AWS Config.",
+        why: "Configuration tracking." }
+    ],
+    answer: [0],
+    tip: "APM + dependency map, no code = Application Signals."
+  },
+  {
+    id: "sri-20", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Customers in one city report slow access, while metrics in AWS look normal. The team suspects an internet service provider problem. Which service helps confirm this?",
+    options: [
+      { t: "Amazon CloudWatch Internet Monitor.",
+        why: "Correct. Shows internet health issues by location and ASN affecting your users." },
+      { t: "Lambda Insights.",
+        why: "Unrelated." },
+      { t: "Container Insights.",
+        why: "Infrastructure metrics." },
+      { t: "AWS Config.",
+        why: "Configuration tracking." }
+    ],
+    answer: [0],
+    tip: "ISP / city internet issues = Internet Monitor."
+  },
+  {
+    id: "sri-21", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Which pairings of requirement and feature are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Trace a single request across microservices - AWS X-Ray.",
+        why: "Correct." },
+      { t: "Detect broken links across a website on a schedule - Synthetics broken link checker canary.",
+        why: "Correct." },
+      { t: "Measure real users' Core Web Vitals - Synthetics heartbeat canary.",
+        why: "That's RUM." },
+      { t: "Lambda memory used per invocation - Container Insights.",
+        why: "That's Lambda Insights." },
+      { t: "ECS task memory history - RUM.",
+        why: "That's Container Insights." }
+    ],
+    answer: [0, 1],
+    tip: "Traces = X-Ray · broken links = canary blueprint."
+  },
+  {
+    id: "sri-22", domain: "d4", topic: "Synthetics, RUM and Insights",
+    q: "Which statements are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Synthetics canaries run on AWS Lambda and store artifacts such as screenshots and HAR files in Amazon S3.",
+        why: "Correct." },
+      { t: "Container Insights for ECS doesn't require installing an agent, including on Fargate.",
+        why: "Correct." },
+      { t: "CloudWatch RUM works without any user traffic.",
+        why: "RUM needs real users." },
+      { t: "Lambda Insights provides distributed tracing.",
+        why: "Tracing is X-Ray." },
+      { t: "Application Signals requires adding SDK code to every service.",
+        why: "It auto-instruments with ADOT." }
+    ],
+    answer: [0, 1],
+    tip: "Canaries = Lambda + S3 artifacts · ECS Container Insights = no agent."
   }
 ];
+
 
 
 

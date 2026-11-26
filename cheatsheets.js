@@ -3285,6 +3285,64 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "Synthetics, RUM and Insights",
+  sections: [
+    { h: "Which tool", table: [
+      ["Question says", "Answer"],
+      ["Proactive, no traffic, test journeys", "**Synthetics canary**"],
+      ["Real users, Web Vitals, JS errors, geo", "**RUM**"],
+      ["ECS task / EKS pod CPU, memory, restarts", "**Container Insights**"],
+      ["Lambda memory, CPU, cold starts", "**Lambda Insights**"],
+      ["APM, service map, SLOs, no code", "**Application Signals**"],
+      ["Single request trace", "**X-Ray**"],
+      ["ISP / city internet problems", "**Internet Monitor**"],
+      ["PromQL / Grafana", "**Managed Prometheus + Managed Grafana**"]
+    ]},
+    { h: "Synthetics and RUM", items: [
+      "Canaries = scripts on **Lambda** (Node.js Puppeteer / Playwright, Python Selenium) · **min 1 minute**, cron, run once",
+      "Blueprints: **heartbeat**, **API**, **broken link**, **visual monitoring** (baseline), recorder, **workflow builder**",
+      "`CloudWatchSynthetics` **SuccessPercent** → alarm → SNS / **CodeDeploy rollback** · artifacts (screenshots, HAR, logs) in **S3** · active X-Ray",
+      "**VPC canary** → NAT or **VPC endpoints** (S3, CloudWatch, Logs) · creds in **Secrets Manager** · **runtime deprecation** · multi-Region",
+      "**RUM**: JS snippet, **app monitor**, **Cognito identity pool** (`rum:PutRumEvents`) · LCP / INP / CLS, JS / HTTP errors, geo · **session sample rate** · **30 days** → CloudWatch Logs for longer · X-Ray link"
+    ]},
+    { h: "Container and Lambda Insights", items: [
+      "**ECS**: cluster setting `containerInsights` = enabled / **enhanced** · **no agent**, Fargate ok · account default = **new clusters only**",
+      "**EKS**: **CloudWatch Observability add-on** (agent DaemonSet + Fluent Bit) · node / pod / container, restarts · EKS Fargate via ADOT",
+      "Namespaces `ECS/ContainerInsights`, `ContainerInsights` · Prometheus scraping",
+      "**Lambda Insights**: **extension layer** + **`CloudWatchLambdaInsightsExecutionRolePolicy`** · memory used, CPU, **init duration** · `LambdaInsights` namespace · **no traces**"
+    ]},
+    { h: "Application Signals", items: [
+      "Auto-instrumented **APM** with **ADOT** (Java, Python, .NET, Node.js) on EKS, ECS, EC2, Lambda · **no code changes**",
+      "Per service / operation: **volume, availability, latency, faults (5xx), errors (4xx)** · **application map** of dependencies",
+      "**SLOs**: attainment, **error budget**, **burn-rate alarms** · links to X-Ray traces, logs, canaries, RUM · replaces ServiceLens"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Checkout broken at night", "Canary every minute"],
+      ["Real users by browser / country", "RUM"],
+      ["VPC canary no artifacts", "NAT / VPC endpoints"],
+      ["Canary login password", "Secrets Manager"],
+      ["Layout broke with HTTP 200", "Visual monitoring"],
+      ["Rollback if journey fails", "Canary alarm in CodeDeploy"],
+      ["Canary every 10 s", "Min 1 minute"],
+      ["Old canaries failing", "Runtime deprecated"],
+      ["RUM no data", "Cognito identity pool"],
+      ["RUM cost", "Session sample rate"],
+      ["RUM 12 months", "CloudWatch Logs delivery"],
+      ["Fargate task metrics", "Container Insights setting"],
+      ["Old cluster no data after default", "Update existing cluster"],
+      ["EKS pods + logs", "Observability add-on"],
+      ["PromQL dashboards", "AMP + Grafana"],
+      ["Lambda over-provisioned", "Lambda Insights"],
+      ["Layer added, no data", "Execution role policy"],
+      ["99.9% per operation + error budget", "Application Signals SLO"],
+      ["Dependency map, no code", "Application Signals"],
+      ["ISP problem", "Internet Monitor"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
