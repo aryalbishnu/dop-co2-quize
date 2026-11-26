@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -17710,8 +17710,374 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Subsegments = downstream calls · traces kept 30 days."
+  },
+  // ───────────────────────────── Domain 4: CloudTrail ─────────────────────────────
+  {
+    id: "ctr-01", domain: "d4", topic: "CloudTrail",
+    q: "An EC2 instance was terminated 45 days ago. No trail has ever been configured in the account. Can the team find out who terminated it?",
+    options: [
+      { t: "Yes - CloudTrail Event history keeps 90 days of management events by default at no cost.",
+        why: "Correct. TerminateInstances is a management event." },
+      { t: "No - nothing is recorded without a trail.",
+        why: "Event history is always on for 90 days." },
+      { t: "Only if data events were enabled.",
+        why: "Termination is a management event." },
+      { t: "Only through AWS Config.",
+        why: "Config shows state, not necessarily who; CloudTrail shows who." }
+    ],
+    answer: [0],
+    tip: "Event history = 90 days of management events, free."
+  },
+  {
+    id: "ctr-02", domain: "d4", topic: "CloudTrail",
+    q: "Auditors must know which IAM principals downloaded objects from a sensitive S3 bucket over the past year. The account has a default trail with management events only. What must be configured going forward?",
+    options: [
+      { t: "Enable S3 data events (GetObject) on the trail, scoped with advanced event selectors to that bucket.",
+        why: "Correct. Object-level reads are data events, off by default." },
+      { t: "Nothing - management events include GetObject.",
+        why: "GetObject is a data event." },
+      { t: "Enable CloudTrail Insights.",
+        why: "Detects unusual volume, doesn't log object reads." },
+      { t: "Enable VPC Flow Logs.",
+        why: "Network metadata, no IAM identity." }
+    ],
+    answer: [0],
+    tip: "Who read / wrote S3 objects = S3 data events."
+  },
+  {
+    id: "ctr-03", domain: "d4", topic: "CloudTrail",
+    q: "A company with 80 accounts in AWS Organizations must capture all API activity from every account, including future accounts, into one S3 bucket in a log archive account, and member account administrators must not be able to disable it. What should be done?",
+    options: [
+      { t: "Create a multi-Region organization trail from the management account (or a CloudTrail delegated administrator) delivering to the central log archive bucket.",
+        why: "Correct. Org trails cover all accounts and members can't modify them." },
+      { t: "Create a trail in each account with a script.",
+        why: "Members could change them and new accounts need extra work." },
+      { t: "Rely on Event history in each account.",
+        why: "90 days, per account, no central storage." },
+      { t: "Use AWS Config aggregators.",
+        why: "Config data, not API activity." }
+    ],
+    answer: [0],
+    tip: "All accounts, can't be disabled = organization trail."
+  },
+  {
+    id: "ctr-04", domain: "d4", topic: "CloudTrail",
+    q: "A security auditor asks for proof that CloudTrail log files in S3 haven't been modified or deleted since CloudTrail delivered them. What should the DevOps engineer use?",
+    options: [
+      { t: "CloudTrail log file integrity validation (hourly signed digest files) and the aws cloudtrail validate-logs command.",
+        why: "Correct. SHA-256 hashes signed with RSA prove integrity." },
+      { t: "Compare S3 object sizes with last month.",
+        why: "Not proof." },
+      { t: "Enable S3 Versioning only.",
+        why: "Doesn't prove integrity by itself." },
+      { t: "Enable CloudTrail Insights.",
+        why: "Detects unusual API volume." }
+    ],
+    answer: [0],
+    tip: "Prove logs unaltered = log file validation + validate-logs."
+  },
+  {
+    id: "ctr-05", domain: "d4", topic: "CloudTrail",
+    q: "Log file validation reports that several CloudTrail log files were deleted from the bucket. Which controls would have PREVENTED this? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Deliver logs to a bucket in a separate log archive account with S3 Object Lock (compliance mode) or MFA Delete and a bucket policy denying deletes.",
+        why: "Correct. Prevents deletion by workload account users." },
+      { t: "SCPs that deny cloudtrail:StopLogging, DeleteTrail and UpdateTrail, plus deletes on the log bucket, except for a break-glass role.",
+        why: "Correct. Organization-wide guardrails." },
+      { t: "Log file validation.",
+        why: "Detects but doesn't prevent." },
+      { t: "CloudTrail Insights.",
+        why: "Unrelated." },
+      { t: "Shorter S3 lifecycle rules.",
+        why: "Deletes logs sooner." }
+    ],
+    answer: [0, 1],
+    tip: "Prevent log tampering = separate account + Object Lock / MFA Delete + SCPs."
+  },
+  {
+    id: "ctr-06", domain: "d4", topic: "CloudTrail",
+    q: "A new trail fails to deliver logs to a newly created S3 bucket with an access error. What is the MOST likely cause?",
+    options: [
+      { t: "The bucket policy doesn't allow cloudtrail.amazonaws.com to call s3:GetBucketAcl and s3:PutObject for the trail.",
+        why: "Correct. CloudTrail needs bucket permissions." },
+      { t: "The bucket must be public.",
+        why: "Never." },
+      { t: "Trails can only write to buckets in us-east-1.",
+        why: "Not true." },
+      { t: "Log file validation must be disabled.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Trail can't write = bucket policy for CloudTrail."
+  },
+  {
+    id: "ctr-07", domain: "d4", topic: "CloudTrail",
+    q: "After enabling SSE-KMS with a customer managed key on a trail, CloudTrail can't deliver logs and analysts can't read the delivered files. What is required? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "The KMS key policy must allow CloudTrail to use the key (kms:GenerateDataKey*).",
+        why: "Correct. CloudTrail encrypts with the key." },
+      { t: "Analysts need kms:Decrypt permission on the key.",
+        why: "Correct. Reading encrypted objects requires decrypt." },
+      { t: "The bucket must use SSE-C.",
+        why: "Not supported for CloudTrail." },
+      { t: "Disable multi-Region on the trail.",
+        why: "Unrelated." },
+      { t: "Enable data events.",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "SSE-KMS trail = key policy for CloudTrail + kms:Decrypt for readers."
+  },
+  {
+    id: "ctr-08", domain: "d4", topic: "CloudTrail",
+    q: "A company only has a single-Region trail in eu-west-1. An attacker launched instances in an unused Region and the activity wasn't captured in S3. What should have been configured?",
+    options: [
+      { t: "A multi-Region trail, which logs all current and future Regions and includes global service events.",
+        why: "Correct." },
+      { t: "Data events in eu-west-1.",
+        why: "Doesn't cover other Regions." },
+      { t: "CloudTrail Insights in eu-west-1.",
+        why: "Same Region only." },
+      { t: "An S3 lifecycle rule.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Cover all Regions = multi-Region trail."
+  },
+  {
+    id: "ctr-09", domain: "d4", topic: "CloudTrail",
+    q: "IAM policy changes are global. Where are their CloudTrail events recorded, and how do you make sure a trail captures them?",
+    options: [
+      { t: "Global service events (IAM, STS, CloudFront) are recorded in us-east-1; a multi-Region trail includes them.",
+        why: "Correct." },
+      { t: "In every Region separately.",
+        why: "Recorded in us-east-1." },
+      { t: "They aren't logged by CloudTrail.",
+        why: "They are." },
+      { t: "Only in the Region where the user signed in.",
+        why: "No." }
+    ],
+    answer: [0],
+    tip: "Global events = us-east-1, included in multi-Region trails."
+  },
+  {
+    id: "ctr-10", domain: "d4", topic: "CloudTrail",
+    q: "The security team needs a CloudWatch alarm every time the root user signs in to the console, using CloudTrail data that is already delivered to CloudWatch Logs. What should be configured?",
+    options: [
+      { t: "A metric filter on the trail's log group matching userIdentity.type = Root and the console sign-in event, with an alarm on the metric.",
+        why: "Correct. The classic CIS benchmark pattern." },
+      { t: "An S3 event notification on the trail bucket.",
+        why: "Fires per file, not per event type." },
+      { t: "CloudTrail Insights.",
+        why: "Detects volume anomalies only." },
+      { t: "SNS notification on log file delivery.",
+        why: "Per file, not root login." }
+    ],
+    answer: [0],
+    tip: "Root login alarm = metric filter -> alarm (or EventBridge rule)."
+  },
+  {
+    id: "ctr-11", domain: "d4", topic: "CloudTrail",
+    q: "Company policy says any security group rule allowing SSH from 0.0.0.0/0 must be removed automatically within seconds and the security team notified. What is the BEST design?",
+    options: [
+      { t: "An EventBridge rule matching 'AWS API Call via CloudTrail' for AuthorizeSecurityGroupIngress that invokes Lambda (or SSM Automation) to revoke the rule and publish to SNS.",
+        why: "Correct. Near-real-time reaction to the API call." },
+      { t: "A daily Athena query on CloudTrail logs.",
+        why: "Too slow." },
+      { t: "Enable log file validation.",
+        why: "Integrity only." },
+      { t: "SNS notification on CloudTrail log delivery.",
+        why: "Per file and no remediation." }
+    ],
+    answer: [0],
+    tip: "React to an API call = EventBridge (CloudTrail event) -> Lambda / SSM."
+  },
+  {
+    id: "ctr-12", domain: "d4", topic: "CloudTrail",
+    q: "A team wants to be notified when an IAM access key suddenly makes an unusually high number of TerminateInstances or DeleteBucket calls, without defining static thresholds. What should they enable?",
+    options: [
+      { t: "CloudTrail Insights (ApiCallRateInsight, and ApiErrorRateInsight for error spikes) with EventBridge notifications.",
+        why: "Correct. Insights detects unusual write management API activity vs a baseline." },
+      { t: "S3 data events.",
+        why: "Logs object operations, no anomaly detection." },
+      { t: "Log file validation.",
+        why: "Integrity only." },
+      { t: "CloudWatch Logs retention.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Unusual API call volume = CloudTrail Insights."
+  },
+  {
+    id: "ctr-13", domain: "d4", topic: "CloudTrail",
+    q: "CloudTrail data event costs are very high because the trail logs all object-level events for every S3 bucket. Only writes to two compliance buckets are needed. What should be done?",
+    options: [
+      { t: "Use advanced event selectors limited to the two bucket ARNs and to write events (readOnly = false).",
+        why: "Correct. Fine-grained selectors cut volume and cost." },
+      { t: "Disable management events.",
+        why: "Loses critical audit data and isn't the cost driver." },
+      { t: "Enable Insights.",
+        why: "Adds cost." },
+      { t: "Turn off log file validation.",
+        why: "Minimal cost and loses integrity." }
+    ],
+    answer: [0],
+    tip: "Data event cost = advanced event selectors."
+  },
+  {
+    id: "ctr-14", domain: "d4", topic: "CloudTrail",
+    q: "CloudTrail management event volume is dominated by kms:Decrypt and GenerateDataKey calls from applications, increasing CloudWatch Logs and analysis costs. What can reduce this noise?",
+    options: [
+      { t: "Exclude AWS KMS events from the trail's management event logging.",
+        why: "Correct. CloudTrail supports excluding KMS (and RDS Data API) events." },
+      { t: "Disable all management events.",
+        why: "Loses audit trail." },
+      { t: "Enable data events for KMS.",
+        why: "Increases volume." },
+      { t: "Use a single-Region trail.",
+        why: "Loses coverage." }
+    ],
+    answer: [0],
+    tip: "KMS noise = exclude KMS events."
+  },
+  {
+    id: "ctr-15", domain: "d4", topic: "CloudTrail",
+    q: "A company already has an organization trail. Security creates a second trail in each account to send management events to their own bucket and is surprised by new charges. Why?",
+    options: [
+      { t: "Only the first copy of management events per Region is free; additional trails delivering the same management events are charged.",
+        why: "Correct." },
+      { t: "Organization trails are always charged.",
+        why: "First copy of management events is free." },
+      { t: "Log file validation doubles the cost.",
+        why: "Minor." },
+      { t: "Multi-Region trails cost per Region visited.",
+        why: "Not how pricing works." }
+    ],
+    answer: [0],
+    tip: "Management events: first copy free, extra copies paid."
+  },
+  {
+    id: "ctr-16", domain: "d4", topic: "CloudTrail",
+    q: "Investigators want to run SQL queries over seven years of organization-wide CloudTrail activity together with AWS Config configuration items, without building and maintaining S3 partitions, Glue tables and Athena. What should they use?",
+    options: [
+      { t: "AWS CloudTrail Lake with an organization event data store (and Config configuration items), using the long-term retention option.",
+        why: "Correct. Managed, immutable SQL event store." },
+      { t: "Athena on the S3 trail logs.",
+        why: "Requires managing tables / partitions." },
+      { t: "CloudTrail Event history.",
+        why: "90 days only." },
+      { t: "CloudWatch Logs Insights with 7-year retention.",
+        why: "Possible but not the managed audit lake with Config items." }
+    ],
+    answer: [0],
+    tip: "Managed SQL audit lake = CloudTrail Lake."
+  },
+  {
+    id: "ctr-17", domain: "d4", topic: "CloudTrail",
+    q: "A company wants to store audit events from an on-premises application and a SaaS partner alongside AWS API activity, and query them together with SQL. What fits?",
+    options: [
+      { t: "CloudTrail Lake event data stores with integrations for non-AWS events (partner integrations or PutAuditEvents).",
+        why: "Correct. Lake accepts external audit events." },
+      { t: "An organization trail.",
+        why: "Only AWS API events." },
+      { t: "CloudTrail Insights.",
+        why: "Anomaly detection only." },
+      { t: "VPC Flow Logs.",
+        why: "Network data." }
+    ],
+    answer: [0],
+    tip: "Non-AWS audit events with CloudTrail = Lake integrations."
+  },
+  {
+    id: "ctr-18", domain: "d4", topic: "CloudTrail",
+    q: "An auditor asks what the inbound rules of a security group were last Tuesday and whether the group was compliant with policy. Which service answers this BEST?",
+    options: [
+      { t: "AWS Config (configuration history and rule compliance); CloudTrail answers who made the change.",
+        why: "Correct." },
+      { t: "CloudTrail Event history.",
+        why: "Shows API calls, not the resulting configuration state." },
+      { t: "CloudTrail Insights.",
+        why: "Unusual volume only." },
+      { t: "VPC Flow Logs.",
+        why: "Traffic, not configuration." }
+    ],
+    answer: [0],
+    tip: "State over time = Config · who did it = CloudTrail."
+  },
+  {
+    id: "ctr-19", domain: "d4", topic: "CloudTrail",
+    q: "A security team wants to know which principals called AWS APIs through a VPC interface endpoint, including requests that the endpoint policy denied. Which CloudTrail feature fits?",
+    options: [
+      { t: "Network activity events for VPC endpoints.",
+        why: "Correct. Captures calls via endpoints including denied ones." },
+      { t: "S3 server access logs.",
+        why: "S3 only and no endpoint policy context." },
+      { t: "CloudTrail Insights.",
+        why: "Volume anomalies." },
+      { t: "Event history.",
+        why: "Doesn't show endpoint-denied calls." }
+    ],
+    answer: [0],
+    tip: "API calls via VPC endpoints = network activity events."
+  },
+  {
+    id: "ctr-20", domain: "d4", topic: "CloudTrail",
+    q: "A security engineer expects an SNS notification for every API call by enabling SNS on the trail, but receives far fewer messages. Why?",
+    options: [
+      { t: "Trail SNS notifications are sent per log file delivered to S3, not per API event; use EventBridge for per-event notifications.",
+        why: "Correct." },
+      { t: "SNS drops most CloudTrail messages.",
+        why: "No." },
+      { t: "Only data events trigger SNS.",
+        why: "No." },
+      { t: "SNS needs Insights enabled.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Trail SNS = per log file; EventBridge = per event."
+  },
+  {
+    id: "ctr-21", domain: "d4", topic: "CloudTrail",
+    q: "A company wants AWS Config to flag any account where CloudTrail isn't enabled in all Regions or log file validation is off, as part of continuous compliance. Which managed rules help? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "multi-region-cloudtrail-enabled",
+        why: "Correct." },
+      { t: "cloud-trail-log-file-validation-enabled",
+        why: "Correct." },
+      { t: "s3-bucket-versioning-enabled only",
+        why: "Doesn't check CloudTrail." },
+      { t: "required-tags",
+        why: "Tagging only." },
+      { t: "ec2-instance-detailed-monitoring-enabled",
+        why: "Unrelated." }
+    ],
+    answer: [0, 1],
+    tip: "Config checks CloudTrail = multi-region-cloudtrail-enabled + log-file-validation-enabled."
+  },
+  {
+    id: "ctr-22", domain: "d4", topic: "CloudTrail",
+    q: "Which statements about CloudTrail are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Data events (such as S3 GetObject and Lambda Invoke) are not logged by default and are charged per event.",
+        why: "Correct." },
+      { t: "Member accounts can view but not modify or delete an organization trail.",
+        why: "Correct." },
+      { t: "Log file validation prevents anyone from deleting log files.",
+        why: "It only detects changes." },
+      { t: "Event history retains data events for 90 days.",
+        why: "Management events only." },
+      { t: "CloudTrail Insights analyses data events for anomalies.",
+        why: "It analyses write management events." }
+    ],
+    answer: [0, 1],
+    tip: "Data events off + paid · members can't change org trails."
   }
 ];
+
 
 
 

@@ -58,5 +58,6 @@ window.MATERIALS = [
   { domain: "d4", topics: ["CloudWatch Agent"], title: "Week 6 notes - CloudWatch Agent (traps, lab, check yourself)", file: "pdfs/Week6_CloudWatch_Agent.pdf" },
   { domain: "d4", topics: ["CloudWatch Logs"], title: "Week 6 notes - CloudWatch Logs (traps, lab, check yourself)", file: "pdfs/Week6_CloudWatch_Logs.pdf" },
   { domain: "d4", topics: ["Synthetics, RUM and Insights"], title: "Week 6 notes - Synthetics, RUM, Container / Lambda Insights, Application Signals (traps, lab, check yourself)", file: "pdfs/Week6_Synthetics_RUM_Insights.pdf" },
-  { domain: "d4", topics: ["X-Ray and ADOT"], title: "Week 6 notes - AWS X-Ray and AWS Distro for OpenTelemetry (traps, lab, check yourself)", file: "pdfs/Week6_XRay_and_ADOT.pdf" }
+  { domain: "d4", topics: ["X-Ray and ADOT"], title: "Week 6 notes - AWS X-Ray and AWS Distro for OpenTelemetry (traps, lab, check yourself)", file: "pdfs/Week6_XRay_and_ADOT.pdf" },
+  { domain: "d4", topics: ["CloudTrail"], title: "Week 6 notes - AWS CloudTrail (traps, lab, check yourself)", file: "pdfs/Week6_CloudTrail.pdf" }
 ];

@@ -3403,6 +3403,61 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "CloudTrail",
+  sections: [
+    { h: "History, trails, Lake", items: [
+      "**Event history**: free, **90 days**, **management only**, per Region",
+      "**Trail** → **S3** (gzip JSON ~5 min) + optional **CloudWatch Logs** (role) + **SNS per log file**",
+      "**Multi-Region** (incl. new Regions) · **global events (IAM, STS, CloudFront) in us-east-1**",
+      "**Organization trail** (management / delegated admin, trusted access) · all accounts incl. new · **members can't change it**",
+      "**Bucket policy** for `cloudtrail.amazonaws.com` · **SSE-KMS**: key policy allows CloudTrail, readers need **kms:Decrypt**"
+    ]},
+    { h: "Event types", table: [
+      ["Type", "Remember"],
+      ["**Management**", "Control plane, read / write · **on** · **first copy free** · exclude **KMS** / RDS Data API noise"],
+      ["**Data**", "**S3 objects**, **Lambda Invoke**, **DynamoDB items** … · **off**, per event · **advanced selectors** (ARN, eventName, readOnly)"],
+      ["**Network activity**", "API calls via **VPC endpoints**, incl. **denied** by endpoint policy"],
+      ["**Insights**", "Unusual **call rate / error rate** on write management events · baseline ~36 h · → EventBridge"]
+    ]},
+    { h: "Integrity and protection", items: [
+      "**Log file validation**: hourly **SHA-256 + RSA** digests · **`aws cloudtrail validate-logs`** · **detects**, doesn't prevent",
+      "Prevent: org trail · **Log Archive account** · **Object Lock / MFA Delete** · bucket policy deny delete · **SCP deny StopLogging / DeleteTrail / UpdateTrail / PutEventSelectors**",
+      "Config rules: `cloudtrail-enabled`, **`multi-region-cloudtrail-enabled`**, **`cloud-trail-log-file-validation-enabled`**"
+    ]},
+    { h: "React and query", items: [
+      "**CIS alarms**: trail → CloudWatch Logs → **metric filters** (root login, AccessDenied, IAM / SG / NACL / CloudTrail changes) → alarms",
+      "**EventBridge** `AWS API Call via CloudTrail` + eventName → **Lambda / SSM** revert (e.g. SSH 0.0.0.0/0) · data events need the trail to log them",
+      "CloudTrail = **who** · Config = **state / compliance**",
+      "**Athena** on S3 (partition projection, cheap) vs **CloudTrail Lake** (managed SQL event data stores, **org**, **Config items**, **non-AWS events**, up to ~10 yrs, immutable, NL queries)"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Who terminated it 45 days ago", "Event history (90 days)"],
+      ["Who downloaded S3 objects", "S3 data events"],
+      ["All accounts, can't disable", "Organization trail"],
+      ["Prove logs unaltered", "Log file validation + validate-logs"],
+      ["Prevent log deletion", "Log archive acct + Object Lock + SCP"],
+      ["Trail can't write to S3", "Bucket policy for CloudTrail"],
+      ["SSE-KMS trail issues", "Key policy + kms:Decrypt"],
+      ["Activity in other Regions missed", "Multi-Region trail"],
+      ["IAM events location", "us-east-1 (global)"],
+      ["Root login alarm", "Metric filter → alarm"],
+      ["Revert SSH 0.0.0.0/0 in seconds", "EventBridge → Lambda / SSM"],
+      ["API call spike, no threshold", "CloudTrail Insights"],
+      ["Data event cost", "Advanced event selectors"],
+      ["KMS Decrypt noise", "Exclude KMS events"],
+      ["Second trail charges", "Only first copy free"],
+      ["7 yrs SQL + Config items", "CloudTrail Lake"],
+      ["On-prem / SaaS audit events", "Lake integrations"],
+      ["SG rules last Tuesday", "AWS Config"],
+      ["Calls via VPC endpoint", "Network activity events"],
+      ["SNS for every call", "EventBridge (SNS is per file)"],
+      ["Config checks CloudTrail", "multi-region + validation rules"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
