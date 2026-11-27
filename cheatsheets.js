@@ -3925,3 +3925,80 @@ window.CHEATSHEETS.push({
   const i = list.findIndex(c => c.domain === "d3");
   if (i < 0) list.push(sheet); else list.splice(i, 0, sheet);
 })();
+
+// Domain 4 master sheet: placed first among the Domain 4 cheat sheets.
+(function () {
+  const sheet = {
+  domain: "d4", topic: "Domain 4 Master Sheet",
+  sections: [
+    { h: "How to pick the answer", items: [
+      "Domain 4 = **15%** · **4.1** collect / aggregate / store · **4.2** audit, monitor, analyze · **4.3** automate monitoring and event management",
+      "Signal: number → **metric / alarm** · log line → **CloudWatch Logs** · request path → **X-Ray** · who called an API → **CloudTrail** · network → **Flow Logs** · real users → **RUM** · synthetic → **canary**",
+      "Not published by AWS (memory, disk, logs) → **CloudWatch agent** · Lambda KPI → **EMF**",
+      "**Alert** = metrics / alarms / EventBridge · **analyze** = logs, Athena, Insights · real time = subscription / Firehose / EventBridge",
+      "Many accounts = **org trail**, **OAM** (view), **Logs destination + Firehose + StackSets** (copy), **Log Archive account**"
+    ]},
+    { h: "Services in one line", table: [
+      ["Service", "Remember"],
+      ["**Metrics**", "Retention 3 h / 15 d / 63 d / 15 mo · cardinality cost · high-res custom only · metric math alarms · Metrics Insights · anomaly detection · global dashboards · OAM · metric streams"],
+      ["**Alarms**", "M of N · notBreaching / breaching · EC2 reboot (instance) / recover (system) · ASG step · OpsItem / Incident Manager · composite + suppressor (no EC2 / ASG) · us-east-1 billing / R53"],
+      ["**Agent**", "CWAgent · ServerPolicy fleet / AdminPolicy wizard · `AmazonCloudWatch-*` · State Manager by tag · append-config · ASG aggregation · VPC endpoints"],
+      ["**Logs**", "Retention never by default · metric filters (not retroactive, default 0) · subscription (2 max, base64+gzip, account policy) · Insights · export batch 12 h · destination cross-account"],
+      ["**Synthetics / RUM**", "Canary min 1 min, visual, VPC needs NAT / endpoints · RUM real users, Cognito, sample rate, 30 days"],
+      ["**Insights / Signals**", "Container Insights: ECS setting, EKS add-on · Lambda Insights: layer + policy · Application Signals: APM, map, SLOs"],
+      ["**X-Ray / ADOT**", "Annotations searchable · Lambda active tracing · API GW stage · ALB header only · 1/s + 5% · central rules · UDP 2000 · groups / Insights · ADOT vendor-neutral"],
+      ["**CloudTrail**", "90-day history · multi-Region / org trail · data events off + paid · Insights · validation detects · SCP / Object Lock prevent · EventBridge revert · Lake"],
+      ["**Centralized**", "Firehose (Parquet, dynamic partitions, no replay) · KDS (replay) · Athena (partitions, projection, workgroups) · OpenSearch (ISM, UltraWarm) · Security Lake OCSF"],
+      ["**Flow / access logs**", "Metadata only · NACL pattern · pkt-* fields · Traffic Mirroring · Reachability Analyzer · ELB logs S3 only, SSE-S3 · S3 server logs best effort, not same bucket"]
+    ]},
+    { h: "Keywords: metrics, alarms, agent", table: [
+      ["The question says", "Answer"],
+      ["Memory / disk on EC2", "CloudWatch agent"],
+      ["Alarm within 10-20 s", "High-res metric + 10 s alarm"],
+      ["Lambda PutMetricData throttled", "EMF"],
+      ["Error rate, no new metric", "Metric math alarm"],
+      ["Seasonal traffic", "Anomaly detection"],
+      ["Central view of all accounts", "OAM"],
+      ["Error-only metric INSUFFICIENT_DATA", "notBreaching"],
+      ["Heartbeat stopped", "breaching"],
+      ["Host failure, keep IP", "Recover (system check)"],
+      ["40 alerts for one outage", "Composite alarm"],
+      ["Multi-step remediation", "EventBridge → SSM Automation"],
+      ["Agent on new instances", "State Manager by tag"],
+      ["Scale ASG on memory", "ASG aggregation + custom metric"]
+    ]},
+    { h: "Keywords: logs, tracing, audit, network", table: [
+      ["The question says", "Answer"],
+      ["Filter missing old errors", "Logs Insights (not retroactive)"],
+      ["Continuous logs to S3 / Splunk", "Subscription → Firehose"],
+      ["Cross-account log copy", "Logs destination + StackSets"],
+      ["Night outage, no users", "Synthetics canary"],
+      ["SLOs + error budgets", "Application Signals"],
+      ["Search traces by customer", "Annotations"],
+      ["Who downloaded S3 objects", "CloudTrail data events"],
+      ["All accounts, can't disable", "Organization trail"],
+      ["Revert SSH 0.0.0.0/0", "EventBridge → Lambda / SSM"],
+      ["Many consumers + replay", "Kinesis Data Streams"],
+      ["Athena too expensive", "Partitions + Parquet"],
+      ["Inbound ACCEPT, outbound REJECT", "NACL"],
+      ["502 with target -1", "Keep-alive > idle timeout"]
+    ]},
+    { h: "Numbers to remember", items: [
+      "Metrics **3 h / 15 d / 63 d / 15 mo** · 30 dimensions · high-res alarms **10 / 30 s** · math ≤ **10** metrics · 3 free dashboards · alarm history **30 d**",
+      "Logs event **256 KB** · retention 1 d – 10 yr · **2** subscription filters · export **12 h**, one at a time · 3 metric-filter dimensions",
+      "Canary **1 min** · RUM **30 d** · X-Ray **1/s + 5%**, **UDP 2000**, 30 d, 50 annotations · StatsD **UDP 8125**",
+      "CloudTrail history **90 d**, delivery ~**5 min**, digests **hourly**, Lake ~**10 yr** · Firehose **1–128 MB / 0–900 s** · KDS 24 h – 365 d · Flow Logs **10 / 1 min**"
+    ]},
+    { h: "Classic wrong answers", items: [
+      "Detailed monitoring gives memory ✗ · high-res AWS/EC2 ✗ · delete metrics ✗ · alarm on SEARCH ✗ · edit target tracking alarms ✗",
+      "Composite stops EC2 ✗ · recover for OS hang ✗ · AdminPolicy on fleet ✗ · Run Command for new instances ✗ · agent auto-reloads ✗",
+      "Metric filters retroactive ✗ · export for real time ✗ · 3rd subscription filter ✗ · RUM with no users ✗ · agent for ECS Container Insights ✗",
+      "Daemon inside Lambda ✗ · ALB X-Ray node ✗ · metadata searchable ✗ · Event history data events ✗ · validation prevents deletion ✗",
+      "Firehose replay ✗ · Flow Logs payloads ✗ · SG for ACCEPT / REJECT pattern ✗ · ELB logs to CloudWatch ✗ · server access logs to same bucket ✗"
+    ]}
+  ]
+  };
+  const list = window.CHEATSHEETS;
+  const i = list.findIndex(c => c.domain === "d4");
+  if (i < 0) list.push(sheet); else list.splice(i, 0, sheet);
+})();
