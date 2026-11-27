@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail","Centralized Logging"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail","Centralized Logging","Flow Logs and Access Logs"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -18440,8 +18440,371 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Firehose buffered, no replay · Athena per data scanned."
+  },
+  // ───────────────────────────── Domain 4: Flow Logs and Access Logs ─────────────────────────────
+  {
+    id: "fal-01", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "A security analyst wants to inspect the HTTP payloads of suspicious traffic reaching an EC2 instance. VPC Flow Logs are already enabled. What should be used?",
+    options: [
+      { t: "VPC Traffic Mirroring to copy packets from the instance's ENI to an inspection appliance.",
+        why: "Correct. Flow Logs contain only metadata; Traffic Mirroring copies packets." },
+      { t: "Change the Flow Logs format to include payloads.",
+        why: "Flow Logs never include payloads." },
+      { t: "Enable ALB access logs.",
+        why: "Request metadata only, and only via the ALB." },
+      { t: "Reachability Analyzer.",
+        why: "Configuration analysis, no traffic." }
+    ],
+    answer: [0],
+    tip: "Packet contents = Traffic Mirroring (Flow Logs = metadata)."
+  },
+  {
+    id: "fal-02", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Users can't reach a web server on port 443. Flow Logs for the instance's ENI show the inbound request with action ACCEPT and the outbound response with action REJECT. What is the MOST likely cause?",
+    options: [
+      { t: "The subnet's network ACL doesn't allow outbound traffic on the ephemeral ports (1024-65535).",
+        why: "Correct. NACLs are stateless; security groups would allow the response automatically." },
+      { t: "The security group blocks outbound responses.",
+        why: "Security groups are stateful - return traffic is allowed." },
+      { t: "The route table has no internet gateway route.",
+        why: "Inbound wouldn't be accepted at the ENI in this pattern." },
+      { t: "The instance has no public IP.",
+        why: "Inbound wouldn't arrive." }
+    ],
+    answer: [0],
+    tip: "Inbound ACCEPT + outbound REJECT = NACL (stateless, ephemeral ports)."
+  },
+  {
+    id: "fal-03", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "An engineer needs to change an existing VPC flow log from a 10-minute to a 1-minute aggregation interval and add custom fields. How should this be done?",
+    options: [
+      { t: "Delete the flow log and create a new one with the 1-minute interval and custom format.",
+        why: "Correct. Flow log settings can't be modified after creation." },
+      { t: "Edit the flow log settings in the console.",
+        why: "Not possible." },
+      { t: "Change the CloudWatch Logs retention.",
+        why: "Unrelated." },
+      { t: "Enable detailed monitoring on the VPC.",
+        why: "Not a VPC feature." }
+    ],
+    answer: [0],
+    tip: "Flow logs can't be edited - delete and recreate."
+  },
+  {
+    id: "fal-04", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "The networking team wants to know the original private IP addresses of instances sending traffic through a NAT gateway, and how much of that traffic goes to Amazon S3, to reduce NAT costs. What should they configure?",
+    options: [
+      { t: "A custom Flow Logs format including pkt-srcaddr, pkt-dst-aws-service and traffic-path.",
+        why: "Correct. These fields reveal original IPs and the AWS service destination." },
+      { t: "The default Flow Logs format.",
+        why: "Shows the NAT gateway's addresses, not original sources or AWS service." },
+      { t: "ALB access logs.",
+        why: "Not involved in NAT traffic." },
+      { t: "S3 server access logs only.",
+        why: "Don't show NAT path or instance source IPs." }
+    ],
+    answer: [0],
+    tip: "Original IP / AWS service in Flow Logs = custom fields pkt-*."
+  },
+  {
+    id: "fal-05", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "An engineer searches Flow Logs for DNS queries the instances made to the Amazon-provided DNS server but finds none. Why, and what should be used instead?",
+    options: [
+      { t: "Flow Logs don't capture traffic to the Amazon DNS server; enable Route 53 Resolver query logging.",
+        why: "Correct." },
+      { t: "DNS uses TCP only.",
+        why: "Irrelevant; the traffic isn't captured." },
+      { t: "Flow Logs filter was set to ACCEPT.",
+        why: "Still wouldn't capture Amazon DNS traffic." },
+      { t: "Enable VPC Traffic Mirroring for DNS.",
+        why: "Resolver query logs are the intended solution." }
+    ],
+    answer: [0],
+    tip: "VPC DNS queries = Route 53 Resolver query logs."
+  },
+  {
+    id: "fal-06", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Before deploying, an engineer wants to verify that an EC2 instance can reach an RDS database through the configured route tables, NACLs and security groups, without generating traffic. Which tool should be used?",
+    options: [
+      { t: "VPC Reachability Analyzer.",
+        why: "Correct. It analyses configuration paths between resources." },
+      { t: "VPC Flow Logs.",
+        why: "Requires actual traffic." },
+      { t: "Traffic Mirroring.",
+        why: "Copies real packets." },
+      { t: "CloudWatch Synthetics.",
+        why: "Sends test traffic to endpoints, doesn't analyse VPC configuration." }
+    ],
+    answer: [0],
+    tip: "Config reachability without traffic = Reachability Analyzer."
+  },
+  {
+    id: "fal-07", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "The security team wants a continuously updated view of the top 10 source IP addresses with rejected connections in a VPC whose Flow Logs go to CloudWatch Logs. What is the simplest solution?",
+    options: [
+      { t: "A CloudWatch Contributor Insights rule on the Flow Logs log group keyed on source address with action = REJECT.",
+        why: "Correct. Top-N contributors over time." },
+      { t: "A metric filter with source IP as a dimension.",
+        why: "High cardinality and costly." },
+      { t: "Daily export tasks to S3.",
+        why: "Not continuous." },
+      { t: "Reachability Analyzer.",
+        why: "Configuration analysis." }
+    ],
+    answer: [0],
+    tip: "Top talkers / rejected sources = Contributor Insights."
+  },
+  {
+    id: "fal-08", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "A company wants VPC Flow Logs enabled on every VPC in every account, including VPCs created in the future, with automatic correction if someone disables them. What should be used?",
+    options: [
+      { t: "The AWS Config managed rule vpc-flow-logs-enabled with SSM Automation remediation, deployed organization-wide (for example with conformance packs or StackSets).",
+        why: "Correct. Detects and fixes missing flow logs." },
+      { t: "A wiki page asking teams to enable Flow Logs.",
+        why: "Not enforced." },
+      { t: "GuardDuty.",
+        why: "Doesn't enable Flow Logs." },
+      { t: "Trusted Advisor.",
+        why: "Doesn't remediate." }
+    ],
+    answer: [0],
+    tip: "Flow Logs everywhere = Config rule + SSM remediation."
+  },
+  {
+    id: "fal-09", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "A team believes they must enable VPC Flow Logs in every account before Amazon GuardDuty can detect network threats such as port scanning. Is this correct?",
+    options: [
+      { t: "No - GuardDuty analyses VPC flow log data through its own independent feed; customers don't need to enable Flow Logs for it.",
+        why: "Correct." },
+      { t: "Yes - GuardDuty reads only customer Flow Logs.",
+        why: "It uses an independent stream." },
+      { t: "Yes - and Flow Logs must be sent to S3.",
+        why: "Not required." },
+      { t: "GuardDuty doesn't detect network threats.",
+        why: "It does." }
+    ],
+    answer: [0],
+    tip: "GuardDuty doesn't need your Flow Logs."
+  },
+  {
+    id: "fal-10", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Flow Logs must be delivered to a central S3 bucket in a log archive account in a cost-efficient format for Athena queries. Which configuration fits? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "S3 destination with Parquet file format and Hive-compatible hourly partitions.",
+        why: "Correct. Cheaper and faster Athena queries." },
+      { t: "A bucket policy allowing delivery.logs.amazonaws.com to write, restricted with aws:SourceOrgID / aws:SourceAccount.",
+        why: "Correct. Vended log delivery principal." },
+      { t: "An IAM user's access key configured on each VPC.",
+        why: "Not how delivery works." },
+      { t: "Public bucket access.",
+        why: "Never." },
+      { t: "CloudWatch Logs destination with an export task every hour.",
+        why: "More complex and costlier than direct S3 delivery." }
+    ],
+    answer: [0, 1],
+    tip: "Flow Logs to S3 = Parquet + partitions + delivery.logs bucket policy."
+  },
+  {
+    id: "fal-11", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Flow Logs to a CloudWatch Logs log group fail to deliver. What is required for the CloudWatch Logs destination that isn't required for S3?",
+    options: [
+      { t: "An IAM role that the flow logs service can assume, with permissions to create log streams and put log events.",
+        why: "Correct. S3 uses a bucket policy instead." },
+      { t: "A KMS key in another account.",
+        why: "Not required." },
+      { t: "A NAT gateway.",
+        why: "Not required." },
+      { t: "Parquet format.",
+        why: "Only for S3 delivery." }
+    ],
+    answer: [0],
+    tip: "Flow Logs to CloudWatch Logs = IAM role."
+  },
+  {
+    id: "fal-12", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "An operations team needs the client IP addresses, requested URLs and per-request latency for an Application Load Balancer over the past week. What should have been enabled?",
+    options: [
+      { t: "ALB access logs delivered to S3, queried with Athena.",
+        why: "Correct. Per-request details including client IP and processing times." },
+      { t: "CloudWatch ALB metrics only.",
+        why: "Aggregated, no per-request detail." },
+      { t: "VPC Flow Logs on the ALB subnets.",
+        why: "No URLs or HTTP status." },
+      { t: "CloudTrail data events.",
+        why: "Don't record ALB requests." }
+    ],
+    answer: [0],
+    tip: "Per-request ALB detail = access logs + Athena."
+  },
+  {
+    id: "fal-13", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "ALB access logs aren't being delivered to an S3 bucket encrypted with SSE-KMS (customer managed key). The bucket policy appears correct. What is the issue?",
+    options: [
+      { t: "ALB access logs support only SSE-S3 encryption on the destination bucket.",
+        why: "Correct. Use SSE-S3 for the access log bucket." },
+      { t: "ALB access logs must go to CloudWatch Logs.",
+        why: "They go to S3 only." },
+      { t: "The bucket must be in us-east-1.",
+        why: "Same Region as the ALB." },
+      { t: "Access logs need X-Ray enabled.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "ALB access logs = SSE-S3 only."
+  },
+  {
+    id: "fal-14", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Enabling access logs on an Application Load Balancer fails with an access denied error for the target S3 bucket. What must be configured?",
+    options: [
+      { t: "A bucket policy allowing the Elastic Load Balancing log delivery principal (the regional ELB account, or logdelivery.elasticloadbalancing.amazonaws.com in newer Regions) to put objects.",
+        why: "Correct." },
+      { t: "An IAM role attached to the ALB.",
+        why: "ALBs don't use roles for log delivery." },
+      { t: "Public write access.",
+        why: "Never." },
+      { t: "Requester Pays on the bucket.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "ALB logs access denied = ELB principal in bucket policy."
+  },
+  {
+    id: "fal-15", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "An ALB intermittently returns 502 Bad Gateway. Access log entries show elb_status_code 502, target_status_code '-', and target_processing_time -1. What is the MOST likely cause?",
+    options: [
+      { t: "The target closed the connection or returned a malformed response, often because the application's keep-alive timeout is shorter than the ALB idle timeout.",
+        why: "Correct. Set backend keep-alive longer than the ALB idle timeout." },
+      { t: "There are no registered targets.",
+        why: "That's 503." },
+      { t: "The application returned a 500 error.",
+        why: "target_status_code would be 500." },
+      { t: "The client cancelled the request.",
+        why: "Logged differently (460 on ALB)." }
+    ],
+    answer: [0],
+    tip: "502 + target -1 = backend closed connection (keep-alive)."
+  },
+  {
+    id: "fal-16", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "The team wants to be alerted within minutes when the ALB starts returning more than 1% 5xx errors. What should they use?",
+    options: [
+      { t: "A CloudWatch alarm on ALB metrics (for example a metric math error rate on HTTPCode_ELB_5XX_Count / HTTPCode_Target_5XX_Count and RequestCount).",
+        why: "Correct. Metrics are near real time; access logs are best effort." },
+      { t: "Athena queries on access logs every hour.",
+        why: "Slow and not alerting." },
+      { t: "VPC Flow Logs metric filter.",
+        why: "No HTTP status." },
+      { t: "S3 server access logs.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Alarms = metrics, not access logs."
+  },
+  {
+    id: "fal-17", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "An application behind an ALB logs the ALB's private IP as the client address. How can the application obtain the real client IP?",
+    options: [
+      { t: "Read the X-Forwarded-For HTTP header added by the ALB.",
+        why: "Correct." },
+      { t: "Enable proxy protocol v2 on the ALB.",
+        why: "Proxy protocol is an NLB feature." },
+      { t: "Use VPC Flow Logs.",
+        why: "Would show the ALB-to-target flow." },
+      { t: "Enable ALB connection draining.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Client IP behind ALB = X-Forwarded-For."
+  },
+  {
+    id: "fal-18", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "A team wants access logs for a Network Load Balancer with only TCP listeners. What should they know?",
+    options: [
+      { t: "NLB access logs are only available for TLS listeners; for TCP traffic use VPC Flow Logs (and NLB metrics).",
+        why: "Correct." },
+      { t: "NLB access logs work for all listener types.",
+        why: "Only TLS listeners." },
+      { t: "Enable X-Forwarded-For on the NLB.",
+        why: "NLB preserves source IP; no HTTP headers for TCP." },
+      { t: "Use ALB access logs.",
+        why: "Different load balancer." }
+    ],
+    answer: [0],
+    tip: "NLB access logs = TLS listeners only."
+  },
+  {
+    id: "fal-19", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "A company hosts public assets in S3 and wants a low-cost record of all requests, including anonymous requests and failed authorization attempts, for traffic analysis. Real-time delivery isn't required. What should they enable?",
+    options: [
+      { t: "S3 server access logging to a separate bucket in the same Region and account.",
+        why: "Correct. Free (storage only) and includes unauthenticated requests." },
+      { t: "CloudTrail data events for all objects.",
+        why: "Charged per event and focused on authenticated calls." },
+      { t: "VPC Flow Logs.",
+        why: "Don't capture S3 request details." },
+      { t: "CloudWatch request metrics only.",
+        why: "Aggregated, no per-request records." }
+    ],
+    answer: [0],
+    tip: "Cheap S3 request log incl. anonymous = server access logs."
+  },
+  {
+    id: "fal-20", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Security needs an alert within minutes whenever an object is deleted from a compliance bucket, including the IAM role that deleted it. Which solution fits?",
+    options: [
+      { t: "CloudTrail S3 data events for DeleteObject on that bucket, with an EventBridge rule notifying SNS.",
+        why: "Correct. Reliable, minutes, full identity." },
+      { t: "S3 server access logs queried with Athena daily.",
+        why: "Best effort, delayed, not alerting." },
+      { t: "VPC Flow Logs.",
+        why: "No object-level information." },
+      { t: "ALB access logs.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Real-time S3 object alert with identity = CloudTrail data events + EventBridge."
+  },
+  {
+    id: "fal-21", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "S3 server access logging was configured to deliver logs into the same bucket being logged, and storage costs keep growing. What is the problem and the fix? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Logging to the same bucket creates log records about log writes - an endless loop of log objects.",
+        why: "Correct." },
+      { t: "Use a separate target bucket in the same Region and account, granting logging.s3.amazonaws.com write access through the bucket policy, with a lifecycle rule.",
+        why: "Correct." },
+      { t: "Enable SSE-KMS on the target bucket to stop the loop.",
+        why: "Encryption doesn't stop the loop (and SSE-KMS isn't supported for delivery)." },
+      { t: "Move the logs bucket to another Region.",
+        why: "Target must be in the same Region." },
+      { t: "Disable versioning.",
+        why: "Doesn't fix the loop." }
+    ],
+    answer: [0, 1],
+    tip: "Server access logs: never the same bucket; same Region + account target."
+  },
+  {
+    id: "fal-22", domain: "d4", topic: "Flow Logs and Access Logs",
+    q: "Which statements about logging are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "ELB access logs are disabled by default and are delivered only to Amazon S3.",
+        why: "Correct." },
+      { t: "VPC Flow Logs don't capture traffic to the instance metadata service (169.254.169.254).",
+        why: "Correct." },
+      { t: "S3 server access logs are delivered reliably within seconds.",
+        why: "Best effort, can take hours." },
+      { t: "VPC Flow Logs record packet payloads when the 1-minute interval is used.",
+        why: "Never payloads." },
+      { t: "WAF logs can be delivered to any S3 bucket name.",
+        why: "Bucket / resource name must start with aws-waf-logs-." }
+    ],
+    answer: [0, 1],
+    tip: "ELB logs off + S3 only · Flow Logs skip metadata service."
   }
 ];
+
 
 
 

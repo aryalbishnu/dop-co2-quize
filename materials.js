@@ -60,5 +60,6 @@ window.MATERIALS = [
   { domain: "d4", topics: ["Synthetics, RUM and Insights"], title: "Week 6 notes - Synthetics, RUM, Container / Lambda Insights, Application Signals (traps, lab, check yourself)", file: "pdfs/Week6_Synthetics_RUM_Insights.pdf" },
   { domain: "d4", topics: ["X-Ray and ADOT"], title: "Week 6 notes - AWS X-Ray and AWS Distro for OpenTelemetry (traps, lab, check yourself)", file: "pdfs/Week6_XRay_and_ADOT.pdf" },
   { domain: "d4", topics: ["CloudTrail"], title: "Week 6 notes - AWS CloudTrail (traps, lab, check yourself)", file: "pdfs/Week6_CloudTrail.pdf" },
-  { domain: "d4", topics: ["Centralized Logging"], title: "Week 6 notes - Centralized logging: S3 + Athena, OpenSearch, Data Firehose (traps, lab, check yourself)", file: "pdfs/Week6_Centralized_Logging.pdf" }
+  { domain: "d4", topics: ["Centralized Logging"], title: "Week 6 notes - Centralized logging: S3 + Athena, OpenSearch, Data Firehose (traps, lab, check yourself)", file: "pdfs/Week6_Centralized_Logging.pdf" },
+  { domain: "d4", topics: ["Flow Logs and Access Logs"], title: "Week 6 notes - VPC Flow Logs, ELB and S3 access logs (traps, lab, check yourself)", file: "pdfs/Week6_Flow_and_Access_Logs.pdf" }
 ];

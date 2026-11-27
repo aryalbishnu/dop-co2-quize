@@ -3515,6 +3515,69 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "Flow Logs and Access Logs",
+  sections: [
+    { h: "VPC Flow Logs", items: [
+      "**Metadata only** (no payload) · VPC / subnet / ENI / **TGW** · ACCEPT / REJECT / ALL · **10 or 1 min** · **can't edit** → recreate",
+      "Destinations: **CloudWatch Logs (IAM role)** · **S3** (bucket policy **`delivery.logs.amazonaws.com`**, **Parquet**, hourly Hive partitions) · **Firehose**",
+      "Custom fields: **`pkt-srcaddr` / `pkt-dstaddr`** (behind NAT / LB), **`pkt-dst-aws-service`**, **`tcp-flags`**, **`flow-direction`**, **`traffic-path`**, vpc / subnet / instance IDs",
+      "**Not captured**: Amazon DNS, **169.254.169.254** metadata, Time Sync, DHCP, license activation · log-status OK / NODATA / SKIPDATA"
+    ]},
+    { h: "Troubleshooting", table: [
+      ["Need / pattern", "Answer"],
+      ["Inbound ACCEPT, outbound REJECT", "**NACL** ephemeral ports (SG is stateful)"],
+      ["Packet payloads", "**Traffic Mirroring**"],
+      ["Reachability without traffic", "**Reachability Analyzer**"],
+      ["Unintended access paths", "**Network Access Analyzer**"],
+      ["Top talkers / rejected sources", "**Contributor Insights**"],
+      ["DNS queries", "**Route 53 Resolver query logs**"],
+      ["Network threats", "**GuardDuty** (own feed, no Flow Logs needed)"],
+      ["Flow Logs everywhere", "Config **`vpc-flow-logs-enabled`** + SSM remediation"]
+    ]},
+    { h: "ELB access logs", items: [
+      "**Off by default** · **S3 only** · ALB ~**5 min** · best effort · free · Athena table",
+      "Bucket policy: **regional ELB account** (older Regions) or **`logdelivery.elasticloadbalancing.amazonaws.com`** · **SSE-S3 only**",
+      "**NLB access logs = TLS listeners only** · ALB **connection logs** = mTLS cert details",
+      "Fields: **client:port**, request / **target** / response processing times, **elb vs target status**, request, user agent, **trace_id**, error_reason",
+      "**502 + target_processing_time -1** = backend closed (keep-alive < idle timeout) · **503** no targets · **504** timeout",
+      "**Alarms = metrics** (HTTPCode_ELB_5XX, Target_5XX, TargetResponseTime) · client IP at backend = **X-Forwarded-For**"
+    ]},
+    { h: "S3 server access logs vs CloudTrail data events", table: [
+      ["", "Server access logs", "CloudTrail data events"],
+      ["Delivery", "**Best effort, hours**", "**Reliable, minutes**"],
+      ["Cost", "**Free** (storage)", "Per event"],
+      ["Includes", "**Anonymous + failed** requests, IP, status, timings", "**IAM identity**, parameters"],
+      ["Alerts", "No (Athena)", "**EventBridge**"],
+      ["Rules", "**Same Region + account** target, **not same bucket**, `logging.s3` policy, SSE-S3", "Advanced selectors"]
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Need HTTP payloads", "Traffic Mirroring"],
+      ["Inbound ACCEPT, outbound REJECT", "NACL ephemeral ports"],
+      ["Change interval / format", "Delete and recreate"],
+      ["Original IP through NAT, S3 share", "Custom pkt-* fields"],
+      ["DNS queries missing", "Resolver query logs"],
+      ["Check path, no traffic", "Reachability Analyzer"],
+      ["Top rejected sources", "Contributor Insights"],
+      ["Flow Logs in every VPC", "Config rule + remediation"],
+      ["GuardDuty needs Flow Logs?", "No"],
+      ["Flow Logs for Athena", "S3 Parquet + partitions + delivery.logs"],
+      ["Flow Logs to CW Logs fail", "IAM role"],
+      ["ALB client IP / URL / latency", "Access logs + Athena"],
+      ["ALB logs with SSE-KMS fail", "SSE-S3 only"],
+      ["ALB logs access denied", "ELB principal bucket policy"],
+      ["502, target -1", "Keep-alive > idle timeout"],
+      ["Alert on 5xx rate", "Metrics alarm"],
+      ["App sees ALB IP", "X-Forwarded-For"],
+      ["NLB TCP access logs", "TLS only → Flow Logs"],
+      ["Cheap S3 log incl. anonymous", "Server access logs"],
+      ["Alert on S3 delete with identity", "Data events + EventBridge"],
+      ["Logs to same bucket", "Endless loop"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
