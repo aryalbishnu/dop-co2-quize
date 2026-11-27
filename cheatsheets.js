@@ -3458,6 +3458,63 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "Centralized Logging",
+  sections: [
+    { h: "Architecture", items: [
+      "**Log Archive account** (Control Tower) · **S3 = system of record** (Object Lock, SSE-KMS, lifecycle)",
+      "CloudTrail org trail, Config, **vended logs** (VPC Flow, ELB, S3, CloudFront) → **S3 direct**",
+      "CloudWatch Logs → subscription / **account policy (StackSets)** → **Logs destination** → **Firehose** → S3 + OpenSearch",
+      "**Security Lake** = security logs normalized to **OCSF** for SIEM subscribers"
+    ]},
+    { h: "Data Firehose", table: [
+      ["Item", "Remember"],
+      ["Delivery", "**Serverless, near real time**, buffer **1–128 MB / 0–900 s** (zero buffering option)"],
+      ["Sources", "Direct PUT, **KDS**, MSK, **CloudWatch Logs**, EventBridge, WAF"],
+      ["Destinations", "**S3**, Redshift, **OpenSearch** (+ Serverless), **Splunk**, Snowflake, Iceberg, **HTTP** (Datadog…)"],
+      ["Processing", "**Lambda transform** · **CW Logs decompression** · **Parquet / ORC** (Glue schema) · **dynamic partitioning** · GZIP · KMS"],
+      ["Errors", "**S3 error prefix** · backup all records · retries then S3"],
+      ["vs **KDS**", "Firehose: one destination, **no replay**, no code · KDS: real time, **many consumers**, **replay** · combine KDS → Firehose"]
+    ]},
+    { h: "S3 + Athena", items: [
+      "Bucket policy for **cloudtrail / config / `delivery.logs.amazonaws.com` / ELB** principals + `aws:SourceOrgID` · KMS key policy",
+      "**Object Lock** + versioning · deny delete · **lifecycle** IA → Glacier → expire after retention",
+      "Athena per **TB scanned**: **partitions + partition projection** (no crawler / MSCK) · **Parquet / ORC** · compression · fewer columns · CTAS",
+      "**Workgroups** = per-query scan limits, cost per team · Glue Catalog · Lake Formation · QuickSight"
+    ]},
+    { h: "OpenSearch", items: [
+      "**Real-time full-text search**, Dashboards, alerting, anomaly detection · ingest via **Firehose** / **OpenSearch Ingestion**",
+      "3 dedicated masters · Multi-AZ standby · **Hot → UltraWarm (read-only) → Cold** · **ISM** rollover / move / delete · snapshots to S3",
+      "**Serverless** time-series collections (no cluster mgmt) · VPC (Firehose VPC delivery) · **FGAC** · **Cognito / SAML**",
+      "Storage full / red → **ISM**, UltraWarm, storage · keep hot **7–30 days**, archive to S3"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["200 accounts, immutable, serverless", "Subscription → destination → Firehose → S3"],
+      ["Many consumers + replay", "Kinesis Data Streams"],
+      ["No-code stream to S3", "Firehose"],
+      ["CW Logs gzip in Firehose", "Native decompression"],
+      ["Cheaper Athena, no ETL", "Firehose Parquet conversion"],
+      ["Prefixes from fields", "Dynamic partitioning"],
+      ["Athena too expensive", "Partitions + Parquet + columns"],
+      ["New partitions missing", "Partition projection"],
+      ["Cap team scans", "Athena workgroup"],
+      ["Flow Logs can't write", "delivery.logs bucket + KMS policy"],
+      ["7 yrs unchanged, cheap", "Object Lock + lifecycle Glacier"],
+      ["Real-time search + 7 yr SQL", "OpenSearch short + S3 / Athena"],
+      ["OpenSearch red, disk full", "ISM + UltraWarm / cold"],
+      ["Cheaper searchable older logs", "UltraWarm"],
+      ["No cluster management", "OpenSearch Serverless"],
+      ["Firehose failures", "S3 error / backup prefix"],
+      ["Firehose → VPC domain", "VPC delivery + access policy"],
+      ["SSO + per-team indices", "SAML / Cognito + FGAC"],
+      ["OCSF security data", "Security Lake"],
+      ["Splunk + raw copy", "Firehose Splunk + S3 backup"],
+      ["Mask card numbers", "Firehose Lambda transform"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [

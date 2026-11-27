@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail","Centralized Logging"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -18075,8 +18075,374 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "Data events off + paid · members can't change org trails."
+  },
+  // ───────────────────────────── Domain 4: Centralized Logging ─────────────────────────────
+  {
+    id: "clg-01", domain: "d4", topic: "Centralized Logging",
+    q: "A company with 200 AWS accounts must collect application logs from CloudWatch Logs in every account into an immutable central store in a log archive account, with no servers to manage. Which design meets this requirement?",
+    options: [
+      { t: "Account-level subscription filter policies (deployed with StackSets) send logs to a CloudWatch Logs destination in the log archive account, which feeds Amazon Data Firehose delivering to an S3 bucket with Object Lock.",
+        why: "Correct. Serverless, cross-account and immutable." },
+      { t: "An EC2 Logstash fleet in each account pulling logs and copying them to S3.",
+        why: "Servers to manage." },
+      { t: "Daily export tasks from each account to a shared bucket.",
+        why: "Batch, limited and manual." },
+      { t: "Copy logs with a cron job on a bastion host.",
+        why: "Not scalable or serverless." }
+    ],
+    answer: [0],
+    tip: "Central serverless log pipeline = subscription -> destination -> Firehose -> S3 (Object Lock)."
+  },
+  {
+    id: "clg-02", domain: "d4", topic: "Centralized Logging",
+    q: "Log events must be consumed by three independent applications in real time, and one of them must be able to reprocess the last 3 days of events after a bug fix. Which service should receive the logs first?",
+    options: [
+      { t: "Amazon Kinesis Data Streams with retention of at least 3 days (optionally feeding Firehose for delivery).",
+        why: "Correct. Multiple consumers and replay." },
+      { t: "Amazon Data Firehose only.",
+        why: "One destination, no replay." },
+      { t: "Amazon S3 event notifications.",
+        why: "Not a real-time multi-consumer stream." },
+      { t: "Amazon SNS.",
+        why: "No replay." }
+    ],
+    answer: [0],
+    tip: "Many consumers + replay = Kinesis Data Streams."
+  },
+  {
+    id: "clg-03", domain: "d4", topic: "Centralized Logging",
+    q: "A team needs to load streaming JSON logs into Amazon S3 with no code, with records arriving within about a minute. What should they use?",
+    options: [
+      { t: "Amazon Data Firehose with an S3 destination and a buffer interval of 60 seconds (or less).",
+        why: "Correct. Serverless near-real-time delivery." },
+      { t: "Kinesis Data Streams with a custom KCL consumer writing to S3.",
+        why: "Requires code." },
+      { t: "AWS Glue crawlers.",
+        why: "Catalog metadata, not delivery." },
+      { t: "Amazon Athena CTAS.",
+        why: "Queries existing data." }
+    ],
+    answer: [0],
+    tip: "No-code streaming to S3 = Firehose."
+  },
+  {
+    id: "clg-04", domain: "d4", topic: "Centralized Logging",
+    q: "Firehose receives records from a CloudWatch Logs subscription. The records arriving in S3 are gzip-compressed batches with CloudWatch metadata instead of plain log messages. How can this be fixed with the LEAST effort?",
+    options: [
+      { t: "Enable Firehose's CloudWatch Logs decompression and message extraction option.",
+        why: "Correct. Native decompression without Lambda." },
+      { t: "Write a Lambda transform to decode and decompress records.",
+        why: "Works but more effort than the native option." },
+      { t: "Disable compression on the log group.",
+        why: "Subscription data is always compressed." },
+      { t: "Use an export task instead.",
+        why: "Batch, not streaming." }
+    ],
+    answer: [0],
+    tip: "CloudWatch Logs gzip in Firehose = native decompression."
+  },
+  {
+    id: "clg-05", domain: "d4", topic: "Centralized Logging",
+    q: "Athena queries over JSON logs in S3 are slow and expensive. The logs arrive through Firehose. How can the team make them cheaper to query without building a separate ETL job?",
+    options: [
+      { t: "Enable Firehose record format conversion to Apache Parquet using a Glue Data Catalog table schema.",
+        why: "Correct. Columnar format greatly reduces data scanned." },
+      { t: "Increase the Firehose buffer to 900 seconds.",
+        why: "Doesn't change format." },
+      { t: "Store logs in S3 Glacier Deep Archive.",
+        why: "Not queryable by Athena directly." },
+      { t: "Run an EMR cluster nightly.",
+        why: "Separate ETL job." }
+    ],
+    answer: [0],
+    tip: "Cheaper Athena on Firehose data = Parquet conversion."
+  },
+  {
+    id: "clg-06", domain: "d4", topic: "Centralized Logging",
+    q: "Logs from many accounts and services flow through one Firehose stream. Analysts want S3 prefixes like account=123/service=cart/dt=2026-11-27/ created automatically from fields in each record. What should be configured?",
+    options: [
+      { t: "Firehose dynamic partitioning using jq expressions (or a Lambda) to extract partition keys.",
+        why: "Correct." },
+      { t: "One Firehose stream per account and service.",
+        why: "Unmanageable at scale." },
+      { t: "S3 lifecycle rules.",
+        why: "Move / expire objects, don't partition." },
+      { t: "Athena workgroups.",
+        why: "Query governance only." }
+    ],
+    answer: [0],
+    tip: "Prefixes from record fields = dynamic partitioning."
+  },
+  {
+    id: "clg-07", domain: "d4", topic: "Centralized Logging",
+    q: "Athena queries on several years of CloudTrail logs scan terabytes and cost too much. Which actions reduce cost? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Partition the table by date / account / Region (for example with partition projection) and filter on partitions in WHERE clauses.",
+        why: "Correct. Only matching prefixes are scanned." },
+      { t: "Convert data to compressed columnar format (Parquet / ORC) with CTAS or Firehose conversion, and select only needed columns.",
+        why: "Correct." },
+      { t: "Use SELECT * on all queries.",
+        why: "Scans every column." },
+      { t: "Move the data to S3 Standard from Standard-IA.",
+        why: "Doesn't reduce data scanned." },
+      { t: "Disable compression.",
+        why: "Increases data scanned." }
+    ],
+    answer: [0, 1],
+    tip: "Athena cost = partitions + Parquet + compression + fewer columns."
+  },
+  {
+    id: "clg-08", domain: "d4", topic: "Centralized Logging",
+    q: "Every morning, analysts can't see the previous day's logs in Athena until someone runs MSCK REPAIR TABLE. What is the BEST fix?",
+    options: [
+      { t: "Configure partition projection on the table so partitions are calculated from table properties.",
+        why: "Correct. No crawler or repair needed." },
+      { t: "Run a Glue crawler every minute.",
+        why: "Costly and unnecessary." },
+      { t: "Remove partitioning.",
+        why: "Increases scan cost." },
+      { t: "Use a larger Athena workgroup.",
+        why: "Doesn't add partitions." }
+    ],
+    answer: [0],
+    tip: "Missing new partitions = partition projection."
+  },
+  {
+    id: "clg-09", domain: "d4", topic: "Centralized Logging",
+    q: "One analyst team keeps running Athena queries that scan many terabytes by mistake. Management wants to cap the data each of their queries can scan and track their cost separately. What should be used?",
+    options: [
+      { t: "An Athena workgroup for the team with a per-query data usage control limit.",
+        why: "Correct. Workgroups enforce limits and separate cost." },
+      { t: "Delete old logs.",
+        why: "Loses compliance data." },
+      { t: "Service Quotas.",
+        why: "Doesn't cap per-query scan." },
+      { t: "S3 Object Lock.",
+        why: "Immutability, not query control." }
+    ],
+    answer: [0],
+    tip: "Athena spend control = workgroups."
+  },
+  {
+    id: "clg-10", domain: "d4", topic: "Centralized Logging",
+    q: "VPC Flow Logs from member accounts fail to write to a central S3 bucket in the log archive account that uses SSE-KMS. What is required? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "A bucket policy allowing delivery.logs.amazonaws.com to write, restricted by aws:SourceOrgID or aws:SourceAccount.",
+        why: "Correct. Vended logs are delivered by this service principal." },
+      { t: "A KMS key policy allowing the log delivery service to use the key.",
+        why: "Correct. Needed to encrypt with SSE-KMS." },
+      { t: "Make the bucket public.",
+        why: "Never." },
+      { t: "Enable S3 Transfer Acceleration.",
+        why: "Unrelated." },
+      { t: "Create IAM users in the log archive account.",
+        why: "Not needed." }
+    ],
+    answer: [0, 1],
+    tip: "Vended logs to central bucket = bucket policy for delivery.logs + KMS key policy."
+  },
+  {
+    id: "clg-11", domain: "d4", topic: "Centralized Logging",
+    q: "Compliance requires logs to be kept unchanged for 7 years and then deleted, at the lowest cost. How should the central S3 bucket be configured?",
+    options: [
+      { t: "Versioning + S3 Object Lock (compliance mode, 7-year retention) and lifecycle rules transitioning to Glacier storage classes and expiring after 7 years.",
+        why: "Correct. Immutable, cheap, auto-expiry." },
+      { t: "S3 Standard with no lifecycle.",
+        why: "Expensive and not immutable." },
+      { t: "Lifecycle expiry after 1 year.",
+        why: "Violates retention." },
+      { t: "Store logs in OpenSearch hot nodes for 7 years.",
+        why: "Very expensive." }
+    ],
+    answer: [0],
+    tip: "Immutable + cheap retention = Object Lock + lifecycle to Glacier."
+  },
+  {
+    id: "clg-12", domain: "d4", topic: "Centralized Logging",
+    q: "The security operations team needs real-time full-text search, dashboards and alerting on the last 14 days of logs, and occasional SQL queries over 7 years of history, at a reasonable cost. Which design is BEST?",
+    options: [
+      { t: "Firehose delivers to Amazon OpenSearch Service (14 days hot, ISM deletes older indices) and to S3 (Parquet, lifecycle, Object Lock), with Athena for history.",
+        why: "Correct. Short hot search tier plus cheap long-term archive." },
+      { t: "Keep 7 years of logs in OpenSearch hot storage.",
+        why: "Very expensive." },
+      { t: "Use only Athena for real-time dashboards.",
+        why: "Not real-time full-text search / alerting." },
+      { t: "Use CloudWatch Logs Insights for 7 years.",
+        why: "Costly storage and not the intended archive." }
+    ],
+    answer: [0],
+    tip: "Hot search + cold SQL = OpenSearch (short) + S3 / Athena (long)."
+  },
+  {
+    id: "clg-13", domain: "d4", topic: "Centralized Logging",
+    q: "An Amazon OpenSearch Service domain storing daily log indices has stopped accepting writes and shows cluster status red. Free storage is near zero. What should be done to prevent this in the future?",
+    options: [
+      { t: "Use Index State Management policies to roll over indices and move older ones to UltraWarm / cold storage or delete them, and add storage if needed.",
+        why: "Correct. ISM automates index lifecycle." },
+      { t: "Disable Firehose retries.",
+        why: "Loses data." },
+      { t: "Increase the Firehose buffer size.",
+        why: "Doesn't free storage." },
+      { t: "Remove dedicated master nodes.",
+        why: "Reduces stability." }
+    ],
+    answer: [0],
+    tip: "OpenSearch storage full = ISM + UltraWarm / cold."
+  },
+  {
+    id: "clg-14", domain: "d4", topic: "Centralized Logging",
+    q: "A company wants to keep 90 days of logs searchable in OpenSearch at lower cost, with only the last 7 days on hot nodes. Which feature fits the older data?",
+    options: [
+      { t: "UltraWarm (S3-backed, read-only warm tier), with ISM moving indices after 7 days.",
+        why: "Correct. Cheaper storage that stays queryable." },
+      { t: "More hot data nodes.",
+        why: "More expensive." },
+      { t: "Delete indices after 7 days.",
+        why: "Data no longer searchable." },
+      { t: "Store indices in EBS gp3 snapshots only.",
+        why: "Not searchable." }
+    ],
+    answer: [0],
+    tip: "Cheaper searchable older logs = UltraWarm."
+  },
+  {
+    id: "clg-15", domain: "d4", topic: "Centralized Logging",
+    q: "A team wants log search and dashboards with OpenSearch but doesn't want to size, patch or scale clusters. What should they use?",
+    options: [
+      { t: "Amazon OpenSearch Serverless with a time series collection.",
+        why: "Correct. No cluster management." },
+      { t: "Self-managed Elasticsearch on EC2.",
+        why: "Most operational overhead." },
+      { t: "An OpenSearch domain with 20 data nodes.",
+        why: "Still a managed cluster to size." },
+      { t: "Amazon Athena.",
+        why: "SQL, not search dashboards." }
+    ],
+    answer: [0],
+    tip: "No cluster management = OpenSearch Serverless."
+  },
+  {
+    id: "clg-16", domain: "d4", topic: "Centralized Logging",
+    q: "Firehose delivers to an OpenSearch domain inside a VPC, but deliveries intermittently fail. Where should the engineer look FIRST for the failed records and error details?",
+    options: [
+      { t: "The Firehose S3 backup / error output prefix and the delivery stream's CloudWatch error logs and metrics.",
+        why: "Correct. Failed documents are written to S3 with error details." },
+      { t: "CloudTrail Lake.",
+        why: "API calls, not delivery errors." },
+      { t: "VPC Flow Logs only.",
+        why: "Network metadata, no document errors." },
+      { t: "AWS Config.",
+        why: "Configuration only." }
+    ],
+    answer: [0],
+    tip: "Firehose failures = S3 error / backup prefix + delivery logs."
+  },
+  {
+    id: "clg-17", domain: "d4", topic: "Centralized Logging",
+    q: "Firehose can't deliver to an Amazon OpenSearch Service domain that has VPC access only. What must be configured?",
+    options: [
+      { t: "Firehose VPC delivery settings (subnets and security group) and a domain access policy / role mapping that allows the Firehose role.",
+        why: "Correct." },
+      { t: "Make the domain public.",
+        why: "Reduces security." },
+      { t: "An internet gateway on the domain.",
+        why: "Not how VPC domains work." },
+      { t: "Increase shard count.",
+        why: "Not connectivity." }
+    ],
+    answer: [0],
+    tip: "Firehose -> VPC OpenSearch = VPC delivery + access policy."
+  },
+  {
+    id: "clg-18", domain: "d4", topic: "Centralized Logging",
+    q: "Access to OpenSearch Dashboards must use corporate SSO, and analysts in each team must see only their own indices. What should be configured? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "SAML authentication (or Cognito / IAM Identity Center) for OpenSearch Dashboards.",
+        why: "Correct." },
+      { t: "Fine-grained access control with roles mapped to index patterns.",
+        why: "Correct. Index-level permissions." },
+      { t: "A public endpoint with a shared password.",
+        why: "Insecure." },
+      { t: "S3 Object Lock.",
+        why: "Unrelated." },
+      { t: "Athena workgroups.",
+        why: "For Athena." }
+    ],
+    answer: [0, 1],
+    tip: "OpenSearch SSO + per-team access = SAML / Cognito + FGAC."
+  },
+  {
+    id: "clg-19", domain: "d4", topic: "Centralized Logging",
+    q: "A security team must collect security logs from AWS services (CloudTrail, VPC Flow Logs, Route 53, Security Hub) and a third-party firewall, normalized into one open schema, so multiple SIEM partners can subscribe. Which service fits BEST?",
+    options: [
+      { t: "Amazon Security Lake, which stores data in OCSF format in S3 and supports subscribers.",
+        why: "Correct." },
+      { t: "CloudTrail Lake.",
+        why: "Focused on API audit events." },
+      { t: "Kinesis Data Streams.",
+        why: "No normalization." },
+      { t: "CloudWatch Logs Insights.",
+        why: "Query tool, not a normalized security lake." }
+    ],
+    answer: [0],
+    tip: "Normalized security data (OCSF) = Security Lake."
+  },
+  {
+    id: "clg-20", domain: "d4", topic: "Centralized Logging",
+    q: "A company wants to send all CloudWatch logs from an account to Splunk and also keep a raw copy in S3, without managing servers. What is the simplest design?",
+    options: [
+      { t: "Firehose with a Splunk destination and S3 backup of all source records.",
+        why: "Correct. Firehose supports Splunk delivery with S3 backup." },
+      { t: "Lambda subscription calling Splunk HEC and writing to S3.",
+        why: "Custom code." },
+      { t: "Export tasks to S3 and a Splunk forwarder on EC2.",
+        why: "Servers and batch delay." },
+      { t: "CloudWatch metric streams.",
+        why: "Metrics only." }
+    ],
+    answer: [0],
+    tip: "Splunk + raw copy = Firehose Splunk destination + S3 backup."
+  },
+  {
+    id: "clg-21", domain: "d4", topic: "Centralized Logging",
+    q: "Logs must have credit card numbers masked before they are stored in S3 by Firehose. What is the BEST place to do this?",
+    options: [
+      { t: "A Firehose Lambda data transformation that masks the values before delivery (or a CloudWatch Logs data protection policy at the source).",
+        why: "Correct. Transform records in flight." },
+      { t: "S3 lifecycle rules.",
+        why: "Don't modify content." },
+      { t: "Athena views only.",
+        why: "Raw data still stored unmasked." },
+      { t: "Glacier Vault Lock.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "Mask in flight = Firehose Lambda transform."
+  },
+  {
+    id: "clg-22", domain: "d4", topic: "Centralized Logging",
+    q: "Which statements about centralized logging services are correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Amazon Data Firehose buffers data by size or time and delivers near real time; it doesn't support replay.",
+        why: "Correct." },
+      { t: "Athena charges are based on the amount of data scanned per query.",
+        why: "Correct." },
+      { t: "Firehose supports multiple independent consumers reading the same records.",
+        why: "One destination per stream; use KDS for fan-out." },
+      { t: "OpenSearch UltraWarm nodes accept writes like hot nodes.",
+        why: "UltraWarm is read-only." },
+      { t: "Partition projection requires running a Glue crawler daily.",
+        why: "Projection removes the need for crawlers." }
+    ],
+    answer: [0, 1],
+    tip: "Firehose buffered, no replay · Athena per data scanned."
   }
 ];
+
 
 
 
