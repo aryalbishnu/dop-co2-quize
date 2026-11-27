@@ -3578,6 +3578,53 @@ window.CHEATSHEETS.push({
   ]
 });
 
+window.CHEATSHEETS.push({
+  domain: "d4", topic: "Domain 4 Extras",
+  sections: [
+    { h: "QuickSight", items: [
+      "Serverless BI on **Athena**, **OpenSearch**, Redshift, RDS, S3… · CloudWatch dashboards = ops, **QuickSight = business analytics**",
+      "**SPICE** (in-memory, scheduled / **incremental refresh**) vs **direct query** (live, Athena cost per view)",
+      "Enterprise: **row-level security**, column-level security, SSO / AD, **KMS for SPICE**, **VPC connection**, embedding, **threshold alerts**, reports",
+      "Access: allow S3 / Athena in **Security & permissions** + **`kms:Decrypt`** for encrypted logs · private sources → **VPC connection**"
+    ]},
+    { h: "Kinesis Data Streams + Flink", table: [
+      ["Item", "Remember"],
+      ["KDS capacity", "Shard **1 MB/s / 1,000 rec in, 2 MB/s out** · **EFO** 2 MB/s per consumer · on-demand"],
+      ["Order / replay", "Per partition key · retention **24 h – 365 days**"],
+      ["Lambda consumer", "**Parallelization factor ≤ 10**, **bisect on error**, max retries / age, **on-failure destination**"],
+      ["**IteratorAge** rising", "Shards / on-demand, parallelization factor, **EFO**, faster code"],
+      ["**WriteProvisionedThroughputExceeded**", "**Hot partition key**, more shards, backoff"],
+      ["**Managed Service for Apache Flink**", "Serverless stateful **windowed** analytics (tumbling / sliding / session), SQL / Java / Python, **Studio notebooks**, exactly-once, KPU scaling"],
+      ["Choose", "**Firehose delivers** · Lambda simple per-record · **Flink analyzes** · Insights / Athena stored data"]
+    ]},
+    { h: "S3 events for log files", items: [
+      "`s3:ObjectCreated:*` etc. → **Lambda**, **SQS (standard, not FIFO)**, **SNS**, or **EventBridge** (advanced filters, many targets, replay)",
+      "Prefix / suffix filters · **no overlapping configs** → SNS fan-out / EventBridge · **at least once, unordered** → idempotent",
+      "Permissions: Lambda resource policy for **`s3.amazonaws.com`** (SourceArn) · SQS / SNS policies · KMS key policy",
+      "**Recursive loop** if output goes to the same prefix → different bucket / prefix · bursts → **S3 → SQS → Lambda** (DLQ)",
+      "No-code to OpenSearch → **OpenSearch Ingestion** (S3 + SQS) · existing objects → **S3 Batch Operations** · Firehose **can't read S3**"
+    ]},
+    { h: "Pick the answer", table: [
+      ["The question says", "Answer"],
+      ["Exec dashboards on Athena logs", "QuickSight + SPICE"],
+      ["Each manager sees own rows", "Row-level security"],
+      ["QuickSight denied on KMS logs", "S3 permissions + kms:Decrypt"],
+      ["QuickSight to private RDS", "VPC connection"],
+      ["5xx per minute in real time", "Managed Service for Apache Flink"],
+      ["Parquet delivery, no code", "Firehose"],
+      ["IteratorAge rising", "Parallelization factor, shards, EFO"],
+      ["Poison record blocks shard", "Bisect + on-failure destination"],
+      ["Write throttling, spare capacity", "Hot partition key"],
+      ["Parse new log files", "S3 notification → Lambda"],
+      ["Two consumers same prefix", "SNS fan-out / EventBridge"],
+      ["Costs explode, output same prefix", "Recursive loop"],
+      ["Bursty files, throttling", "S3 → SQS → Lambda"],
+      ["S3 logs → OpenSearch, no code", "OpenSearch Ingestion"],
+      ["Process 5 years of files", "S3 Batch Operations"]
+    ]}
+  ]
+});
+
 // Extra exam scenarios added after the question gap review.
 [
   ["CodeCommit", [
@@ -3949,7 +3996,8 @@ window.CHEATSHEETS.push({
       ["**X-Ray / ADOT**", "Annotations searchable · Lambda active tracing · API GW stage · ALB header only · 1/s + 5% · central rules · UDP 2000 · groups / Insights · ADOT vendor-neutral"],
       ["**CloudTrail**", "90-day history · multi-Region / org trail · data events off + paid · Insights · validation detects · SCP / Object Lock prevent · EventBridge revert · Lake"],
       ["**Centralized**", "Firehose (Parquet, dynamic partitions, no replay) · KDS (replay) · Athena (partitions, projection, workgroups) · OpenSearch (ISM, UltraWarm) · Security Lake OCSF"],
-      ["**Flow / access logs**", "Metadata only · NACL pattern · pkt-* fields · Traffic Mirroring · Reachability Analyzer · ELB logs S3 only, SSE-S3 · S3 server logs best effort, not same bucket"]
+      ["**Flow / access logs**", "Metadata only · NACL pattern · pkt-* fields · Traffic Mirroring · Reachability Analyzer · ELB logs S3 only, SSE-S3 · S3 server logs best effort, not same bucket"],
+      ["**Extras**", "QuickSight (SPICE, RLS, VPC connection, kms:Decrypt) · KDS (IteratorAge, hot key, bisect, parallelization) · Flink windowed analytics · S3 events (SQS buffer, no overlap, recursive loop, OpenSearch Ingestion, Batch Operations)"]
     ]},
     { h: "Keywords: metrics, alarms, agent", table: [
       ["The question says", "Answer"],
@@ -3983,6 +4031,17 @@ window.CHEATSHEETS.push({
       ["Inbound ACCEPT, outbound REJECT", "NACL"],
       ["502 with target -1", "Keep-alive > idle timeout"]
     ]},
+    { h: "Keywords: extras", table: [
+      ["The question says", "Answer"],
+      ["Exec dashboards on logs", "QuickSight + SPICE"],
+      ["Own rows only", "Row-level security"],
+      ["Real-time 5xx per minute", "Managed Service for Apache Flink"],
+      ["IteratorAge rising", "Parallelization / shards / EFO"],
+      ["Two consumers same prefix", "SNS / EventBridge fan-out"],
+      ["Output to same prefix", "Recursive loop"],
+      ["Bursty log files", "S3 → SQS → Lambda"],
+      ["Existing files once", "S3 Batch Operations"]
+    ]},
     { h: "Numbers to remember", items: [
       "Metrics **3 h / 15 d / 63 d / 15 mo** · 30 dimensions · high-res alarms **10 / 30 s** · math ≤ **10** metrics · 3 free dashboards · alarm history **30 d**",
       "Logs event **256 KB** · retention 1 d – 10 yr · **2** subscription filters · export **12 h**, one at a time · 3 metric-filter dimensions",
@@ -3994,7 +4053,8 @@ window.CHEATSHEETS.push({
       "Composite stops EC2 ✗ · recover for OS hang ✗ · AdminPolicy on fleet ✗ · Run Command for new instances ✗ · agent auto-reloads ✗",
       "Metric filters retroactive ✗ · export for real time ✗ · 3rd subscription filter ✗ · RUM with no users ✗ · agent for ECS Container Insights ✗",
       "Daemon inside Lambda ✗ · ALB X-Ray node ✗ · metadata searchable ✗ · Event history data events ✗ · validation prevents deletion ✗",
-      "Firehose replay ✗ · Flow Logs payloads ✗ · SG for ACCEPT / REJECT pattern ✗ · ELB logs to CloudWatch ✗ · server access logs to same bucket ✗"
+      "Firehose replay ✗ · Flow Logs payloads ✗ · SG for ACCEPT / REJECT pattern ✗ · ELB logs to CloudWatch ✗ · server access logs to same bucket ✗",
+      "Firehose windowed analytics ✗ · S3 notification to FIFO ✗ · overlapping S3 configs ✗ · Firehose reads S3 ✗ · direct query for busy dashboards ✗"
     ]}
   ]
   };

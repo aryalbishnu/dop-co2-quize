@@ -12,7 +12,7 @@ window.DOMAINS = [
   { id: "d2", name: "Domain 2: Configuration Management & IaC", weight: 17,
     topics: ["CloudFormation Core", "CloudFormation Change Control", "Nested and Cross-Stack", "Helper Scripts and Policies", "Extending CloudFormation", "Rollback and Troubleshooting","StackSets","AWS CDK","AWS SAM","Systems Manager","AppConfig","AWS Organizations","Control Tower","Service Catalog","AWS Config","Tagging and Resource Groups","AWS RAM","Domain 2 Extras"] },
   { id: "d3", name: "Domain 3: Resilient Cloud Solutions", weight: 15, topics: ["DR Strategies","Auto Scaling","ELB","Route 53","Multi-Region Data","AWS Backup","DRS","Decoupling","Caching","FIS and Resilience Hub","Domain 3 Extras"] },
-  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail","Centralized Logging","Flow Logs and Access Logs"] },
+  { id: "d4", name: "Domain 4: Monitoring & Logging", weight: 15, topics: ["CloudWatch Metrics","CloudWatch Alarms","CloudWatch Agent","CloudWatch Logs","Synthetics, RUM and Insights","X-Ray and ADOT","CloudTrail","Centralized Logging","Flow Logs and Access Logs","Domain 4 Extras"] },
   { id: "d5", name: "Domain 5: Incident & Event Response", weight: 14, topics: [] },
   { id: "d6", name: "Domain 6: Security & Compliance", weight: 17, topics: [] }
 ];
@@ -18802,8 +18802,259 @@ window.QUESTIONS = [
     ],
     answer: [0, 1],
     tip: "ELB logs off + S3 only · Flow Logs skip metadata service."
+  },
+  // ───────────────────────────── Domain 4: Domain 4 Extras ─────────────────────────────
+  {
+    id: "d4x-01", domain: "d4", topic: "Domain 4 Extras",
+    q: "Executives want interactive weekly dashboards of error trends and request volumes derived from application logs stored in S3 and queried through Athena. Dashboards must load quickly and avoid running Athena queries on every view. What should a DevOps engineer build?",
+    options: [
+      { t: "An Amazon QuickSight dataset on the Athena table imported into SPICE with a scheduled (incremental) refresh.",
+        why: "Correct. SPICE serves dashboards from memory and refreshes on a schedule." },
+      { t: "A CloudWatch dashboard with Logs Insights widgets for executives.",
+        why: "Operational tool; QuickSight fits business dashboards." },
+      { t: "QuickSight direct query on Athena.",
+        why: "Every view runs Athena queries - slower and costlier." },
+      { t: "Export Athena results to CSV weekly.",
+        why: "Not interactive." }
+    ],
+    answer: [0],
+    tip: "Business dashboards on log data = QuickSight + SPICE."
+  },
+  {
+    id: "d4x-02", domain: "d4", topic: "Domain 4 Extras",
+    q: "A shared QuickSight dashboard shows operational data for all Regions. Each regional manager must see only rows for their own Region. What should be configured?",
+    options: [
+      { t: "Row-level security using a permissions dataset that maps users or groups to Region values (Enterprise edition).",
+        why: "Correct." },
+      { t: "A separate dashboard and dataset per manager.",
+        why: "Unmanageable." },
+      { t: "S3 bucket policies per Region.",
+        why: "Don't filter dashboard rows." },
+      { t: "CloudWatch cross-account observability.",
+        why: "Unrelated to QuickSight." }
+    ],
+    answer: [0],
+    tip: "Per-user rows in QuickSight = row-level security."
+  },
+  {
+    id: "d4x-03", domain: "d4", topic: "Domain 4 Extras",
+    q: "QuickSight fails with access denied when creating a dataset on an Athena table over log files encrypted with SSE-KMS. What should be done? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "In QuickSight Security & permissions, allow access to the log bucket and the Athena query results bucket.",
+        why: "Correct." },
+      { t: "Grant the QuickSight service role kms:Decrypt on the key used to encrypt the logs.",
+        why: "Correct." },
+      { t: "Make the log bucket public.",
+        why: "Never." },
+      { t: "Switch the dataset to a CloudWatch source.",
+        why: "Doesn't fix permissions." },
+      { t: "Disable KMS encryption on the logs.",
+        why: "Weakens security unnecessarily." }
+    ],
+    answer: [0, 1],
+    tip: "QuickSight on encrypted Athena data = S3 permissions + kms:Decrypt."
+  },
+  {
+    id: "d4x-04", domain: "d4", topic: "Domain 4 Extras",
+    q: "A company wants to build a QuickSight dashboard from an Amazon RDS database in private subnets. QuickSight can't connect. What is required?",
+    options: [
+      { t: "A QuickSight VPC connection to the VPC with a security group allowing access to the database.",
+        why: "Correct." },
+      { t: "Make the RDS instance publicly accessible.",
+        why: "Reduces security." },
+      { t: "Use SPICE without a connection.",
+        why: "SPICE still needs to read the source." },
+      { t: "Enable RDS Performance Insights.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "QuickSight to private sources = VPC connection."
+  },
+  {
+    id: "d4x-05", domain: "d4", topic: "Domain 4 Extras",
+    q: "Application logs are streamed through CloudWatch Logs subscription filters into Kinesis Data Streams. The team needs the number of HTTP 5xx errors per service in 1-minute windows, computed in real time, with alerts within seconds of a spike. Which service should perform the analytics?",
+    options: [
+      { t: "Amazon Managed Service for Apache Flink, running a windowed aggregation on the stream and emitting results to a metric or SNS.",
+        why: "Correct. Stateful windowed analytics on live streams." },
+      { t: "Amazon Data Firehose.",
+        why: "Delivers data, doesn't run windowed analytics." },
+      { t: "CloudWatch Logs Insights scheduled every hour.",
+        why: "Not real time." },
+      { t: "Athena on the S3 archive.",
+        why: "Batch queries." }
+    ],
+    answer: [0],
+    tip: "Real-time windowed log analytics = Managed Service for Apache Flink."
+  },
+  {
+    id: "d4x-06", domain: "d4", topic: "Domain 4 Extras",
+    q: "Which pairing of requirement and service is correct? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Deliver a log stream to S3 as Parquet without code - Amazon Data Firehose.",
+        why: "Correct." },
+      { t: "Detect error spikes over a sliding window on a live stream - Managed Service for Apache Flink.",
+        why: "Correct." },
+      { t: "Replay the last 3 days of stream records - Amazon Data Firehose.",
+        why: "Firehose has no replay; use KDS." },
+      { t: "Interactive SQL on live streams - Amazon Athena.",
+        why: "Use Flink Studio notebooks; Athena queries stored data." },
+      { t: "Business dashboards with row-level security - CloudWatch dashboards.",
+        why: "That's QuickSight." }
+    ],
+    answer: [0, 1],
+    tip: "Firehose delivers · Flink analyzes · KDS replays."
+  },
+  {
+    id: "d4x-07", domain: "d4", topic: "Domain 4 Extras",
+    q: "Lambda functions consuming a Kinesis data stream of logs show GetRecords.IteratorAgeMilliseconds rising steadily for hours. What can reduce the lag? (Choose TWO.)",
+    multi: true,
+    options: [
+      { t: "Increase the event source mapping's parallelization factor (up to 10 batches per shard) and optimise the function.",
+        why: "Correct. More concurrent processing per shard." },
+      { t: "Add shards (or use on-demand mode) and / or enhanced fan-out for dedicated read throughput.",
+        why: "Correct." },
+      { t: "Reduce the stream retention period.",
+        why: "Doesn't speed consumers." },
+      { t: "Decrease Lambda memory.",
+        why: "Usually slows processing." },
+      { t: "Disable bisect on error.",
+        why: "Unrelated to lag." }
+    ],
+    answer: [0, 1],
+    tip: "IteratorAge rising = parallelization factor, shards, EFO."
+  },
+  {
+    id: "d4x-08", domain: "d4", topic: "Domain 4 Extras",
+    q: "A single malformed log record causes a Lambda function consuming a Kinesis stream to fail repeatedly, blocking the shard. Which configuration helps the function skip past it while keeping the record for later analysis?",
+    options: [
+      { t: "Enable bisect batch on function error, set maximum retry attempts / record age, and configure an on-failure destination (SQS or SNS).",
+        why: "Correct. Isolates the bad record and sends its metadata to a destination." },
+      { t: "Increase the stream retention to 365 days.",
+        why: "The shard stays blocked." },
+      { t: "Delete and recreate the stream.",
+        why: "Loses data." },
+      { t: "Switch the producer to Firehose.",
+        why: "Doesn't fix the consumer." }
+    ],
+    answer: [0],
+    tip: "Poison record in KDS + Lambda = bisect + retries + on-failure destination."
+  },
+  {
+    id: "d4x-09", domain: "d4", topic: "Domain 4 Extras",
+    q: "Producers writing logs to a provisioned Kinesis data stream receive WriteProvisionedThroughputExceeded errors, although total stream capacity is far from used. Most records use the same partition key. What should be done?",
+    options: [
+      { t: "Use a higher-cardinality partition key to spread records across shards (and add retries with backoff).",
+        why: "Correct. A hot partition key overloads one shard." },
+      { t: "Increase retention.",
+        why: "Unrelated to write throughput." },
+      { t: "Add more consumers.",
+        why: "Consumers don't affect write limits." },
+      { t: "Switch consumers to enhanced fan-out.",
+        why: "Read-side feature." }
+    ],
+    answer: [0],
+    tip: "Write throttling with spare capacity = hot partition key."
+  },
+  {
+    id: "d4x-10", domain: "d4", topic: "Domain 4 Extras",
+    q: "A Lambda function must parse every new ALB access log file delivered to an S3 bucket and push selected fields to a CloudWatch Logs log group. Which configuration is required?",
+    options: [
+      { t: "An S3 Event Notification for s3:ObjectCreated:* with prefix / suffix filters targeting the Lambda function, and a Lambda resource policy allowing s3.amazonaws.com (with SourceArn).",
+        why: "Correct." },
+      { t: "A Firehose stream with the S3 bucket as its source.",
+        why: "Firehose can't read from S3." },
+      { t: "A CloudWatch Logs subscription filter on the bucket.",
+        why: "Subscription filters apply to log groups." },
+      { t: "An S3 lifecycle rule invoking Lambda.",
+        why: "Lifecycle rules don't invoke functions." }
+    ],
+    answer: [0],
+    tip: "New log file -> process = S3 event notification -> Lambda."
+  },
+  {
+    id: "d4x-11", domain: "d4", topic: "Domain 4 Extras",
+    q: "Two teams each need their own Lambda function triggered when objects are created under the AWSLogs/ prefix in the same bucket. Creating the second notification configuration fails. What should be done?",
+    options: [
+      { t: "Use a single notification to an SNS topic that fans out to both functions, or enable EventBridge on the bucket with two rules.",
+        why: "Correct. Overlapping prefix / event configurations aren't allowed." },
+      { t: "Create a second bucket and copy all logs.",
+        why: "Unnecessary duplication." },
+      { t: "Use an SQS FIFO queue as the target.",
+        why: "S3 notifications don't support FIFO queues." },
+      { t: "Add a suffix to only one configuration.",
+        why: "Still overlapping for matching objects." }
+    ],
+    answer: [0],
+    tip: "Multiple consumers for same S3 events = SNS fan-out / EventBridge."
+  },
+  {
+    id: "d4x-12", domain: "d4", topic: "Domain 4 Extras",
+    q: "A Lambda function processes each new log file uploaded to s3://logs/incoming/ and writes an enriched copy back to s3://logs/incoming/. Invocations and costs grow uncontrollably. What is the cause and fix?",
+    options: [
+      { t: "A recursive loop - the output triggers the function again; write output to a different bucket or prefix not covered by the notification.",
+        why: "Correct." },
+      { t: "Lambda concurrency is too low.",
+        why: "Raising it would make costs worse." },
+      { t: "S3 versioning is enabled.",
+        why: "Not the cause." },
+      { t: "The bucket needs Transfer Acceleration.",
+        why: "Unrelated." }
+    ],
+    answer: [0],
+    tip: "S3 -> Lambda writing back to same prefix = recursive loop."
+  },
+  {
+    id: "d4x-13", domain: "d4", topic: "Domain 4 Extras",
+    q: "Log files arrive in S3 in bursts of thousands per minute. A directly triggered Lambda function is throttled and some files are never processed. What is a more resilient design?",
+    options: [
+      { t: "Send S3 event notifications to an SQS queue (with a DLQ) and have Lambda consume from the queue with controlled concurrency.",
+        why: "Correct. SQS buffers spikes and retries failures." },
+      { t: "Increase the Lambda timeout only.",
+        why: "Doesn't address throttling." },
+      { t: "Use S3 notifications to an SQS FIFO queue.",
+        why: "FIFO isn't supported for S3 notifications." },
+      { t: "Disable S3 notifications and poll the bucket every hour.",
+        why: "Slow and inefficient." }
+    ],
+    answer: [0],
+    tip: "Bursty S3 events = S3 -> SQS -> Lambda."
+  },
+  {
+    id: "d4x-14", domain: "d4", topic: "Domain 4 Extras",
+    q: "A team wants log files arriving in S3 indexed into Amazon OpenSearch Service with no custom Lambda code to maintain. What should they use?",
+    options: [
+      { t: "An Amazon OpenSearch Ingestion pipeline with an S3 source driven by SQS event notifications.",
+        why: "Correct. Managed ingestion from S3." },
+      { t: "Firehose reading from the S3 bucket.",
+        why: "S3 isn't a Firehose source." },
+      { t: "CloudWatch metric streams.",
+        why: "Metrics only." },
+      { t: "Athena CTAS into OpenSearch.",
+        why: "Not supported." }
+    ],
+    answer: [0],
+    tip: "S3 logs -> OpenSearch, no code = OpenSearch Ingestion (S3 + SQS)."
+  },
+  {
+    id: "d4x-15", domain: "d4", topic: "Domain 4 Extras",
+    q: "A new Lambda parser must be run once over 5 years of existing log files already in S3, in addition to processing new files. How should the existing files be processed?",
+    options: [
+      { t: "Use S3 Batch Operations (for example from an S3 Inventory manifest) to invoke the Lambda function for each existing object.",
+        why: "Correct. Event notifications only fire for new events." },
+      { t: "Enable event notifications - they replay historical objects.",
+        why: "Notifications don't fire for existing objects." },
+      { t: "Turn on S3 versioning.",
+        why: "Doesn't trigger processing." },
+      { t: "Use Firehose to re-read the bucket.",
+        why: "Firehose can't read S3." }
+    ],
+    answer: [0],
+    tip: "Process existing S3 objects = S3 Batch Operations."
   }
 ];
+
 
 
 
